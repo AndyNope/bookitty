@@ -119,11 +119,22 @@ const findAmount = (text: string) => {
 };
 
 const findVat = (text: string) => {
-  const match = text.match(/(MwSt|USt)\.?\s*([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%/i);
-  return match?.[2] ? Number(match[2].replace(',', '.')) : undefined;
+  // Keyword before rate: "MwSt 8.1%" or "USt. 19%"
+  const m1 = text.match(/(MwSt|USt)\.?\s*([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%/i);
+  if (m1?.[2]) return Number(m1[2].replace(',', '.'));
+  // Rate before keyword: "8.1% MWST" or "19% USt."
+  const m2 = text.match(/([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%\s*(?:MwSt|USt|MWST)/i);
+  if (m2?.[1]) return Number(m2[1].replace(',', '.'));
+  return undefined;
 };
 
 const findVatAmount = (text: string) => {
+  // Specific Swiss format: "davon 8.1% MWST CHF 13.40" (search full text first)
+  const davon = text.match(
+    /davon\s+[0-9.,]+\s*%\s*(?:MwSt|USt|MWST)\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})/i,
+  );
+  if (davon?.[1]) return currencyToNumber(davon[1]);
+
   const lines = text.split(/\n|\r/).map((line) => line.trim());
   const patterns = [
     /(MwSt|USt)\.?\s*Betrag\s*:?\s*([0-9.,]+)\s*€?/i,
@@ -136,11 +147,19 @@ const findVatAmount = (text: string) => {
       const match = line.match(pattern);
       if (match?.[2]) return currencyToNumber(match[2]);
     }
-    if (/%/.test(line) && /(MwSt|USt)/i.test(line)) {
+    if (/%/.test(line) && /(MwSt|USt|MWST)/i.test(line)) {
+      // Look for amount directly following currency symbol after MWST keyword
+      const near = line.match(
+        /(?:MwSt|USt|MWST)\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+      );
+      if (near?.[1]) return currencyToNumber(near[1]);
+      // Fallback: all decimal amounts on this line; avoid the total by taking the smallest >= 1
       const values = Array.from(
         line.matchAll(/([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2}))/g),
-      ).map((match) => currencyToNumber(match[1]));
-      if (values.length) return values[values.length - 1];
+      )
+        .map((m) => currencyToNumber(m[1]))
+        .filter((v) => v >= 1);
+      if (values.length) return Math.min(...values);
     }
   }
 
@@ -148,9 +167,15 @@ const findVatAmount = (text: string) => {
 };
 
 const findDescription = (text: string) => {
-  const match = text.match(/(Rechnung|Invoice)\s*(Nr\.?|No\.?)?\s*([A-Za-z0-9-]+)/i);
-  if (!match) return undefined;
-  return `Rechnung ${match[3]}`;
+  // "Rechnungs-Nr. 818623" or "Rechnungsnummer 818623"
+  const m1 = text.match(
+    /Rechnungs?[-\s]?(?:Nr\.?|No\.?|nummer)[:\s]+([A-Za-z0-9-]+)/i,
+  );
+  if (m1?.[1]) return `Rechnung ${m1[1]}`;
+  // "Rechnung Nr. 5" or "Invoice 42" (but avoid matching short words)
+  const m2 = text.match(/(Rechnung|Invoice)\s*(?:Nr\.?|No\.?)?\s*([A-Za-z0-9-]{2,})/i);
+  if (m2?.[2] && !/inkl|total|netto|brutto/i.test(m2[2])) return `Rechnung ${m2[2]}`;
+  return undefined;
 };
 
 export const parseTextToDraft = (text: string, fallbackName: string): BookingDraft => {

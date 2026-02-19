@@ -131,28 +131,41 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
 
   if (file.type === 'application/pdf') {
     detection = 'PDF';
-    const blocks = await extractPdfTextBlocks(file);
-    if (blocks.length) {
-      const draft = parseBlocksToDraft(blocks, baseName);
-      text = blocks.map((item) => item.str).join(' ');
-      qrText = await decodeQrFromPdf(file);
-      if (qrText) {
-        const qrDraft = parseSwissQr(qrText);
-        if (qrDraft?.amount !== undefined) draft.amount = qrDraft.amount;
-        if (qrDraft?.currency) draft.currency = qrDraft.currency;
-        detection = 'PDF+Layout+QR';
-      } else {
-        detection = 'PDF+Layout';
-      }
-      const template = findTemplate(file.name);
-      if (template) {
-        Object.assign(draft, template.draft);
-        detection = `${detection}+Template`;
-        templateApplied = true;
-      }
-      return { draft, detection, templateApplied };
+    let blocks: Awaited<ReturnType<typeof extractPdfTextBlocks>> = [];
+    try {
+      blocks = await extractPdfTextBlocks(file);
+    } catch {
+      /* fall through to text extraction */
     }
-    text = await extractPdfText(file);
+    if (blocks.length) {
+      try {
+        const draft = parseBlocksToDraft(blocks, baseName);
+        text = blocks.map((item) => item.str).join(' ');
+        qrText = await decodeQrFromPdf(file);
+        if (qrText) {
+          const qrDraft = parseSwissQr(qrText);
+          if (qrDraft?.amount !== undefined) draft.amount = qrDraft.amount;
+          if (qrDraft?.currency) draft.currency = qrDraft.currency;
+          detection = 'PDF+Layout+QR';
+        } else {
+          detection = 'PDF+Layout';
+        }
+        const template = findTemplate(file.name);
+        if (template) {
+          Object.assign(draft, template.draft);
+          detection = `${detection}+Template`;
+          templateApplied = true;
+        }
+        return { draft, detection, templateApplied };
+      } catch {
+        /* fall through to plain text extraction */
+      }
+    }
+    try {
+      text = await extractPdfText(file);
+    } catch {
+      text = blocks.map((item) => item.str).join(' ');
+    }
     qrText = await decodeQrFromPdf(file);
   } else {
     detection = 'OCR';
