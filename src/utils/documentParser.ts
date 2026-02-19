@@ -178,6 +178,27 @@ const findDescription = (text: string) => {
   return undefined;
 };
 
+/**
+ * Extract the vendor/sender company name from invoice text.
+ * Looks for legal-form suffixes (GmbH, AG, SA, KG, Inc, Ltd, …) and returns
+ * a normalised lowercase slug suitable as a template pattern key.
+ */
+export const findVendorName = (text: string): string | undefined => {
+  // Match lines that contain a legal-form indicator
+  const match = text.match(
+    /^(.{2,60}?\b(?:GmbH|AG|SA|Sàrl|KG|OHG|GbR|Inc\.?|Ltd\.?|Corp\.?|S\.A\.|S\.r\.l\.))\b/im,
+  );
+  if (!match?.[1]) return undefined;
+  // Normalise: lowercase, keep alphanumeric + space, trim
+  return match[1]
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüéàè ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 40);
+};
+
 export const parseTextToDraft = (text: string, fallbackName: string): BookingDraft => {
   const today = new Date().toISOString().split('T')[0];
   const date = findDate(text) ?? today;

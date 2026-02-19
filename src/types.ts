@@ -25,7 +25,9 @@ export type DocumentImport = {
   uploadedAt: string;
   status: DocumentStatus;
   draft: BookingDraft;
+  originalDraft?: BookingDraft;
   previewUrl?: string;
   detection?: string;
   templateApplied?: boolean;
+  vendorPattern?: string;
 };

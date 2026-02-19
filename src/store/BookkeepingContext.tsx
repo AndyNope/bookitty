@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { Booking, BookingDraft, DocumentImport } from '../types';
 import { initialBookings, initialDocuments } from '../data/mock';
+import { upsertTemplate } from '../utils/templateStore';
 
 const createId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -70,6 +71,7 @@ type BookkeepingContextValue = {
     draftOverride?: BookingDraft,
     detection?: string,
     templateApplied?: boolean,
+    vendorPattern?: string,
   ) => void;
   updateDocumentDraft: (id: string, draft: BookingDraft) => void;
   confirmDocument: (id: string) => void;
@@ -110,6 +112,7 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
     draftOverride?: BookingDraft,
     detection?: string,
     templateApplied?: boolean,
+    vendorPattern?: string,
   ) => {
     const baseName = file.name.replace(/\.[^/.]+$/, '');
     const today = new Date().toISOString().split('T')[0];
@@ -134,9 +137,11 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
         uploadedAt: today,
         status: 'In Prüfung',
         draft,
+        originalDraft: { ...draft },
         previewUrl,
         detection,
         templateApplied,
+        vendorPattern,
       },
       ...prev,
     ]);
@@ -153,6 +158,21 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
     if (!doc) return;
 
     addBooking(doc.draft);
+
+    // Auto-learn: save stable fields as a vendor template so next invoice
+    // from the same sender is pre-filled correctly
+    const pattern =
+      doc.vendorPattern ??
+      doc.fileName.replace(/\.[^/.]+$/, '').slice(0, 30).toLowerCase();
+    upsertTemplate(pattern, {
+      account: doc.draft.account,
+      category: doc.draft.category,
+      vatRate: doc.draft.vatRate,
+      currency: doc.draft.currency,
+      type: doc.draft.type,
+      paymentStatus: doc.draft.paymentStatus,
+    });
+
     setDocuments((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, status: 'Gebucht' } : item,

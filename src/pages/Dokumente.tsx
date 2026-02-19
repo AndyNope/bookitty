@@ -38,8 +38,8 @@ const Dokumente = () => {
 
     try {
       setIsProcessing(true);
-      const { draft, detection, templateApplied } = await processDocument(file);
-      addDocument(file, draft, detection, templateApplied);
+      const { draft, detection, templateApplied, vendorPattern } = await processDocument(file);
+      addDocument(file, draft, detection, templateApplied, vendorPattern);
     } catch {
       addDocument(file);
     } finally {
@@ -99,7 +99,8 @@ const Dokumente = () => {
                     <p className="font-medium text-slate-900">{doc.fileName}</p>
                     <p className="text-xs text-slate-500">
                       {doc.uploadedAt} · Erkennung {doc.detection ?? (doc.fileName.endsWith('.pdf') ? 'PDF' : 'Standard')}
-                      {doc.templateApplied ? ' · Vorlage' : ''}
+                      {doc.templateApplied ? ' · ✓ Vorlage' : ''}
+                      {doc.vendorPattern ? ` · 🏷 ${doc.vendorPattern}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

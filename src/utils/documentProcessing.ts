@@ -7,6 +7,7 @@ import {
   extractPdfTextBlocks,
   parseBlocksToDraft,
   parseTextToDraft,
+  findVendorName,
 } from './documentParser';
 import { findTemplate } from './templateStore';
 
@@ -120,6 +121,7 @@ export type ProcessedDocument = {
   draft: BookingDraft;
   detection: string;
   templateApplied: boolean;
+  vendorPattern?: string;
 };
 
 export const processDocument = async (file: File): Promise<ProcessedDocument> => {
@@ -150,13 +152,14 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
         } else {
           detection = 'PDF+Layout';
         }
-        const template = findTemplate(file.name);
+        const template = findTemplate(file.name, text);
         if (template) {
           Object.assign(draft, template.draft);
           detection = `${detection}+Template`;
           templateApplied = true;
         }
-        return { draft, detection, templateApplied };
+        const vendorPattern = findVendorName(text);
+        return { draft, detection, templateApplied, vendorPattern };
       } catch {
         /* fall through to plain text extraction */
       }
@@ -218,12 +221,14 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
     detection = detection === 'PDF' ? 'PDF+QR' : 'OCR+QR';
   }
 
-  const template = findTemplate(file.name);
+  const vendorPattern = findVendorName(text);
+
+  const template = findTemplate(file.name, text);
   if (template) {
     Object.assign(draft, template.draft);
     detection = `${detection}+Template`;
     templateApplied = true;
   }
 
-  return { draft, detection, templateApplied };
+  return { draft, detection, templateApplied, vendorPattern };
 };
