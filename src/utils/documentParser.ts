@@ -66,13 +66,13 @@ const findDate = (text: string) => {
 };
 
 const amountPatterns = [
-  /Rechnungsbetrag\s*:?\s*([0-9.,]+)\s*€?/i,
-  /Gesamtbetrag\s*:?\s*([0-9.,]+)\s*€?/i,
-  /Gesamt\s*:?\s*([0-9.,]+)\s*€?/i,
-  /Brutto\s*:?\s*([0-9.,]+)\s*€?/i,
-  /Endbetrag\s*:?\s*([0-9.,]+)\s*€?/i,
-  /Summe\s*:?\s*([0-9.,]+)\s*€?/i,
-  /Rechnungstotal\s*(inkl\.?\s*MWST)?\s*(CHF|EUR)?\s*([0-9.,]+)/i,
+  /Rechnungsbetrag\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Gesamtbetrag\s+(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Gesamt\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Brutto\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Endbetrag\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Total\s+(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Rechnungstotal\s*(?:inkl\.?\s*MWST)?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
 ];
 
 const extractAmountFromLine = (line: string) => {
@@ -91,6 +91,22 @@ const findAmount = (text: string) => {
     const value = extractAmountFromLine(line);
     if (value !== undefined) return value;
   }
+
+  // Multi-line: "Gesamtbetrag CHF" on one line, "523.50" on the next
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (/gesamtbetrag|rechnungstotal/i.test(lines[i])) {
+      const nextAmount = lines[i + 1]?.match(/^([0-9]+[.,][0-9]{2})$/);
+      if (nextAmount) return currencyToNumber(nextAmount[1]);
+    }
+  }
+
+  // "CHF 523.50" standalone (e.g. from the QR Zahlteil section OCR)
+  const currencyPriceValues = Array.from(
+    text.matchAll(/\b(?:CHF|EUR|USD|GBP)\s+([1-9][0-9]*[.,][0-9]{2})\b/g),
+  )
+    .map((m) => currencyToNumber(m[1]))
+    .filter((v) => v >= 1);
+  if (currencyPriceValues.length) return Math.max(...currencyPriceValues);
 
   const allValues = Array.from(
     text.matchAll(/([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2}))\s*€?/g),
