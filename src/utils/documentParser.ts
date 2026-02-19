@@ -14,6 +14,13 @@ const currencyToNumber = (value: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+/**
+ * Normalise Swiss apostrophe thousands separators: 1'234.50 → 1234.50
+ * Also handles the Unicode right-single-quotation-mark variant.
+ */
+const normalizeNumbers = (text: string): string =>
+  text.replace(/(\d)[\u2019'](\d{3})/g, '$1$2');
+
 const findCurrency = (text: string) => {
   if (/[€]|\bEUR\b/i.test(text)) return 'EUR';
   if (/\bCHF\b|SFr|Fr\./i.test(text)) return 'CHF';
@@ -84,7 +91,9 @@ const extractAmountFromLine = (line: string) => {
   return undefined;
 };
 
-const findAmount = (text: string) => {
+const findAmount = (rawText: string) => {
+  // Normalise Swiss apostrophe thousands separators before all matching
+  const text = normalizeNumbers(rawText);
   const lines = text.split(/\n|\r/).map((line) => line.trim());
 
   for (const line of lines) {
@@ -92,10 +101,11 @@ const findAmount = (text: string) => {
     if (value !== undefined) return value;
   }
 
-  // Multi-line: "Gesamtbetrag CHF" on one line, "523.50" on the next
+  // Multi-line: keyword on one line, amount on the next
+  // e.g. "Gesamtbetrag CHF" / "1234.50"  or  "Total" / "523.50"
   for (let i = 0; i < lines.length - 1; i++) {
-    if (/gesamtbetrag|rechnungstotal/i.test(lines[i])) {
-      const nextAmount = lines[i + 1]?.match(/^([0-9]+[.,][0-9]{2})$/);
+    if (/gesamtbetrag|rechnungstotal|rechnungsbetrag|endbetrag|total/i.test(lines[i])) {
+      const nextAmount = lines[i + 1]?.match(/^\s*([0-9]+[.,][0-9]{2})\s*$/);
       if (nextAmount) return currencyToNumber(nextAmount[1]);
     }
   }
@@ -108,8 +118,10 @@ const findAmount = (text: string) => {
     .filter((v) => v >= 1);
   if (currencyPriceValues.length) return Math.max(...currencyPriceValues);
 
+  // Generic fallback: collect all decimal numbers ≥ 1 and return the largest
+  // Using [0-9]+ so post-normalisation values like 1234.50 are matched
   const allValues = Array.from(
-    text.matchAll(/([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2}))\s*€?/g),
+    text.matchAll(/([0-9]+[.,][0-9]{2})\b/g),
   )
     .map((match) => currencyToNumber(match[1]))
     .filter((value) => value >= 1);
@@ -316,7 +328,7 @@ export const extractPdfTextBlocks = async (file: File) => {
 const groupLines = (blocks: TextBlock[]) => {
   const buckets = new Map<number, TextBlock[]>();
   blocks.forEach((block) => {
-    const key = Math.round(block.y / 2) * 2;
+    const key = Math.round(block.y / 6) * 6;
     const line = buckets.get(key) ?? [];
     line.push(block);
     buckets.set(key, line);
@@ -330,8 +342,9 @@ const groupLines = (blocks: TextBlock[]) => {
 };
 
 const extractLastAmount = (line: string) => {
+  const normalized = normalizeNumbers(line);
   const values = Array.from(
-    line.matchAll(/([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2}))/g),
+    normalized.matchAll(/([0-9]+[.,][0-9]{2})\b/g),
   ).map((match) => currencyToNumber(match[1]));
   return values.length ? values[values.length - 1] : undefined;
 };
@@ -348,24 +361,26 @@ export const parseBlocksToDraft = (
   let vatAmount: number | undefined;
   let vatRate: number | undefined;
 
-  lines.forEach((line) => {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const lowered = line.toLowerCase();
+    const nextLine = lines[i + 1] ?? '';
     if (/netto/.test(lowered)) {
-      netAmount = extractLastAmount(line) ?? netAmount;
+      netAmount = extractLastAmount(line) ?? extractLastAmount(nextLine) ?? netAmount;
     }
-    if (/end(summe)?|brutto|gesamtbetrag|rechnungsbetrag|rechnungstotal/.test(lowered)) {
-      const candidate = extractLastAmount(line);
+    if (/total|end(summe)?|brutto|gesamtbetrag|rechnungsbetrag|rechnungstotal/.test(lowered)) {
+      const candidate = extractLastAmount(line) ?? extractLastAmount(nextLine);
       if (candidate !== undefined) {
         grossAmount =
           grossAmount !== undefined ? Math.max(grossAmount, candidate) : candidate;
       }
     }
     if (/(mwst|ust|umsatzsteuer)/.test(lowered)) {
-      vatAmount = extractLastAmount(line) ?? vatAmount;
+      vatAmount = extractLastAmount(line) ?? extractLastAmount(nextLine) ?? vatAmount;
       const rateMatch = line.match(/([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%/);
       if (rateMatch?.[1]) vatRate = Number(rateMatch[1].replace(',', '.'));
     }
-  });
+  }
 
   const parsed = parseTextToDraft(text, fallbackName);
   const amount = netAmount ?? grossAmount ?? parsed.amount ?? 0;
