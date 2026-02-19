@@ -1,0 +1,54 @@
+import type { Booking } from '../types';
+
+const currency = (value: number, currencyCode: string) =>
+  new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: currencyCode,
+  }).format(value);
+
+const BookingTable = ({ bookings }: { bookings: Booking[] }) => (
+  <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <table className="min-w-[900px] w-full text-left text-sm">
+      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <tr>
+          <th className="px-4 py-3">Datum</th>
+          <th className="px-4 py-3">Beschreibung</th>
+          <th className="px-4 py-3">Konto</th>
+          <th className="px-4 py-3">Kategorie</th>
+          <th className="px-4 py-3 text-right">Betrag</th>
+          <th className="px-4 py-3">Typ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bookings.map((booking) => (
+          <tr key={booking.id} className="border-t border-slate-100">
+            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+              {booking.date}
+            </td>
+            <td className="px-4 py-3 text-slate-900">
+              {booking.description}
+            </td>
+            <td className="px-4 py-3 text-slate-600">{booking.account}</td>
+            <td className="px-4 py-3 text-slate-600">{booking.category}</td>
+            <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">
+              {currency(booking.amount, booking.currency)}
+            </td>
+            <td className="px-4 py-3">
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+                  booking.type === 'Einnahme'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-rose-50 text-rose-700'
+                }`}
+              >
+                {booking.type}
+              </span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+export default BookingTable;
