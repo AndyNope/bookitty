@@ -105,10 +105,10 @@ const findAmount = (rawText: string) => {
   }
 
   // Multi-line: keyword on one line, amount on the next
-  // e.g. "Gesamtbetrag CHF" / "1234.50"  or  "Total" / "523.50"
+  // e.g. "Gesamtbetrag CHF" / "1234.50"  or  "Endsumme" / "€ 222,51"
   for (let i = 0; i < lines.length - 1; i++) {
     if (/gesamtbetrag|rechnungstotal|rechnungsbetrag|endbetrag|endsumme|total/i.test(lines[i])) {
-      const nextAmount = lines[i + 1]?.match(/^\s*([0-9]+[.,][0-9]{2})\s*$/);
+      const nextAmount = lines[i + 1]?.match(/^\s*(?:[€$£]|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\s*$/);
       if (nextAmount) return currencyToNumber(nextAmount[1]);
     }
   }
@@ -389,6 +389,13 @@ export const parseBlocksToDraft = (
   const parsed = parseTextToDraft(text, fallbackName);
   // Prefer the gross/total amount for bookkeeping; use net only as last resort
   const amount = grossAmount ?? netAmount ?? parsed.amount ?? 0;
+  console.log('[Bookitty] parseBlocksToDraft:', {
+    lines: lines.slice(0, 5),
+    grossAmount,
+    netAmount,
+    parsedAmount: parsed.amount,
+    finalAmount: amount,
+  });
   const rate = vatRate ?? parsed.vatRate;
   const hasNetto = netAmount !== undefined || /netto/i.test(text);
   const inferredVatAmount =

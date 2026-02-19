@@ -142,6 +142,21 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
     if (blocks.length) {
       try {
         const draft = parseBlocksToDraft(blocks, baseName);
+        // If block-layout parsing couldn't find an amount, retry with the
+        // plain joined text (pdfjs simple extraction) which works better for
+        // right-aligned table layouts where keyword and value are in separate blocks
+        if (draft.amount === 0) {
+          try {
+            const plainText = await extractPdfText(file);
+            console.log('[Bookitty] block amount=0, plain text fallback, first 300 chars:', plainText.slice(0, 300));
+            const { parseTextToDraft: _p } = await import('./documentParser');
+            const plainDraft = _p(plainText, baseName);
+            if (plainDraft.amount > 0) {
+              draft.amount = plainDraft.amount;
+              if (!draft.vatAmount && plainDraft.vatAmount) draft.vatAmount = plainDraft.vatAmount;
+            }
+          } catch { /* ignore */ }
+        }
         text = blocks.map((item) => item.str).join(' ');
         qrText = await decodeQrFromPdf(file);
         if (qrText) {
@@ -154,7 +169,9 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
         }
         const template = findTemplate(file.name, text);
         if (template) {
-          Object.assign(draft, template.draft);
+          // Never let a cached template override the invoice-specific amount
+          const { amount: _a, vatAmount: _va, date: _d, description: _desc, ...stableFields } = template.draft;
+          Object.assign(draft, stableFields);
           detection = `${detection}+Template`;
           templateApplied = true;
         }
