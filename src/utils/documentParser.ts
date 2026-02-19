@@ -331,7 +331,7 @@ export const extractPdfTextBlocks = async (file: File) => {
 const groupLines = (blocks: TextBlock[]) => {
   const buckets = new Map<number, TextBlock[]>();
   blocks.forEach((block) => {
-    const key = Math.round(block.y / 2) * 2;
+    const key = Math.round(block.y / 4) * 4;
     const line = buckets.get(key) ?? [];
     line.push(block);
     buckets.set(key, line);
@@ -368,18 +368,19 @@ export const parseBlocksToDraft = (
     const line = lines[i];
     const lowered = line.toLowerCase();
     const nextLine = lines[i + 1] ?? '';
+    const prevLine = lines[i - 1] ?? '';
     if (/netto/.test(lowered)) {
-      netAmount = extractLastAmount(line) ?? extractLastAmount(nextLine) ?? netAmount;
+      netAmount = extractLastAmount(line) ?? extractLastAmount(nextLine) ?? extractLastAmount(prevLine) ?? netAmount;
     }
     if (/total|end(summe)?|brutto|gesamtbetrag|rechnungsbetrag|rechnungstotal/.test(lowered)) {
-      const candidate = extractLastAmount(line) ?? extractLastAmount(nextLine);
+      const candidate = extractLastAmount(line) ?? extractLastAmount(nextLine) ?? extractLastAmount(prevLine);
       if (candidate !== undefined) {
         grossAmount =
           grossAmount !== undefined ? Math.max(grossAmount, candidate) : candidate;
       }
     }
     if (/(mwst|ust|umsatzsteuer)/.test(lowered)) {
-      vatAmount = extractLastAmount(line) ?? extractLastAmount(nextLine) ?? vatAmount;
+      vatAmount = extractLastAmount(line) ?? extractLastAmount(nextLine) ?? extractLastAmount(prevLine) ?? vatAmount;
       const rateMatch = line.match(/([0-9]{1,2}(?:[.,][0-9]{1,2})?)\s*%/);
       if (rateMatch?.[1]) vatRate = Number(rateMatch[1].replace(',', '.'));
     }
