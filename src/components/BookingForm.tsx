@@ -6,11 +6,13 @@ import {
   formatAccount,
   getCategoryLabel,
 } from '../data/chAccounts';
+import { suggestContraAccount } from '../utils/documentParser';
 
 const initialDraft: BookingDraft = {
   date: new Date().toISOString().split('T')[0],
   description: '',
   account: formatAccount(accounts[0]),
+  contraAccount: '2000 VLL Kreditoren',
   category: getCategoryLabel(accounts[0].categoryCode),
   amount: 0,
   vatAmount: undefined,
@@ -35,6 +37,17 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
+  /** Update type or paymentStatus and re-suggest the contra account automatically */
+  const updateWithContra = (patch: Partial<BookingDraft>) => {
+    setDraft((prev) => {
+      const next = { ...prev, ...patch };
+      return {
+        ...next,
+        contraAccount: suggestContraAccount(next.type, next.paymentStatus),
+      };
+    });
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit(draft);
@@ -42,6 +55,16 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
   };
 
   const vatLabel = draft.currency === 'CHF' ? 'MwSt.' : 'USt.';
+
+  // Contra account helper text shown beneath the field
+  const contraHint =
+    draft.type === 'Ausgabe'
+      ? draft.paymentStatus === 'Bezahlt'
+        ? 'Soll: Aufwandskonto / Haben: Bank'
+        : 'Soll: Aufwandskonto / Haben: Kreditoren'
+      : draft.paymentStatus === 'Bezahlt'
+        ? 'Soll: Bank / Haben: Erlöskonto'
+        : 'Soll: Debitoren / Haben: Erlöskonto';
 
   return (
     <form
@@ -74,7 +97,7 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
           />
         </label>
         <label className="text-sm text-slate-600">
-          Konto
+          Konto (Soll)
           <select
             value={draft.account}
             onChange={(event) => {
@@ -97,6 +120,21 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
           </select>
         </label>
         <label className="text-sm text-slate-600">
+          Gegenkonto (Haben)
+          <select
+            value={draft.contraAccount}
+            onChange={(event) => updateField('contraAccount', event.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+          >
+            {accounts.map((account) => (
+              <option key={account.code} value={formatAccount(account)}>
+                {formatAccount(account)}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-slate-400">{contraHint}</span>
+        </label>
+        <label className="text-sm text-slate-600">
           Kategorie
           <select
             value={draft.category}
@@ -112,7 +150,20 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
           </select>
         </label>
         <label className="text-sm text-slate-600">
-          Betrag (EUR)
+          Typ
+          <select
+            value={draft.type}
+            onChange={(event) =>
+              updateWithContra({ type: event.target.value as BookingType })
+            }
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+          >
+            <option value="Einnahme">Einnahme</option>
+            <option value="Ausgabe">Ausgabe</option>
+          </select>
+        </label>
+        <label className="text-sm text-slate-600">
+          Betrag
           <input
             type="number"
             step="0.01"
@@ -163,7 +214,7 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
           <select
             value={draft.paymentStatus}
             onChange={(event) =>
-              updateField('paymentStatus', event.target.value as BookingDraft['paymentStatus'])
+              updateWithContra({ paymentStatus: event.target.value as BookingDraft['paymentStatus'] })
             }
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
           >
@@ -172,7 +223,7 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
           </select>
         </label>
         <label className="text-sm text-slate-600">
-          USt Betrag (EUR)
+          {vatLabel} Betrag
           <input
             type="number"
             step="0.01"
@@ -184,21 +235,8 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
               )
             }
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-            placeholder="z.B. 35,53"
+            placeholder="z.B. 13.40"
           />
-        </label>
-        <label className="text-sm text-slate-600">
-          Typ
-          <select
-            value={draft.type}
-            onChange={(event) =>
-              updateField('type', event.target.value as BookingType)
-            }
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-          >
-            <option value="Einnahme">Einnahme</option>
-            <option value="Ausgabe">Ausgabe</option>
-          </select>
         </label>
       </div>
       <div className="mt-6 flex justify-end gap-3">

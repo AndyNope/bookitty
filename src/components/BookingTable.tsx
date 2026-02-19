@@ -8,13 +8,17 @@ const currency = (value: number, currencyCode: string) =>
 
 const BookingTable = ({ bookings }: { bookings: Booking[] }) => (
   <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <table className="min-w-[900px] w-full text-left text-sm">
+    <table className="min-w-[1000px] w-full text-left text-sm">
       <thead className="bg-slate-50 text-xs uppercase text-slate-500">
         <tr>
           <th className="px-4 py-3">Datum</th>
           <th className="px-4 py-3">Beschreibung</th>
-          <th className="px-4 py-3">Konto</th>
-          <th className="px-4 py-3">Kategorie</th>
+          <th className="px-4 py-3">
+            <span className="text-emerald-600">Soll</span>
+          </th>
+          <th className="px-4 py-3">
+            <span className="text-slate-500">Haben</span>
+          </th>
           <th className="px-4 py-3 text-right">Betrag</th>
           <th className="px-4 py-3">Typ</th>
         </tr>
@@ -28,8 +32,12 @@ const BookingTable = ({ bookings }: { bookings: Booking[] }) => (
             <td className="px-4 py-3 text-slate-900">
               {booking.description}
             </td>
-            <td className="px-4 py-3 text-slate-600">{booking.account}</td>
-            <td className="px-4 py-3 text-slate-600">{booking.category}</td>
+            <td className="px-4 py-3 text-slate-700 text-xs">
+              {booking.account}
+            </td>
+            <td className="px-4 py-3 text-slate-400 text-xs">
+              {booking.contraAccount}
+            </td>
             <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">
               {currency(booking.amount, booking.currency)}
             </td>

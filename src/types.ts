@@ -6,6 +6,8 @@ export type Booking = {
   date: string;
   description: string;
   account: string;
+  /** Gegenkonto (Soll/Haben – double-entry contra account) */
+  contraAccount: string;
   category: string;
   amount: number;
   vatAmount?: number;

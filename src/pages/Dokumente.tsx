@@ -4,6 +4,7 @@ import { useBookkeeping } from '../store/BookkeepingContext';
 import type { BookingDraft } from '../types';
 import { processDocument } from '../utils/documentProcessing';
 import { addTemplate } from '../utils/templateStore';
+import { suggestContraAccount } from '../utils/documentParser';
 import {
   accounts,
   accountCategories,
@@ -54,6 +55,15 @@ const Dokumente = () => {
     updateDocumentDraft(selectedDocument.id, {
       ...selectedDocument.draft,
       ...patch,
+    });
+  };
+
+  const updateDraftWithContra = (patch: Partial<BookingDraft>) => {
+    if (!selectedDocument) return;
+    const next = { ...selectedDocument.draft, ...patch };
+    updateDocumentDraft(selectedDocument.id, {
+      ...next,
+      contraAccount: suggestContraAccount(next.type, next.paymentStatus),
     });
   };
 
@@ -167,7 +177,7 @@ const Dokumente = () => {
                   />
                 </label>
                 <label>
-                  Konto
+                  Konto (Soll)
                   <select
                     value={selectedDocument.draft.account}
                     onChange={(event) => {
@@ -181,6 +191,20 @@ const Dokumente = () => {
                         });
                       }
                     }}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                  >
+                    {accounts.map((account) => (
+                      <option key={account.code} value={formatAccount(account)}>
+                        {formatAccount(account)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Gegenkonto (Haben)
+                  <select
+                    value={selectedDocument.draft.contraAccount ?? ''}
+                    onChange={(event) => updateDraft({ contraAccount: event.target.value })}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
                     {accounts.map((account) => (
@@ -254,7 +278,7 @@ const Dokumente = () => {
                   <select
                     value={selectedDocument.draft.type}
                     onChange={(event) =>
-                      updateDraft({
+                      updateDraftWithContra({
                         type: event.target.value as BookingDraft['type'],
                       })
                     }
@@ -294,7 +318,7 @@ const Dokumente = () => {
                   <select
                     value={selectedDocument.draft.paymentStatus}
                     onChange={(event) =>
-                      updateDraft({
+                      updateDraftWithContra({
                         paymentStatus: event.target.value as BookingDraft['paymentStatus'],
                       })
                     }

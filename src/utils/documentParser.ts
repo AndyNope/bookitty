@@ -199,6 +199,28 @@ export const findVendorName = (text: string): string | undefined => {
     .slice(0, 40);
 };
 
+/**
+ * Suggest the contra account (Gegenkonto) for a booking using Swiss KMU logic:
+ *
+ * Ausgabe + Bezahlt  → 1020 Bankguthaben   (bank account was debited)
+ * Ausgabe + Offen    → 2000 VLL Kreditoren  (accounts payable)
+ * Einnahme + Bezahlt → 1020 Bankguthaben   (money received on bank)
+ * Einnahme + Offen   → 1100 FLL Debitoren  (accounts receivable)
+ */
+export const suggestContraAccount = (
+  type: 'Einnahme' | 'Ausgabe',
+  paymentStatus: 'Offen' | 'Bezahlt',
+): string => {
+  if (type === 'Ausgabe') {
+    return paymentStatus === 'Bezahlt'
+      ? '1020 Bankguthaben'
+      : '2000 VLL Kreditoren';
+  }
+  return paymentStatus === 'Bezahlt'
+    ? '1020 Bankguthaben'
+    : '1100 FLL Debitoren';
+};
+
 export const parseTextToDraft = (text: string, fallbackName: string): BookingDraft => {
   const today = new Date().toISOString().split('T')[0];
   const date = findDate(text) ?? today;
@@ -238,6 +260,7 @@ export const parseTextToDraft = (text: string, fallbackName: string): BookingDra
     date,
     description,
     account,
+    contraAccount: paymentStatus === 'Bezahlt' ? '1020 Bankguthaben' : '2000 VLL Kreditoren',
     category,
     amount,
     vatAmount: inferredVatAmount,

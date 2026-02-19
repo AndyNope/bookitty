@@ -24,6 +24,9 @@ const normalizeDraft = (draft: BookingDraft): BookingDraft => ({
   paymentStatus: draft.paymentStatus ?? 'Offen',
   vatRate: draft.vatRate ?? 0,
   vatAmount: draft.vatAmount,
+  contraAccount:
+    draft.contraAccount ??
+    (draft.paymentStatus === 'Bezahlt' ? '1020 Bankguthaben' : '2000 VLL Kreditoren'),
 });
 
 const normalizeBooking = (booking: Booking): Booking => ({
@@ -32,6 +35,9 @@ const normalizeBooking = (booking: Booking): Booking => ({
   paymentStatus: booking.paymentStatus ?? 'Offen',
   vatRate: booking.vatRate ?? 0,
   vatAmount: booking.vatAmount,
+  contraAccount:
+    booking.contraAccount ??
+    (booking.paymentStatus === 'Bezahlt' ? '1020 Bankguthaben' : '2000 VLL Kreditoren'),
 });
 
 const loadBookings = () => {
@@ -122,6 +128,7 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
       date: today,
       description: `Rechnung ${baseName}`,
       account: 'Bürobedarf',
+      contraAccount: '2000 VLL Kreditoren',
       category: 'Bürobedarf',
       amount: Number((Math.random() * 400 + 80).toFixed(2)),
       vatRate: 19,
