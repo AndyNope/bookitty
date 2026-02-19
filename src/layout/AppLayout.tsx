@@ -11,11 +11,12 @@ const AppLayout = () => (
   <div className="min-h-screen bg-slate-50 text-slate-900">
     <div className="mx-auto flex max-w-7xl gap-6 px-6 py-6">
       <aside className="hidden w-60 flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:flex">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Bookitty</p>
-          <h1 className="text-xl font-semibold text-slate-900">
-            Finanzbuchhaltung
-          </h1>
+        <div className="flex items-center gap-3">
+          <img src="/logo.svg" alt="Bookitty" className="h-12 w-12 flex-shrink-0" />
+          <div>
+            <p className="text-base font-bold text-slate-900">Bookitty</p>
+            <p className="text-xs text-slate-500">Finanzbuchhaltung</p>
+          </div>
         </div>
         <nav className="flex flex-col gap-2 text-sm">
           {navItems.map((item) => (

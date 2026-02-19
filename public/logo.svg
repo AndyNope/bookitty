@@ -1,0 +1,21 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="95" fill="#4B3061" />
+  
+  <path d="M50 130 Q100 110 150 130 V145 Q100 125 50 145 Z" fill="#F0EAD6" />
+  <path d="M50 120 Q100 100 150 120 V135 Q100 115 50 135 Z" fill="#FFFFFF" />
+  
+  <circle cx="100" cy="85" r="30" fill="#FFB347" />
+  
+  <path d="M75 70 L85 50 L95 70 Z" fill="#FFB347" />
+  <path d="M105 70 L115 50 L125 70 Z" fill="#FFB347" />
+  
+  <path d="M85 85 Q90 80 95 85" stroke="#4B3061" stroke-width="2" fill="none" />
+  <path d="M105 85 Q110 80 115 85" stroke="#4B3061" stroke-width="2" fill="none" />
+  
+  <path d="M98 92 Q100 95 102 92" stroke="#4B3061" stroke-width="1.5" fill="none" />
+  
+  <circle cx="85" cy="115" r="8" fill="#FFB347" />
+  <circle cx="115" cy="115" r="8" fill="#FFB347" />
+  
+  <text x="100" y="175" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#F0EAD6" text-anchor="middle">Bookitty</text>
+</svg>
