@@ -307,6 +307,7 @@ type TextBlock = {
   str: string;
   x: number;
   y: number;
+  width: number;
 };
 
 export const extractPdfTextBlocks = async (file: File) => {
@@ -317,11 +318,11 @@ export const extractPdfTextBlocks = async (file: File) => {
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent();
-    const items = content.items as Array<{ str?: string; transform?: number[] }>;
+    const items = content.items as Array<{ str?: string; transform?: number[]; width?: number }>;
     items.forEach((item) => {
       if (!item.str || !item.transform) return;
       const [, , , , x, y] = item.transform;
-      blocks.push({ str: item.str, x, y });
+      blocks.push({ str: item.str, x, y, width: item.width ?? 0 });
     });
   }
 
@@ -339,9 +340,21 @@ const groupLines = (blocks: TextBlock[]) => {
 
   return Array.from(buckets.entries())
     .sort((a, b) => b[0] - a[0])
-    .map(([, lineBlocks]) =>
-      lineBlocks.sort((a, b) => a.x - b.x).map((item) => item.str).join(' '),
-    );
+    .map(([, lineBlocks]) => {
+      const sorted = lineBlocks.sort((a, b) => a.x - b.x);
+      if (!sorted.length) return '';
+      let result = sorted[0].str;
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        // If the gap between end of previous item and start of current is tiny
+        // (< 3pt), the PDF split a logical run (e.g. a number) across items.
+        // Concatenate without a space so "€ 2" + "22,51" → "€ 222,51".
+        const gap = curr.x - (prev.x + prev.width);
+        result += (gap < 3 ? '' : ' ') + curr.str;
+      }
+      return result;
+    });
 };
 
 const extractLastAmount = (line: string) => {
