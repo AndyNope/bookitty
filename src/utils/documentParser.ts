@@ -73,13 +73,16 @@ const findDate = (text: string) => {
 };
 
 const amountPatterns = [
-  /Rechnungsbetrag\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
-  /Gesamtbetrag\s+(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
-  /Gesamt\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
-  /Brutto\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
-  /Endbetrag\s*:?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
-  /Total\s+(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
-  /Rechnungstotal\s*(?:inkl\.?\s*MWST)?\s*(?:CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Rechnungsbetrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Endsumme\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Gesamtbetrag\s+(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Gesamt(?!\s*\()\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Brutto\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Endbetrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /(?:Summe\s+)?Total\s+(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Rechnungstotal\s*(?:inkl\.?\s*MWST)?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  // "Summe Netto" / "Nettobetrag" – lowest priority, only used when nothing else found
+  /Nettobetrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
 ];
 
 const extractAmountFromLine = (line: string) => {
@@ -104,7 +107,7 @@ const findAmount = (rawText: string) => {
   // Multi-line: keyword on one line, amount on the next
   // e.g. "Gesamtbetrag CHF" / "1234.50"  or  "Total" / "523.50"
   for (let i = 0; i < lines.length - 1; i++) {
-    if (/gesamtbetrag|rechnungstotal|rechnungsbetrag|endbetrag|total/i.test(lines[i])) {
+    if (/gesamtbetrag|rechnungstotal|rechnungsbetrag|endbetrag|endsumme|total/i.test(lines[i])) {
       const nextAmount = lines[i + 1]?.match(/^\s*([0-9]+[.,][0-9]{2})\s*$/);
       if (nextAmount) return currencyToNumber(nextAmount[1]);
     }
@@ -328,7 +331,7 @@ export const extractPdfTextBlocks = async (file: File) => {
 const groupLines = (blocks: TextBlock[]) => {
   const buckets = new Map<number, TextBlock[]>();
   blocks.forEach((block) => {
-    const key = Math.round(block.y / 6) * 6;
+    const key = Math.round(block.y / 2) * 2;
     const line = buckets.get(key) ?? [];
     line.push(block);
     buckets.set(key, line);
@@ -383,7 +386,8 @@ export const parseBlocksToDraft = (
   }
 
   const parsed = parseTextToDraft(text, fallbackName);
-  const amount = netAmount ?? grossAmount ?? parsed.amount ?? 0;
+  // Prefer the gross/total amount for bookkeeping; use net only as last resort
+  const amount = grossAmount ?? netAmount ?? parsed.amount ?? 0;
   const rate = vatRate ?? parsed.vatRate;
   const hasNetto = netAmount !== undefined || /netto/i.test(text);
   const inferredVatAmount =
