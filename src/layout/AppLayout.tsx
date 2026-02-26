@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../store/AuthContext';
 
 const navItems = [
   {
@@ -52,7 +53,14 @@ const navItems = [
 
 const AppLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const location = useLocation();
+  const location  = useLocation();
+  const navigate  = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
   <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -129,8 +137,31 @@ const AppLayout = () => {
             ))}
           </div>
           <div className="mt-auto rounded-2xl bg-slate-900 p-4 text-xs text-white">
-            <p className="font-semibold">Automatisierter Beleg-Import</p>
-            <p className="mt-1 text-slate-200">PDF und Bilder erkennen, prüfen und buchen.</p>
+            {user ? (
+              <>
+                <p className="font-semibold truncate">{user.name}</p>
+                <p className="mt-0.5 text-slate-400 truncate">{user.email}</p>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); handleLogout(); }}
+                  className="mt-3 w-full rounded-lg bg-white/10 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition"
+                >
+                  Abmelden
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold">Demo-Modus</p>
+                <p className="mt-1 text-slate-200">Daten werden nur lokal gespeichert.</p>
+                <NavLink
+                  to="/register"
+                  onClick={() => setMenuOpen(false)}
+                  className="mt-3 block rounded-lg bg-white/10 py-1.5 text-center text-xs font-medium text-white hover:bg-white/20 transition"
+                >
+                  Konto erstellen →
+                </NavLink>
+              </>
+            )}
           </div>
         </nav>
       </>
@@ -166,24 +197,62 @@ const AppLayout = () => {
           ))}
         </nav>
         <div className="rounded-2xl bg-slate-900 p-4 text-xs text-white">
-          <p className="font-semibold">Automatisierter Beleg-Import</p>
-          <p className="mt-1 text-slate-200">
-            PDF- und Bildbelege erkennen, prüfen und direkt buchen.
-          </p>
+          {user ? (
+            <>
+              <p className="font-semibold truncate">{user.name}</p>
+              <p className="mt-0.5 text-slate-400 truncate">{user.email}</p>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="mt-3 w-full rounded-lg bg-white/10 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition"
+              >
+                Abmelden
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold">Demo-Modus</p>
+              <p className="mt-1 text-slate-400">Daten werden nur lokal gespeichert.</p>
+              <NavLink
+                to="/register"
+                className="mt-3 block rounded-lg bg-white/10 py-1.5 text-center text-xs font-medium text-white hover:bg-white/20 transition"
+              >
+                Konto erstellen →
+              </NavLink>
+            </>
+          )}
         </div>
       </aside>
 
       <main className="min-w-0 flex-1 pb-20 lg:pb-0">
         <div className="hidden items-center justify-between lg:flex">
           <div>
-            <p className="text-sm text-slate-500">Willkommen zurück</p>
+            <p className="text-sm text-slate-500">
+              {user ? `Angemeldet als ${user.email}` : 'Demo-Modus'}
+            </p>
             <h2 className="text-2xl font-semibold text-slate-900">
-              Bookitty Workspace
+              {user ? user.name : 'Bookitty Demo'}
             </h2>
           </div>
-          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Status: Synchronisiert
+          <div className="flex items-center gap-2">
+            {user ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Abmelden
+              </button>
+            ) : (
+              <NavLink
+                to="/login"
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                Demo – Anmelden
+              </NavLink>
+            )}
           </div>
         </div>
         <div className="lg:mt-6">

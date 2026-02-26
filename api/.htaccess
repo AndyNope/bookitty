@@ -1,0 +1,7 @@
+Options -Indexes
+
+# Block direct access to PHP helper files (not entry points)
+<FilesMatch "^(config|db|jwt|auth|cors|mailer)\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

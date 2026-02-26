@@ -9,6 +9,8 @@ import {
 import type { Booking, BookingDraft, DocumentImport } from '../types';
 import { initialBookings, initialDocuments } from '../data/mock';
 import { upsertTemplate } from '../utils/templateStore';
+import { useAuth } from './AuthContext';
+import { api, tokenStore } from '../services/api';
 
 const createId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -90,28 +92,46 @@ const BookkeepingContext = createContext<BookkeepingContextValue | undefined>(
 );
 
 export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
-  const [bookings, setBookings] = useState<Booking[]>(loadBookings);
+  const { user, isLoading: authLoading } = useAuth();
+  const isDemo = !user; // true = localStorage mode, false = API mode
+
+  const [bookings,  setBookings]  = useState<Booking[]>(loadBookings);
   const [documents, setDocuments] = useState<DocumentImport[]>(loadDocuments);
 
+  // ── Sync data based on auth state ──────────────────────────────────────────
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (authLoading) return; // wait for auth to resolve
+
+    if (user) {
+      // Logged-in: fetch fresh data from API
+      api.bookings.list().then(setBookings).catch(console.error);
+      api.documents.list().then(setDocuments).catch(console.error);
+    } else {
+      // Demo mode: reset to localStorage / initial data
+      setBookings(loadBookings());
+      setDocuments(loadDocuments());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading]);
+
+  // ── Persist to localStorage only in demo mode ──────────────────────────────
+  useEffect(() => {
+    if (tokenStore.get()) return; // logged-in users: don't overwrite localStorage
     localStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings));
   }, [bookings]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (tokenStore.get()) return;
     const sanitized = documents.map(({ previewUrl, ...doc }) => doc);
     localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(sanitized));
   }, [documents]);
 
   const addBooking = (draft: BookingDraft) => {
-    setBookings((prev) => [
-      {
-        id: createId(),
-        ...draft,
-      },
-      ...prev,
-    ]);
+    const booking: Booking = { id: createId(), ...draft };
+    setBookings((prev) => [booking, ...prev]);
+    if (!isDemo) {
+      api.bookings.create(booking).catch(console.error);
+    }
   };
 
   const addDocument = (
@@ -123,7 +143,7 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
   ) => {
     const baseName = file.name.replace(/\.[^/.]+$/, '');
     const today = new Date().toISOString().split('T')[0];
-    const previewUrl = URL.createObjectURL(file);
+    const blobUrl = URL.createObjectURL(file);
 
     const draft: BookingDraft = draftOverride ?? {
       date: today,
@@ -138,27 +158,46 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
       type: 'Ausgabe',
     };
 
-    setDocuments((prev) => [
-      {
-        id: createId(),
-        fileName: file.name,
-        uploadedAt: today,
-        status: 'In Prüfung',
-        draft,
-        originalDraft: { ...draft },
-        previewUrl,
-        detection,
-        templateApplied,
-        vendorPattern,
-      },
-      ...prev,
-    ]);
+    const tempId = createId();
+    const docData: DocumentImport = {
+      id: tempId,
+      fileName: file.name,
+      uploadedAt: today,
+      status: 'In Prüfung',
+      draft,
+      originalDraft: { ...draft },
+      previewUrl: blobUrl,
+      detection,
+      templateApplied,
+      vendorPattern,
+    };
+
+    setDocuments((prev) => [docData, ...prev]);
+
+    if (!isDemo) {
+      // Fire-and-forget: upload file → save metadata with permanent URL
+      (async () => {
+        try {
+          const { url } = await api.upload(file);
+          const docWithUrl = { ...docData, previewUrl: url };
+          await api.documents.create(docWithUrl);
+          setDocuments((prev) =>
+            prev.map((d) => (d.id === tempId ? { ...d, previewUrl: url } : d)),
+          );
+        } catch (e) {
+          console.error('Document upload failed:', e);
+        }
+      })();
+    }
   };
 
   const updateDocumentDraft = (id: string, draft: BookingDraft) => {
     setDocuments((prev) =>
       prev.map((doc) => (doc.id === id ? { ...doc, draft } : doc)),
     );
+    if (!isDemo) {
+      api.documents.update(id, { draft }).catch(console.error);
+    }
   };
 
   const confirmDocument = (id: string) => {
@@ -167,17 +206,16 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
 
     addBooking(doc.draft);
 
-    // Auto-learn: save stable fields as a vendor template so next invoice
-    // from the same sender is pre-filled correctly
     const pattern =
       doc.vendorPattern ??
       doc.fileName.replace(/\.[^/.]+$/, '').slice(0, 30).toLowerCase();
+
     upsertTemplate(pattern, {
-      account: doc.draft.account,
-      category: doc.draft.category,
-      vatRate: doc.draft.vatRate,
-      currency: doc.draft.currency,
-      type: doc.draft.type,
+      account:       doc.draft.account,
+      category:      doc.draft.category,
+      vatRate:       doc.draft.vatRate,
+      currency:      doc.draft.currency,
+      type:          doc.draft.type,
       paymentStatus: doc.draft.paymentStatus,
     });
 
@@ -186,14 +224,29 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
         item.id === id ? { ...item, status: 'Gebucht' } : item,
       ),
     );
+
+    if (!isDemo) {
+      api.documents.update(id, { status: 'Gebucht' }).catch(console.error);
+      api.templates.upsert(pattern, {
+        account: doc.draft.account, category: doc.draft.category,
+        vatRate: doc.draft.vatRate, currency: doc.draft.currency,
+        type: doc.draft.type, paymentStatus: doc.draft.paymentStatus,
+      }).catch(console.error);
+    }
   };
 
   const removeDocument = (id: string) => {
     setDocuments((prev) => prev.filter((item) => item.id !== id));
+    if (!isDemo) {
+      api.documents.remove(id).catch(console.error);
+    }
   };
 
   const removeBooking = (id: string) => {
     setBookings((prev) => prev.filter((item) => item.id !== id));
+    if (!isDemo) {
+      api.bookings.remove(id).catch(console.error);
+    }
   };
 
   const value = useMemo(

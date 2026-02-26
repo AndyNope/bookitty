@@ -4,5 +4,7 @@
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
+  # Don't rewrite /api/ requests – PHP handles those
+  RewriteCond %{REQUEST_URI} !^/api/
   RewriteRule . /index.html [L]
 </IfModule>

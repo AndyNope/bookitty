@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# PHP – keep config.example.php but not the real config with credentials
+api/config.php
+
+# User-uploaded files
+api/uploads/*
+!api/uploads/.htaccess
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

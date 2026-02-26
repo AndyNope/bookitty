@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import SectionHeader from '../components/SectionHeader';
 import { getCompany, saveCompany, type CompanyProfile } from '../utils/companyStore';
+import { useAuth } from '../store/AuthContext';
+import { api } from '../services/api';
 
 const Field = ({
   label,
@@ -28,8 +30,21 @@ const Field = ({
 );
 
 const Einstellungen = () => {
+  const { user } = useAuth();
   const [form, setForm] = useState<CompanyProfile>(getCompany);
   const [saved, setSaved] = useState(false);
+
+  // Load company profile from API when logged in
+  useEffect(() => {
+    if (!user) return;
+    api.company.get().then((data) => {
+      if (data && Object.keys(data).length > 0) {
+        const profile = data as unknown as CompanyProfile;
+        setForm(profile);
+        saveCompany(profile); // keep localStorage in sync
+      }
+    }).catch(() => {/* ignore */});
+  }, [user?.id]);
 
   useEffect(() => {
     if (saved) {
@@ -42,7 +57,10 @@ const Einstellungen = () => {
     setForm((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
-    saveCompany(form);
+    saveCompany(form); // always keep localStorage up-to-date (for demo mode + documentProcessing.ts)
+    if (user) {
+      api.company.save(form).catch(console.error);
+    }
     setSaved(true);
   };
 
