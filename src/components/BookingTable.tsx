@@ -6,7 +6,13 @@ const currency = (value: number, currencyCode: string) =>
     currency: currencyCode,
   }).format(value);
 
-const BookingTable = ({ bookings }: { bookings: Booking[] }) => (
+const BookingTable = ({
+  bookings,
+  onDelete,
+}: {
+  bookings: Booking[];
+  onDelete?: (id: string) => void;
+}) => (
   <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
     <table className="min-w-[1000px] w-full text-left text-sm">
       <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -21,11 +27,12 @@ const BookingTable = ({ bookings }: { bookings: Booking[] }) => (
           </th>
           <th className="px-4 py-3 text-right">Betrag</th>
           <th className="px-4 py-3">Typ</th>
+          {onDelete && <th className="px-4 py-3" />}
         </tr>
       </thead>
       <tbody>
         {bookings.map((booking) => (
-          <tr key={booking.id} className="border-t border-slate-100">
+          <tr key={booking.id} className="border-t border-slate-100 group">
             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
               {booking.date}
             </td>
@@ -52,6 +59,18 @@ const BookingTable = ({ bookings }: { bookings: Booking[] }) => (
                 {booking.type}
               </span>
             </td>
+            {onDelete && (
+              <td className="px-4 py-3 text-right">
+                <button
+                  type="button"
+                  onClick={() => onDelete(booking.id)}
+                  className="opacity-0 group-hover:opacity-100 transition text-xs font-semibold text-rose-500 hover:text-rose-700"
+                  title="Buchung löschen"
+                >
+                  Löschen
+                </button>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

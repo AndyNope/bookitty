@@ -5,7 +5,7 @@ import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 
 const Buchungen = () => {
-  const { bookings, addBooking } = useBookkeeping();
+  const { bookings, addBooking, removeBooking } = useBookkeeping();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSubmit = (draft: Parameters<typeof addBooking>[0]) => {
@@ -28,7 +28,7 @@ const Buchungen = () => {
           </button>
         }
       />
-      <BookingTable bookings={bookings} />
+      <BookingTable bookings={bookings} onDelete={removeBooking} />
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">

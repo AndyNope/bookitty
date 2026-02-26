@@ -82,6 +82,7 @@ type BookkeepingContextValue = {
   updateDocumentDraft: (id: string, draft: BookingDraft) => void;
   confirmDocument: (id: string) => void;
   removeDocument: (id: string) => void;
+  removeBooking: (id: string) => void;
 };
 
 const BookkeepingContext = createContext<BookkeepingContextValue | undefined>(
@@ -191,6 +192,10 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
     setDocuments((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const removeBooking = (id: string) => {
+    setBookings((prev) => prev.filter((item) => item.id !== id));
+  };
+
   const value = useMemo(
     () => ({
       bookings,
@@ -200,6 +205,7 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
       updateDocumentDraft,
       confirmDocument,
       removeDocument,
+      removeBooking,
     }),
     [bookings, documents],
   );
