@@ -112,7 +112,19 @@ const Dokumente = () => {
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium text-slate-900">{doc.fileName}</p>
+                    {doc.previewUrl ? (
+                      <a
+                        href={doc.previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-slate-900 hover:underline hover:text-slate-700"
+                      >
+                        {doc.fileName}
+                      </a>
+                    ) : (
+                      <p className="font-medium text-slate-900">{doc.fileName}</p>
+                    )}
                     <p className="text-xs text-slate-500">
                       {doc.uploadedAt} · Erkennung {doc.detection ?? (doc.fileName.endsWith('.pdf') ? 'PDF' : 'Standard')}
                       {doc.templateApplied ? ' · ✓ Vorlage' : ''}

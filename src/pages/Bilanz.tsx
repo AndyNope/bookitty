@@ -78,7 +78,7 @@ const AccountRow = ({ label, value, cur }: { label: string; value: number; cur: 
 // ── Main component ─────────────────────────────────────────────────────────
 const Bilanz = () => {
   const { bookings } = useBookkeeping();
-  const [tab, setTab] = useState<'erfolg' | 'bilanz'>('erfolg');
+  const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'mwst'>('erfolg');
   const cur = bookings[0]?.currency ?? 'CHF';
 
   // Sum by account code (e.g. '4400 Aufwand...' → total)
@@ -99,6 +99,22 @@ const Bilanz = () => {
 
   const totalAktiv = AKTIV_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
   const totalPassiv = PASSIV_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
+
+  // MwSt: sum vatAmount per booking, split by type
+  const mwstRows = bookings
+    .filter((b) => (b.vatAmount ?? 0) > 0)
+    .map((b) => ({
+      date: b.date,
+      description: b.description,
+      account: b.account,
+      rate: b.vatRate,
+      vatAmount: b.vatAmount ?? 0,
+      type: b.type,
+      currency: b.currency,
+    }));
+  const vorsteuer = mwstRows.filter((r) => r.type === 'Ausgabe').reduce((s, r) => s + r.vatAmount, 0);
+  const geschuldeteMwst = mwstRows.filter((r) => r.type === 'Einnahme').reduce((s, r) => s + r.vatAmount, 0);
+  const mwstSaldo = geschuldeteMwst - vorsteuer;
 
   const exportPdf = () => {
     const doc = new jsPDF();
@@ -189,7 +205,7 @@ const Bilanz = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-fit">
-        {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz']] as const).map(([key, label]) => (
+        {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['mwst', 'MwSt']] as const).map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -299,6 +315,62 @@ const Bilanz = () => {
             <span>Total Passiven</span>
             <span className="tabular-nums">{fmt(totalPassiv, cur)}</span>
           </div>
+        </div>
+      )}
+      {/* ── MwSt-Übersicht ── */}
+      {tab === 'mwst' && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <h3 className="text-base font-semibold text-slate-900">MwSt-Übersicht</h3>
+
+          {/* Summary cards */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+            {[
+              { label: 'Geschuldete MwSt (Ertrag)', value: geschuldeteMwst, color: 'text-rose-600' },
+              { label: 'Vorsteuer (Aufwand)', value: vorsteuer, color: 'text-emerald-600' },
+              { label: 'MwSt-Saldo (schulde ich)', value: mwstSaldo, color: mwstSaldo >= 0 ? 'text-rose-700' : 'text-emerald-700' },
+            ].map((c) => (
+              <div key={c.label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-xs text-slate-500">{c.label}</p>
+                <p className={`mt-1 text-xl font-bold tabular-nums ${c.color}`}>{fmt(c.value, cur)}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Detail table */}
+          {mwstRows.length === 0 ? (
+            <p className="text-sm text-slate-400">Noch keine Buchungen mit MwSt-Betrag vorhanden.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 text-slate-500 uppercase">
+                  <tr>
+                    <th className="px-3 py-2">Datum</th>
+                    <th className="px-3 py-2">Beschreibung</th>
+                    <th className="px-3 py-2">Konto</th>
+                    <th className="px-3 py-2 text-right">Satz</th>
+                    <th className="px-3 py-2 text-right">MwSt-Betrag</th>
+                    <th className="px-3 py-2">Typ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {mwstRows.map((r, i) => (
+                    <tr key={i}>
+                      <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.date}</td>
+                      <td className="px-3 py-2 text-slate-800">{r.description}</td>
+                      <td className="px-3 py-2 text-slate-500 max-w-[160px] truncate">{r.account}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{r.rate}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-900">{fmt(r.vatAmount, r.currency)}</td>
+                      <td className="px-3 py-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          r.type === 'Einnahme' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                        }`}>{r.type}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

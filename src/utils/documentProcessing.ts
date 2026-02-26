@@ -10,6 +10,7 @@ import {
   findVendorName,
 } from './documentParser';
 import { findTemplate } from './templateStore';
+import { getCompany } from './companyStore';
 
 const reader = new BrowserMultiFormatReader();
 
@@ -239,6 +240,14 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
   }
 
   const vendorPattern = findVendorName(text);
+
+  // Detect own invoices: if the company name appears in the document text,
+  // this is a customer invoice (Einnahme), not a supplier bill (Ausgabe)
+  const company = getCompany();
+  if (company.name && text.toLowerCase().includes(company.name.toLowerCase())) {
+    draft.type = 'Einnahme';
+    draft.contraAccount = draft.paymentStatus === 'Bezahlt' ? '1020 Bankguthaben' : '1100 FLL Debitoren';
+  }
 
   const template = findTemplate(file.name, text);
   if (template) {
