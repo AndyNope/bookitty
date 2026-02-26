@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 
 const Login = () => {
-  const { login }        = useAuth();
+  const { login, user, isLoading } = useAuth();
   const navigate          = useNavigate();
   const [params]          = useSearchParams();
 
@@ -14,6 +14,11 @@ const Login = () => {
 
   const confirmed = params.get('confirmed') === '1';
   const tokenErr  = params.get('error');
+
+  // Already logged in → go straight to /app
+  useEffect(() => {
+    if (!isLoading && user) navigate('/app', { replace: true });
+  }, [isLoading, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

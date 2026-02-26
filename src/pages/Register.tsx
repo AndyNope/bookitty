@@ -1,9 +1,15 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 
 const Register = () => {
-  const { register } = useAuth();
+  const { register, user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Already logged in → go straight to /app
+  useEffect(() => {
+    if (!isLoading && user) navigate('/app', { replace: true });
+  }, [isLoading, user, navigate]);
 
   const [name,    setName]    = useState('');
   const [email,   setEmail]   = useState('');
