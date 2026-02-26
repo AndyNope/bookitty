@@ -26,6 +26,8 @@ const Dokumente = () => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const [mobileView, setMobileView] = useState<'list' | 'form'>('list');
+
   const selectedDocument = documents.find((doc) => doc.id === selectedId);
   const pendingDeleteDocument = documents.find(
     (doc) => doc.id === pendingDeleteId,
@@ -91,7 +93,8 @@ const Dokumente = () => {
       />
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        {/* Document list – hidden on mobile when form is open */}
+        <div className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${mobileView === 'form' ? 'hidden lg:block' : ''}`}>
           <h3 className="text-lg font-semibold text-slate-900">Eingehende Belege</h3>
           <ul className="mt-4 space-y-3 text-sm text-slate-600">
             {documents.map((doc) => (
@@ -102,7 +105,10 @@ const Dokumente = () => {
                     ? 'border-slate-900 bg-slate-50'
                     : 'border-slate-100 hover:bg-slate-50'
                 }`}
-                onClick={() => setSelectedId(doc.id)}
+                onClick={() => {
+                  setSelectedId(doc.id);
+                  setMobileView('form');
+                }}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -147,7 +153,18 @@ const Dokumente = () => {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm ${mobileView === 'list' ? 'hidden lg:block' : ''}`}>
+          {/* Mobile back button */}
+          <button
+            type="button"
+            onClick={() => setMobileView('list')}
+            className="mb-4 flex items-center gap-1 text-sm font-medium text-slate-500 lg:hidden"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Zurück zur Liste
+          </button>
           <h3 className="text-lg font-semibold text-slate-900">
             Automatisch erkannte Buchung
           </h3>
