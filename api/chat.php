@@ -16,8 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // ── Auth (optional – auch Demo-User können chatten) ──────────────────────────
-// We allow unauthenticated access so the demo mode can also use the chatbot.
-// Abuse protection is handled by the Gemini API key limits.
 
 // ── Input ─────────────────────────────────────────────────────────────────────
 $body     = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -29,11 +27,11 @@ if (empty($messages) || !is_array($messages)) {
     exit;
 }
 
-// Sanitize: only keep role + text
+// Sanitize + convert to OpenAI format (role: user/assistant, content: string)
 $history = array_map(fn($m) => [
-    'role'  => $m['role'] === 'model' ? 'model' : 'user',
-    'parts' => [['text' => mb_substr((string)($m['text'] ?? ''), 0, 4000)]],
-], array_slice($messages, -20)); // max 20 turns to keep tokens low
+    'role'    => $m['role'] === 'model' ? 'assistant' : 'user',
+    'content' => mb_substr((string)($m['text'] ?? ''), 0, 4000),
+], array_slice($messages, -20));
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 $systemPrompt = <<<'PROMPT'
@@ -60,38 +58,36 @@ Grenzen:
 Ton: freundlich, professionell, kurz und präzise. Keine langen Einleitungen.
 PROMPT;
 
-// ── Call Gemini API ───────────────────────────────────────────────────────────
-$apiKey  = defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '';
+// ── Call OpenRouter API (kostenlose Modelle via :free Suffix) ─────────────────
+$apiKey = defined('KITTY_API_KEY') ? KITTY_API_KEY : '';
 if (empty($apiKey)) {
     http_response_code(503);
     echo json_encode(['error' => 'Kitty ist momentan nicht verfügbar (kein API-Key konfiguriert).']);
     exit;
 }
 
-$endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . urlencode($apiKey);
-
 $payload = json_encode([
-    'system_instruction' => ['parts' => [['text' => $systemPrompt]]],
-    'contents'           => $history,
-    'generationConfig'   => [
-        'temperature'     => 0.4,
-        'maxOutputTokens' => 1024,
-    ],
-    'safetySettings' => [
-        ['category' => 'HARM_CATEGORY_HARASSMENT',        'threshold' => 'BLOCK_ONLY_HIGH'],
-        ['category' => 'HARM_CATEGORY_HATE_SPEECH',       'threshold' => 'BLOCK_ONLY_HIGH'],
-        ['category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold' => 'BLOCK_ONLY_HIGH'],
-        ['category' => 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold' => 'BLOCK_ONLY_HIGH'],
-    ],
+    'model'    => 'meta-llama/llama-4-maverick:free',
+    'messages' => array_merge(
+        [['role' => 'system', 'content' => $systemPrompt]],
+        $history
+    ),
+    'temperature' => 0.4,
+    'max_tokens'  => 1024,
 ]);
 
-$ch = curl_init($endpoint);
+$ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
 curl_setopt_array($ch, [
     CURLOPT_POST           => true,
     CURLOPT_POSTFIELDS     => $payload,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_TIMEOUT        => 30,
-    CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+    CURLOPT_HTTPHEADER     => [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $apiKey,
+        'HTTP-Referer: https://bookitty.bidebliss.com',
+        'X-Title: Bookitty',
+    ],
 ]);
 
 $raw      = curl_exec($ch);
@@ -99,18 +95,18 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($raw === false || $httpCode !== 200) {
-    $detail = json_decode($raw ?? '{}', true)['error']['message'] ?? 'Gemini API-Fehler';
+    $detail = json_decode($raw ?? '{}', true)['error']['message'] ?? 'OpenRouter API-Fehler';
     http_response_code(502);
     echo json_encode(['error' => $detail]);
     exit;
 }
 
 $response = json_decode($raw, true);
-$text     = $response['candidates'][0]['content']['parts'][0]['text'] ?? '';
+$text     = $response['choices'][0]['message']['content'] ?? '';
 
 if (empty($text)) {
     http_response_code(502);
-    echo json_encode(['error' => 'Leere Antwort von Gemini.']);
+    echo json_encode(['error' => 'Leere Antwort vom KI-Modell.']);
     exit;
 }
 
