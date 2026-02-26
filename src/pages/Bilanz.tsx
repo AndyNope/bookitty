@@ -8,29 +8,34 @@ const fmt = (value: number, cur: string) =>
   new Intl.NumberFormat('de-CH', { style: 'currency', currency: cur }).format(value);
 
 // ── Category classification ────────────────────────────────────────────────
-// Bilanz:       1 = Aktiven, 2 = Passiven
-// Erfolgsrechnung: 3 = Ertrag, 4/5/6/7/8 = Aufwand (Ergebnis = Ertrag − Aufwand)
 const AKTIV_CATS = ['1'];
 const PASSIV_CATS = ['2'];
 const ERTRAG_CATS = ['3'];
-const AUFWAND_CATS = ['4', '5', '6', '7', '8'];
 
 const categoryLabel = (code: string) =>
   accountCategories.find((c) => c.code === code)?.name ?? code;
 
+// Helper: account name contains "ertrag" → revenue (credit side)
+const isErtragByName = (name: string) => name.toLowerCase().includes('ertrag');
+
+// Bilanz sub-groups (Slide 12)
+const BILANZ_GROUPS = {
+  aktiv: [
+    { label: 'Umlaufvermögen', min: 1000, max: 1399 },
+    { label: 'Anlagevermögen', min: 1400, max: 1999 },
+  ],
+  passiv: [
+    { label: 'Kurzfristiges Fremdkapital', min: 2000, max: 2399 },
+    { label: 'Langfristiges Fremdkapital', min: 2400, max: 2699 },
+    { label: 'Eigenkapital', min: 2800, max: 2999 },
+  ],
+};
+
 // ── Expandable section row ─────────────────────────────────────────────────
 const Section = ({
-  title,
-  total,
-  cur,
-  positive,
-  children,
+  title, total, cur, positive, children,
 }: {
-  title: string;
-  total: number;
-  cur: string;
-  positive?: boolean;
-  children?: React.ReactNode;
+  title: string; total: number; cur: string; positive?: boolean; children?: React.ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
   return (
@@ -50,11 +55,7 @@ const Section = ({
           {title}
         </span>
         <span className={`tabular-nums font-semibold ${
-          positive === undefined
-            ? 'text-slate-900'
-            : positive
-              ? 'text-emerald-600'
-              : 'text-rose-600'
+          positive === undefined ? 'text-slate-900' : positive ? 'text-emerald-600' : 'text-rose-600'
         }`}>
           {fmt(total, cur)}
         </span>
@@ -68,10 +69,67 @@ const Section = ({
   );
 };
 
-const AccountRow = ({ label, value, cur }: { label: string; value: number; cur: string }) => (
+// Netto section for mixed Ertrag/Aufwand categories (7, 8)
+const NettoSection = ({
+  title, netto, cur, children,
+}: {
+  title: string; netto: number; cur: string; children?: React.ReactNode;
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-slate-100 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition"
+      >
+        <span className="flex items-center gap-2">
+          <svg
+            className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          {title}
+          <span className="text-[10px] font-normal text-slate-400">(Netto-Erfolg)</span>
+        </span>
+        <span className={`tabular-nums font-semibold ${netto >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {fmt(netto, cur)}
+        </span>
+      </button>
+      {open && children && (
+        <div className="border-t border-slate-100 bg-slate-50 divide-y divide-slate-100">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AccountRow = ({ label, value, cur, tag }: { label: string; value: number; cur: string; tag?: string }) => (
   <div className="flex items-center justify-between px-8 py-2 text-xs text-slate-600">
-    <span>{label}</span>
+    <span className="flex items-center gap-2">
+      {tag && (
+        <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${
+          tag === 'Ert' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+        }`}>{tag}</span>
+      )}
+      {label}
+    </span>
     <span className="tabular-nums font-medium text-slate-800">{fmt(value, cur)}</span>
+  </div>
+);
+
+const SubtotalRow = ({ label, value, cur, highlight = false }: {
+  label: string; value: number; cur: string; highlight?: boolean;
+}) => (
+  <div className={`flex justify-between px-4 py-2 text-sm font-semibold border-t border-slate-200 mt-1 ${
+    highlight
+      ? (value >= 0 ? 'text-emerald-800' : 'text-rose-800')
+      : (value >= 0 ? 'text-emerald-700' : 'text-rose-700')
+  }`}>
+    <span>{label}</span>
+    <span className="tabular-nums">{fmt(value, cur)}</span>
   </div>
 );
 
@@ -81,23 +139,20 @@ const Bilanz = () => {
   const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'mwst'>('erfolg');
   const cur = bookings[0]?.currency ?? 'CHF';
 
-  // Soll (Debit) side → Aktiven (1) and Aufwand (4–8)
+  // Soll (Debit) → Aktiven (1xxx) and Aufwand (4–8 Aufwand accounts)
   const byDebit = bookings.reduce<Record<string, number>>((acc, b) => {
     acc[b.account] = (acc[b.account] ?? 0) + b.amount;
     return acc;
   }, {});
 
-  // Haben (Credit) side → Passiven (2) and Ertrag (3)
+  // Haben (Credit) → Passiven (2xxx) and Ertrag (3xxx, and Ertrag in 7/8)
   const byCredit = bookings.reduce<Record<string, number>>((acc, b) => {
     acc[b.contraAccount] = (acc[b.contraAccount] ?? 0) + b.amount;
     return acc;
   }, {});
 
-  // Keep byAccount as alias for debit side (used in Aufwand/Aktiven renders)
-  const byAccount = byDebit;
-
-  // Sum by category: debit-side for Aktiven/Aufwand, credit-side for Passiven/Ertrag
-  const DEBIT_CATS = new Set(['1', '4', '5', '6', '7', '8']);
+  // byCat: Aktiven/Aufwand-pure (1,4,5,6) → debit; Ertrag/Passiven (2,3) → credit
+  const DEBIT_CATS = new Set(['1', '4', '5', '6']);
   const byCat = accounts.reduce<Record<string, number>>((acc, acct) => {
     const code = formatAccount(acct);
     const val = DEBIT_CATS.has(acct.categoryCode)
@@ -107,29 +162,75 @@ const Bilanz = () => {
     return acc;
   }, {});
 
-  const totalErtrag = ERTRAG_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
-  const totalAufwand = AUFWAND_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
-  const jahresergebnis = totalErtrag - totalAufwand;
+  // Cat 7 – Betrieblicher Nebenerfolg (mixed)
+  const cat7 = accounts.filter((a) => a.categoryCode === '7');
+  const ertrag7 = cat7.filter((a) => isErtragByName(a.name))
+    .reduce((s, a) => s + (byCredit[formatAccount(a)] ?? 0), 0);
+  const aufwand7 = cat7.filter((a) => !isErtragByName(a.name))
+    .reduce((s, a) => s + (byDebit[formatAccount(a)] ?? 0), 0);
+  const netto7 = ertrag7 - aufwand7;
+  const hasAny7 = cat7.some((a) => {
+    const fk = formatAccount(a);
+    return (byDebit[fk] ?? 0) + (byCredit[fk] ?? 0) > 0;
+  });
 
-  const totalAktiv = AKTIV_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
+  // Cat 8 – Betriebsfremder Erfolg (excl. 8900)
+  const cat8noTax = accounts.filter((a) => a.categoryCode === '8' && a.code !== '8900');
+  const ertrag8 = cat8noTax.filter((a) => isErtragByName(a.name))
+    .reduce((s, a) => s + (byCredit[formatAccount(a)] ?? 0), 0);
+  const aufwand8 = cat8noTax.filter((a) => !isErtragByName(a.name))
+    .reduce((s, a) => s + (byDebit[formatAccount(a)] ?? 0), 0);
+  const netto8 = ertrag8 - aufwand8;
+  const hasAny8 = cat8noTax.some((a) => {
+    const fk = formatAccount(a);
+    return (byDebit[fk] ?? 0) + (byCredit[fk] ?? 0) > 0;
+  });
+
+  // Direkte Steuern 8900
+  const konto8900 = accounts.find((a) => a.code === '8900');
+  const steuern = konto8900 ? (byDebit[formatAccount(konto8900)] ?? 0) : 0;
+
+  // Intermediate Erfolgsrechnung (Slide 14)
+  const totalBetriebsertrag = byCat['3'] ?? 0;
+  const materialaufwand     = byCat['4'] ?? 0;
+  const bruttogewinnI       = totalBetriebsertrag - materialaufwand;
+  const personalaufwand     = byCat['5'] ?? 0;
+  const bruttogewinnII      = bruttogewinnI - personalaufwand;
+  const uebrBetriebsaufwand = byCat['6'] ?? 0;
+  const ebit                = bruttogewinnII - uebrBetriebsaufwand;
+  const ergebnisVorAusserord = ebit + netto7;
+  const ergebnisVorSteuern   = ergebnisVorAusserord + netto8;
+  const jahresergebnis       = ergebnisVorSteuern - steuern;
+
+  const totalErtrag  = totalBetriebsertrag + ertrag7 + ertrag8;
+  const totalAufwand = materialaufwand + personalaufwand + uebrBetriebsaufwand + aufwand7 + aufwand8 + steuern;
+
+  // Bilanz totals
+  const totalAktiv  = AKTIV_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
   const totalPassiv = PASSIV_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
 
-  // MwSt: sum vatAmount per booking, split by type
+  // Sub-group helpers
+  const accountsInGroup = (min: number, max: number) =>
+    accounts.filter((a) => { const c = parseInt(a.code, 10); return c >= min && c <= max; });
+
+  const sumGroup = (min: number, max: number, side: 'debit' | 'credit') =>
+    accountsInGroup(min, max).reduce((s, a) => {
+      const v = side === 'debit' ? (byDebit[formatAccount(a)] ?? 0) : (byCredit[formatAccount(a)] ?? 0);
+      return s + v;
+    }, 0);
+
+  // MwSt
   const mwstRows = bookings
     .filter((b) => (b.vatAmount ?? 0) > 0)
     .map((b) => ({
-      date: b.date,
-      description: b.description,
-      account: b.account,
-      rate: b.vatRate,
-      vatAmount: b.vatAmount ?? 0,
-      type: b.type,
-      currency: b.currency,
+      date: b.date, description: b.description, account: b.account,
+      rate: b.vatRate, vatAmount: b.vatAmount ?? 0, type: b.type, currency: b.currency,
     }));
-  const vorsteuer = mwstRows.filter((r) => r.type === 'Ausgabe').reduce((s, r) => s + r.vatAmount, 0);
+  const vorsteuer       = mwstRows.filter((r) => r.type === 'Ausgabe').reduce((s, r) => s + r.vatAmount, 0);
   const geschuldeteMwst = mwstRows.filter((r) => r.type === 'Einnahme').reduce((s, r) => s + r.vatAmount, 0);
-  const mwstSaldo = geschuldeteMwst - vorsteuer;
+  const mwstSaldo       = geschuldeteMwst - vorsteuer;
 
+  // PDF Export
   const exportPdf = () => {
     const doc = new jsPDF();
     const mX = 14;
@@ -142,46 +243,69 @@ const Bilanz = () => {
     doc.text(`Jahr: ${new Date().getFullYear()} · Währung: ${cur}`, mX, y); y += 10;
     doc.setTextColor(0);
 
-    const section = (title: string, offset = 6) => {
+    const section = (title: string) => {
       if (y > pH - 20) { doc.addPage(); y = 20; }
       doc.setFontSize(12); doc.setTextColor(30);
       doc.text(title, mX, y);
       doc.setDrawColor(220); doc.line(mX, y + 1, pW - mX, y + 1);
-      doc.setTextColor(0); y += offset;
+      doc.setTextColor(0); y += 7;
     };
 
-    const row = (label: string, val: number) => {
+    const row = (label: string, val: number, indent = 4) => {
       if (y > pH - 20) { doc.addPage(); y = 20; }
       doc.setFontSize(9);
-      doc.text(label, mX + 4, y);
+      doc.text(label, mX + indent, y);
       doc.text(fmt(val, cur), pW - mX - 35, y); y += 5.5;
     };
 
+    const subtotal = (label: string, val: number) => {
+      if (y > pH - 20) { doc.addPage(); y = 20; }
+      doc.setFontSize(10); doc.setTextColor(val >= 0 ? 20 : 180);
+      doc.text(label, mX, y);
+      doc.text(fmt(val, cur), pW - mX - 35, y);
+      doc.setTextColor(0); y += 6;
+    };
+
     section('Erfolgsrechnung');
-    ERTRAG_CATS.forEach((cat) => {
-      doc.setFontSize(10); doc.setTextColor(40);
-      doc.text(categoryLabel(cat), mX, y); y += 5;
-      doc.setTextColor(0);
-      accounts.filter((a) => a.categoryCode === cat && (byCredit[formatAccount(a)] ?? 0) !== 0)
-        .forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
-    });
-    AUFWAND_CATS.forEach((cat) => {
-      doc.setFontSize(10); doc.setTextColor(40);
-      doc.text(categoryLabel(cat), mX, y); y += 5;
-      doc.setTextColor(0);
-      accounts.filter((a) => a.categoryCode === cat && (byDebit[formatAccount(a)] ?? 0) !== 0)
+    doc.setFontSize(10); doc.text(categoryLabel('3'), mX, y); y += 5;
+    accounts.filter((a) => a.categoryCode === '3' && (byCredit[formatAccount(a)] ?? 0) !== 0)
+      .forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
+    subtotal('Bruttogewinn I', bruttogewinnI);
+
+    if (personalaufwand > 0) {
+      doc.setFontSize(10); doc.text(categoryLabel('5'), mX, y); y += 5;
+      accounts.filter((a) => a.categoryCode === '5' && (byDebit[formatAccount(a)] ?? 0) !== 0)
         .forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
-    });
-    doc.setFontSize(11);
-    doc.text('Jahresergebnis', mX, y);
-    doc.text(fmt(jahresergebnis, cur), pW - mX - 35, y); y += 10;
+      subtotal('Bruttogewinn II', bruttogewinnII);
+    }
+
+    if (uebrBetriebsaufwand > 0) {
+      doc.setFontSize(10); doc.text(categoryLabel('6'), mX, y); y += 5;
+      accounts.filter((a) => a.categoryCode === '6' && (byDebit[formatAccount(a)] ?? 0) !== 0)
+        .forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
+      subtotal('Betriebsergebnis (EBIT)', ebit);
+    }
+
+    subtotal('Jahresergebnis', jahresergebnis);
+    y += 4;
 
     section('Bilanz – Aktiven');
-    accounts.filter((a) => AKTIV_CATS.includes(a.categoryCode) && (byDebit[formatAccount(a)] ?? 0) !== 0)
-      .forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
+    BILANZ_GROUPS.aktiv.forEach(({ label, min, max }) => {
+      const grpAccts = accountsInGroup(min, max).filter((a) => (byDebit[formatAccount(a)] ?? 0) !== 0);
+      if (grpAccts.length === 0) return;
+      doc.setFontSize(10); doc.setTextColor(40); doc.text(label, mX, y); y += 5; doc.setTextColor(0);
+      grpAccts.forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
+    });
+    subtotal('Total Aktiven', totalAktiv);
+
     section('Bilanz – Passiven');
-    accounts.filter((a) => PASSIV_CATS.includes(a.categoryCode) && (byCredit[formatAccount(a)] ?? 0) !== 0)
-      .forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
+    BILANZ_GROUPS.passiv.forEach(({ label, min, max }) => {
+      const grpAccts = accountsInGroup(min, max).filter((a) => (byCredit[formatAccount(a)] ?? 0) !== 0);
+      if (grpAccts.length === 0) return;
+      doc.setFontSize(10); doc.setTextColor(40); doc.text(label, mX, y); y += 5; doc.setTextColor(0);
+      grpAccts.forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
+    });
+    subtotal('Total Passiven', totalPassiv);
 
     doc.setFontSize(8); doc.setTextColor(150);
     doc.text('Bookitty · Finanzbuchhaltung', mX, pH - 10);
@@ -204,10 +328,10 @@ const Bilanz = () => {
       {/* KPI cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Betriebsertrag', value: totalErtrag, color: 'text-emerald-600' },
-          { label: 'Betriebsaufwand', value: totalAufwand, color: 'text-rose-600' },
-          { label: 'Jahresergebnis', value: jahresergebnis, color: jahresergebnis >= 0 ? 'text-emerald-600' : 'text-rose-600' },
-          { label: 'Aktiven / Passiven', value: totalAktiv, color: 'text-slate-700', sub: fmt(totalPassiv, cur) },
+          { label: 'Betriebsertrag',  value: totalErtrag,     color: 'text-emerald-600' },
+          { label: 'Betriebsaufwand', value: totalAufwand,    color: 'text-rose-600' },
+          { label: 'Jahresergebnis',  value: jahresergebnis,  color: jahresergebnis >= 0 ? 'text-emerald-600' : 'text-rose-600' },
+          { label: 'Aktiven / Passiven', value: totalAktiv,   color: 'text-slate-700', sub: fmt(totalPassiv, cur) },
         ].map((card) => (
           <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs text-slate-500">{card.label}</p>
@@ -220,10 +344,7 @@ const Bilanz = () => {
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-fit">
         {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['mwst', 'MwSt']] as const).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
+          <button key={key} type="button" onClick={() => setTab(key)}
             className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
               tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
             }`}
@@ -233,52 +354,126 @@ const Bilanz = () => {
         ))}
       </div>
 
-      {/* ── Erfolgsrechnung ── */}
+      {/* ── Erfolgsrechnung (Slide 14) ── */}
       {tab === 'erfolg' && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-2">
           <h3 className="text-base font-semibold text-slate-900 mb-4">Erfolgsrechnung</h3>
 
-          {/* Ertrag */}
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1">Ertrag</p>
-          {ERTRAG_CATS.map((cat) => {
-            const total = byCat[cat] ?? 0;
-            const accts = accounts.filter((a) => a.categoryCode === cat);
-            return (
-              <Section key={cat} title={categoryLabel(cat)} total={total} cur={cur} positive>
-                {accts.map((a) => {
-                  const v = byCredit[formatAccount(a)] ?? 0;
+          {/* Betriebsertrag */}
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1">Betriebsertrag</p>
+          {ERTRAG_CATS.map((cat) => (
+            <Section key={cat} title={categoryLabel(cat)} total={byCat[cat] ?? 0} cur={cur} positive>
+              {accounts.filter((a) => a.categoryCode === cat).map((a) => {
+                const v = byCredit[formatAccount(a)] ?? 0;
+                return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
+              })}
+            </Section>
+          ))}
+          <SubtotalRow label="Total Betriebsertrag" value={totalBetriebsertrag} cur={cur} />
+
+          {/* Material- und Warenaufwand (4xxx) */}
+          {materialaufwand > 0 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Material- und Warenaufwand</p>
+              <Section title={categoryLabel('4')} total={materialaufwand} cur={cur}>
+                {accounts.filter((a) => a.categoryCode === '4').map((a) => {
+                  const v = byDebit[formatAccount(a)] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>
-            );
-          })}
-          <div className="flex justify-between px-4 py-2 text-sm font-semibold text-emerald-700 border-t border-slate-200 mt-1">
-            <span>Total Ertrag</span>
-            <span className="tabular-nums">{fmt(totalErtrag, cur)}</span>
+            </>
+          )}
+          <div className={`flex justify-between px-4 py-2.5 text-sm font-bold rounded-lg border mt-1 ${
+            bruttogewinnI >= 0 ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'
+          }`}>
+            <span>Bruttogewinn I</span>
+            <span className="tabular-nums">{fmt(bruttogewinnI, cur)}</span>
           </div>
 
-          {/* Aufwand */}
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 mt-4">Aufwand</p>
-          {AUFWAND_CATS.map((cat) => {
-            const total = byCat[cat] ?? 0;
-            if (total === 0) return null;
-            const accts = accounts.filter((a) => a.categoryCode === cat);
-            return (
-              <Section key={cat} title={categoryLabel(cat)} total={total} cur={cur}>
-                {accts.map((a) => {
-                  const v = byAccount[formatAccount(a)] ?? 0;
+          {/* Personalaufwand (5xxx) */}
+          {personalaufwand > 0 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Personalaufwand</p>
+              <Section title={categoryLabel('5')} total={personalaufwand} cur={cur}>
+                {accounts.filter((a) => a.categoryCode === '5').map((a) => {
+                  const v = byDebit[formatAccount(a)] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>
-            );
-          })}
-          <div className="flex justify-between px-4 py-2 text-sm font-semibold text-rose-700 border-t border-slate-200">
-            <span>Total Aufwand</span>
-            <span className="tabular-nums">{fmt(totalAufwand, cur)}</span>
+            </>
+          )}
+          {personalaufwand > 0 && (
+            <div className={`flex justify-between px-4 py-2.5 text-sm font-bold rounded-lg border mt-1 ${
+              bruttogewinnII >= 0 ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'
+            }`}>
+              <span>Bruttogewinn II</span>
+              <span className="tabular-nums">{fmt(bruttogewinnII, cur)}</span>
+            </div>
+          )}
+
+          {/* Übriger betrieblicher Aufwand (6xxx) */}
+          {uebrBetriebsaufwand > 0 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Übriger betrieblicher Aufwand</p>
+              <Section title={categoryLabel('6')} total={uebrBetriebsaufwand} cur={cur}>
+                {accounts.filter((a) => a.categoryCode === '6').map((a) => {
+                  const v = byDebit[formatAccount(a)] ?? 0;
+                  return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
+                })}
+              </Section>
+            </>
+          )}
+
+          {/* EBIT */}
+          <div className={`flex justify-between px-4 py-3 rounded-xl text-sm font-bold border-2 mt-2 ${
+            ebit >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
+          }`}>
+            <span>Betriebsergebnis (EBIT)</span>
+            <span className="tabular-nums">{fmt(ebit, cur)}</span>
           </div>
+
+          {/* Betrieblicher Nebenerfolg (7xxx) */}
+          {hasAny7 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Betrieblicher Nebenerfolg</p>
+              <NettoSection title={categoryLabel('7')} netto={netto7} cur={cur}>
+                {cat7.map((a) => {
+                  const fk = formatAccount(a);
+                  const isErt = isErtragByName(a.name);
+                  const v = isErt ? (byCredit[fk] ?? 0) : (byDebit[fk] ?? 0);
+                  return v !== 0 ? <AccountRow key={a.code} label={fk} value={v} cur={cur} tag={isErt ? 'Ert' : 'Aufw'} /> : null;
+                })}
+              </NettoSection>
+              <SubtotalRow label="Ergebnis nach Nebenbetrieb" value={ergebnisVorAusserord} cur={cur} />
+            </>
+          )}
+
+          {/* Betriebsfremder/ausserordentlicher Erfolg (8xxx excl. 8900) */}
+          {hasAny8 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Betriebsfremder Erfolg</p>
+              <NettoSection title="Betriebsfremder / ausserordentlicher Erfolg" netto={netto8} cur={cur}>
+                {cat8noTax.map((a) => {
+                  const fk = formatAccount(a);
+                  const isErt = isErtragByName(a.name);
+                  const v = isErt ? (byCredit[fk] ?? 0) : (byDebit[fk] ?? 0);
+                  return v !== 0 ? <AccountRow key={a.code} label={fk} value={v} cur={cur} tag={isErt ? 'Ert' : 'Aufw'} /> : null;
+                })}
+              </NettoSection>
+              <SubtotalRow label="Ergebnis vor Steuern" value={ergebnisVorSteuern} cur={cur} />
+            </>
+          )}
+
+          {/* Direkte Steuern (8900) */}
+          {steuern > 0 && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Direkte Steuern</p>
+              <Section title="8900 Direkte Steuern" total={steuern} cur={cur} />
+            </>
+          )}
 
           {/* Jahresergebnis */}
-          <div className={`flex justify-between px-4 py-3 rounded-xl text-sm font-bold border-2 mt-2 ${
+          <div className={`flex justify-between px-4 py-3 rounded-xl text-sm font-bold border-2 mt-3 ${
             jahresergebnis >= 0
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
               : 'border-rose-200 bg-rose-50 text-rose-800'
@@ -289,59 +484,60 @@ const Bilanz = () => {
         </div>
       )}
 
-      {/* ── Bilanz ── */}
+      {/* ── Bilanz (Slide 12) ── */}
       {tab === 'bilanz' && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-2">
           <h3 className="text-base font-semibold text-slate-900 mb-4">Bilanz</h3>
 
           {/* Aktiven */}
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1">Aktiven</p>
-          {AKTIV_CATS.map((cat) => {
-            const accts = accounts.filter((a) => a.categoryCode === cat);
+          {BILANZ_GROUPS.aktiv.map(({ label, min, max }) => {
+            const grpTotal = sumGroup(min, max, 'debit');
+            if (grpTotal === 0) return null;
             return (
-              <Section key={cat} title={categoryLabel(cat)} total={byCat[cat] ?? 0} cur={cur} positive>
-                {accts.map((a) => {
-                  const v = byAccount[formatAccount(a)] ?? 0;
+              <Section key={label} title={label} total={grpTotal} cur={cur} positive>
+                {accountsInGroup(min, max).map((a) => {
+                  const v = byDebit[formatAccount(a)] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>
             );
           })}
-          <div className="flex justify-between px-4 py-2 text-sm font-semibold text-emerald-700 border-t border-slate-200">
+          <div className="flex justify-between px-4 py-2 text-sm font-bold text-emerald-700 border-t-2 border-emerald-200 mt-1">
             <span>Total Aktiven</span>
             <span className="tabular-nums">{fmt(totalAktiv, cur)}</span>
           </div>
 
           {/* Passiven */}
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 mt-4">Passiven</p>
-          {PASSIV_CATS.map((cat) => {
-            const accts = accounts.filter((a) => a.categoryCode === cat);
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 mt-5">Passiven</p>
+          {BILANZ_GROUPS.passiv.map(({ label, min, max }) => {
+            const grpTotal = sumGroup(min, max, 'credit');
+            if (grpTotal === 0) return null;
             return (
-              <Section key={cat} title={categoryLabel(cat)} total={byCat[cat] ?? 0} cur={cur}>
-                {accts.map((a) => {
+              <Section key={label} title={label} total={grpTotal} cur={cur}>
+                {accountsInGroup(min, max).map((a) => {
                   const v = byCredit[formatAccount(a)] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>
             );
           })}
-          <div className="flex justify-between px-4 py-2 text-sm font-semibold text-slate-700 border-t border-slate-200">
+          <div className="flex justify-between px-4 py-2 text-sm font-bold text-slate-700 border-t-2 border-slate-200 mt-1">
             <span>Total Passiven</span>
             <span className="tabular-nums">{fmt(totalPassiv, cur)}</span>
           </div>
         </div>
       )}
+
       {/* ── MwSt-Übersicht ── */}
       {tab === 'mwst' && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <h3 className="text-base font-semibold text-slate-900">MwSt-Übersicht</h3>
-
-          {/* Summary cards */}
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             {[
               { label: 'Geschuldete MwSt (Ertrag)', value: geschuldeteMwst, color: 'text-rose-600' },
-              { label: 'Vorsteuer (Aufwand)', value: vorsteuer, color: 'text-emerald-600' },
-              { label: 'MwSt-Saldo (schulde ich)', value: mwstSaldo, color: mwstSaldo >= 0 ? 'text-rose-700' : 'text-emerald-700' },
+              { label: 'Vorsteuer (Aufwand)',        value: vorsteuer,       color: 'text-emerald-600' },
+              { label: 'MwSt-Saldo (schulde ich)',   value: mwstSaldo,       color: mwstSaldo >= 0 ? 'text-rose-700' : 'text-emerald-700' },
             ].map((c) => (
               <div key={c.label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                 <p className="text-xs text-slate-500">{c.label}</p>
@@ -349,8 +545,6 @@ const Bilanz = () => {
               </div>
             ))}
           </div>
-
-          {/* Detail table */}
           {mwstRows.length === 0 ? (
             <p className="text-sm text-slate-400">Noch keine Buchungen mit MwSt-Betrag vorhanden.</p>
           ) : (

@@ -1,4 +1,56 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+
+const faqs = [
+  {
+    q: 'Benötige ich Buchhaltungskenntnisse?',
+    a: 'Nein. Bookitty erkennt deine Rechnungen automatisch und schlägt Konten vor. Kitty, unser KI-Assistent, erklärt dir jeden Schritt und beantwortet Fragen zu Buchhaltung und MwSt.',
+  },
+  {
+    q: 'Ist Bookitty für Schweizer KMU geeignet?',
+    a: 'Ja, Bookitty wurde speziell für den Schweizer Kontenrahmen KMU entwickelt. MwSt-Sätze (8.1 %, 3.8 %, 2.6 %), QR-Rechnungen und Schweizer Bilanz-Anforderungen sind integriert.',
+  },
+  {
+    q: 'Was kostet Bookitty?',
+    a: 'Bookitty ist aktuell kostenlos nutzbar. Keine Kreditkarte, kein Risiko. Premium-Funktionen (Lohnbuchhaltung, automatische Mahnungen, Steuerexport) folgen schrittweise.',
+  },
+  {
+    q: 'Wie funktioniert der Demo-Modus?',
+    a: 'Klicke auf "Demo ausprobieren" – du kannst alle Funktionen sofort testen, ohne dich zu registrieren. Die Daten werden nur lokal gespeichert und nicht übermittelt.',
+  },
+  {
+    q: 'Wie sicher sind meine Daten?',
+    a: 'Jedes Unternehmen hat einen isolierten Workspace. Daten werden verschlüsselt übertragen und in der Schweiz gehostet. Ohne Konto verlassen keine Daten deinen Browser.',
+  },
+  {
+    q: 'Was kann Kitty, der KI-Assistent?',
+    a: 'Kitty beantwortet Fragen zu Buchungen, Kontenrahmen, MwSt und Bookitty-Funktionen – auch offline. Bei komplexeren Fragen greift Kitty auf ein Netzwerk von KI-Modellen zurück.',
+  },
+];
+
+const FaqItem = ({ q, a }: { q: string; a: string }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-slate-100 last:border-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between py-4 text-left text-sm font-semibold text-slate-800 hover:text-slate-900 transition gap-4"
+      >
+        <span>{q}</span>
+        <svg
+          className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <p className="pb-4 text-sm text-slate-500 leading-relaxed">{a}</p>
+      )}
+    </div>
+  );
+};
 
 const features = [
   {
@@ -162,6 +214,102 @@ const Landing = () => (
             </div>
           </div>
         ))}
+      </div>
+    </section>
+
+    {/* ── Kitty Showcase ── */}
+    <section className="bg-gradient-to-b from-white to-slate-50 border-t border-slate-100 py-20">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+
+          {/* Left: copy */}
+          <div>
+            <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 mb-4 uppercase tracking-wide">
+              KI-Assistent
+            </span>
+            <h2 className="text-2xl font-bold text-slate-900 mb-4 leading-snug">
+              Kitty beantwortet deine Fragen – sofort und auf Schweizerdeutsch
+            </h2>
+            <p className="text-slate-500 text-sm leading-relaxed mb-6">
+              Ob Buchungsvorschlag, MwSt-Satz oder Navigation: Kitty kennt Bookitty in- und auswendig und führt dich direkt zur richtigen Stelle.
+            </p>
+            <ul className="space-y-3 text-sm text-slate-700 mb-8">
+              {[
+                'Buchungsvorschläge mit einem Klick erfassen',
+                'Menüpunkte direkt hervorheben',
+                'Schweizer Buchhaltungsfragen beantworten',
+                'Funktioniert offline – ohne Wartezeit',
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2.5">
+                  <svg className="h-4 w-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/demo"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700 transition"
+            >
+              Kitty im Demo testen
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+
+          {/* Right: chat mockup */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-lg p-4 space-y-3 max-w-sm mx-auto w-full">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0">
+                <svg className="h-4 w-4 text-white" viewBox="0 0 32 32" fill="currentColor">
+                  <path d="M6 4 L2 12 L6 11 Q8 18 16 18 Q24 18 26 11 L30 12 L26 4 L22 8 Q19 6 16 6 Q13 6 10 8 Z" />
+                  <circle cx="11" cy="13" r="1.5" fill="#0f172a" />
+                  <circle cx="21" cy="13" r="1.5" fill="#0f172a" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-slate-900">Kitty</span>
+              <span className="ml-auto text-[10px] font-medium text-emerald-600">Online</span>
+            </div>
+            {[
+              { role: 'user', text: 'Wie buche ich Büromaterial?' },
+              { role: 'kitty', text: 'Büromaterial kommt auf 6500 Verwaltungsaufwand. Ich erstelle dir direkt einen Buchungsvorschlag.' },
+            ].map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                  m.role === 'user' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-800'
+                }`}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs">
+              <p className="font-semibold text-emerald-800 mb-1.5">Buchungsvorschlag</p>
+              <div className="text-slate-600 space-y-0.5">
+                <div className="flex justify-between"><span>Soll</span><span className="font-medium">6500 Verwaltungsaufwand</span></div>
+                <div className="flex justify-between"><span>Haben</span><span className="font-medium">1020 Bankguthaben</span></div>
+              </div>
+              <button className="mt-2 w-full rounded-lg bg-emerald-600 py-1.5 text-[11px] font-semibold text-white">
+                Jetzt erfassen →
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    {/* ── FAQ ── */}
+    <section className="py-20">
+      <div className="mx-auto max-w-3xl px-6">
+        <h2 className="text-2xl font-bold text-center text-slate-900 mb-3">Häufige Fragen</h2>
+        <p className="text-center text-slate-500 text-sm mb-12">Noch Fragen? Kitty hilft dir auch direkt in der App.</p>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-6">
+          {faqs.map((item) => (
+            <FaqItem key={item.q} q={item.q} a={item.a} />
+          ))}
+        </div>
       </div>
     </section>
 
