@@ -21,7 +21,7 @@
   Bei Statuswechsel auf «bezahlt» soll das Gegenkonto automatisch wechseln (z. B. Kreditoren → Bank).
   Betrag und MwSt sollen aus dem Beleg automatisch übernommen werden.
 
-- [ ] **10. Buchung löschen**
+- [x] **10. Buchung löschen**
   Bestehende Buchungen müssen aus der Liste löschbar sein (mit Bestätigungs-Dialog).
 
 - [ ] **8. Einnahme vs. Ausgabe – Richtungserkennung**
