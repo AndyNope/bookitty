@@ -42,6 +42,10 @@ define('CORS_ORIGINS', [
     'https://bookitty.bidebliss.com',
 ]);
 
+// ─── Gemini (Kitty Chatbot) ───────────────────────────────────────────────────
+// Get a free key at: https://aistudio.google.com/app/apikey
+define('GEMINI_API_KEY', '<<GEMINI_API_KEY_HIER>>');
+
 // ─── File uploads ─────────────────────────────────────────────────────────────
 define('UPLOAD_DIR',  __DIR__ . '/uploads/');
 define('UPLOAD_URL',  APP_URL . '/api/uploads/');

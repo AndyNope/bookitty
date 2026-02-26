@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
+import KittyChat from '../components/KittyChat';
 
 const buildNavItems = (base: string) => [
   {
@@ -295,6 +296,7 @@ const AppLayout = () => {
       </div>
     </nav>
 
+    <KittyChat />
   </div>
   );
 };
