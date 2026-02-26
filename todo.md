@@ -24,7 +24,7 @@
 - [x] **10. Buchung löschen**
   Bestehende Buchungen müssen aus der Liste löschbar sein (mit Bestätigungs-Dialog).
 
-- [ ] **8. Einnahme vs. Ausgabe – Richtungserkennung**
+- [x] **8. Einnahme vs. Ausgabe – Richtungserkennung**
   Eigene Rechnung wird fälschlicherweise als Kreditorenrechnung erkannt.
   Lösung: Unternehmen hinterlegen → System erkennt «Rechnung von meinem Unternehmen = Einnahme».
 

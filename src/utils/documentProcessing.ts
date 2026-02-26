@@ -8,9 +8,26 @@ import {
   parseBlocksToDraft,
   parseTextToDraft,
   findVendorName,
+  suggestAccount,
+  suggestContraAccount,
 } from './documentParser';
 import { findTemplate } from './templateStore';
 import { getCompany } from './companyStore';
+
+/**
+ * If the saved company name appears anywhere in the document text, this is
+ * the user's own outgoing invoice → mark as Einnahme with correct accounts.
+ * Applied AFTER template so it always wins over a stale cached template.
+ */
+const applyOwnInvoiceDetection = (draft: BookingDraft, text: string): void => {
+  const company = getCompany();
+  if (!company.name) return;
+  if (!text.toLowerCase().includes(company.name.toLowerCase())) return;
+  const status = draft.paymentStatus ?? 'Offen';
+  draft.type = 'Einnahme';
+  draft.account = suggestAccount('Einnahme', status) ?? draft.account;
+  draft.contraAccount = suggestContraAccount('Einnahme', status);
+};
 
 const reader = new BrowserMultiFormatReader();
 
@@ -177,6 +194,7 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
           templateApplied = true;
         }
         const vendorPattern = findVendorName(text);
+        applyOwnInvoiceDetection(draft, text);
         return { draft, detection, templateApplied, vendorPattern };
       } catch {
         /* fall through to plain text extraction */
@@ -241,20 +259,15 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
 
   const vendorPattern = findVendorName(text);
 
-  // Detect own invoices: if the company name appears in the document text,
-  // this is a customer invoice (Einnahme), not a supplier bill (Ausgabe)
-  const company = getCompany();
-  if (company.name && text.toLowerCase().includes(company.name.toLowerCase())) {
-    draft.type = 'Einnahme';
-    draft.contraAccount = draft.paymentStatus === 'Bezahlt' ? '1020 Bankguthaben' : '1100 FLL Debitoren';
-  }
-
   const template = findTemplate(file.name, text);
   if (template) {
     Object.assign(draft, template.draft);
     detection = `${detection}+Template`;
     templateApplied = true;
   }
+
+  // Apply own-invoice detection last so it always wins over any cached template.
+  applyOwnInvoiceDetection(draft, text);
 
   return { draft, detection, templateApplied, vendorPattern };
 };
