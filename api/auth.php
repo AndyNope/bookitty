@@ -16,9 +16,14 @@ function _get_bearer_token(): string {
             }
         }
     }
-    // Fallback for Nginx / PHP-FPM setups
+    // Fallback 1: standard server var (Nginx / PHP-FPM)
     $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if (preg_match('/^Bearer\s+(.+)$/i', trim($auth), $m)) {
+    if ($auth && preg_match('/^Bearer\s+(.+)$/i', trim($auth), $m)) {
+        return $m[1];
+    }
+    // Fallback 2: Apache mod_rewrite sets REDIRECT_HTTP_AUTHORIZATION
+    $auth = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+    if ($auth && preg_match('/^Bearer\s+(.+)$/i', trim($auth), $m)) {
         return $m[1];
     }
     return '';

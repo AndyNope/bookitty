@@ -1,5 +1,11 @@
 Options -Indexes
 
+# Pass Authorization header through Apache rewrite – required on Plesk/cPanel
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
 # Block direct access to PHP helper files (not entry points)
 <FilesMatch "^(config|db|jwt|auth|cors|mailer)\.php$">
     Order allow,deny

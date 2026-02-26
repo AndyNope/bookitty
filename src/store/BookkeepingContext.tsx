@@ -95,8 +95,12 @@ export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
   const { user, isLoading: authLoading } = useAuth();
   const isDemo = !user; // true = localStorage mode, false = API mode
 
-  const [bookings,  setBookings]  = useState<Booking[]>(loadBookings);
-  const [documents, setDocuments] = useState<DocumentImport[]>(loadDocuments);
+  const [bookings,  setBookings]  = useState<Booking[]>(() =>
+    tokenStore.get() ? [] : loadBookings()
+  );
+  const [documents, setDocuments] = useState<DocumentImport[]>(() =>
+    tokenStore.get() ? [] : loadDocuments()
+  );
 
   // ── Sync data based on auth state ──────────────────────────────────────────
   useEffect(() => {
