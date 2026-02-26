@@ -1,0 +1,63 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bookitty – Local Dev Stack
+#
+#   php      → http://localhost:8080   (PHP 8.1 + Apache, serves api/)
+#   db       → localhost:3307          (MariaDB – user bookitty / local_secret)
+#   mailhog  → http://localhost:8025   (Web UI for outgoing mails)
+#
+# Usage:
+#   docker compose up -d
+#   npm run dev        (Vite proxy routes /api → localhost:8080 automatically)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PHP + Apache ─────────────────────────────────────────────────────────
+  php:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: bookitty-php
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html          # whole repo mounted → api/ is live-reloaded
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── MariaDB ──────────────────────────────────────────────────────────────
+  db:
+    image: mariadb:10.11
+    container_name: bookitty-db
+    ports:
+      - "3307:3306"              # 3307 so it doesn't clash with a local MySQL
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE:      bookitty_local
+      MARIADB_USER:          bookitty
+      MARIADB_PASSWORD:      local_secret
+    volumes:
+      - bookitty_db:/var/lib/mysql
+      - ./api/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  # ── MailHog (fake SMTP) ───────────────────────────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: bookitty-mailhog
+    ports:
+      - "1025:1025"              # SMTP (PHP mail() → msmtp → here)
+      - "8025:8025"              # Web UI → open http://localhost:8025
+    restart: unless-stopped
+
+volumes:
+  bookitty_db:
