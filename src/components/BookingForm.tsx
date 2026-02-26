@@ -16,7 +16,7 @@ const initialDraft: BookingDraft = {
   category: getCategoryLabel(accounts[0].categoryCode),
   amount: 0,
   vatAmount: undefined,
-  vatRate: 19,
+  vatRate: 8.1,
   currency: 'CHF',
   paymentStatus: 'Offen',
   type: 'Ausgabe',
@@ -27,8 +27,12 @@ type BookingFormProps = {
   onCancel?: () => void;
 };
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
 const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
   const [draft, setDraft] = useState<BookingDraft>(initialDraft);
+  const [rawAmount, setRawAmount] = useState('0');
 
   const updateField = <K extends keyof BookingDraft>(
     key: K,
@@ -52,6 +56,7 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
     event.preventDefault();
     onSubmit(draft);
     setDraft(initialDraft);
+    setRawAmount('0');
   };
 
   const vatLabel = draft.currency === 'CHF' ? 'MwSt.' : 'USt.';
@@ -167,10 +172,19 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
           <input
             type="number"
             step="0.01"
-            value={draft.amount}
-            onChange={(event) =>
-              updateField('amount', Number(event.target.value))
-            }
+            min="0"
+            value={rawAmount}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setRawAmount(raw);
+              const num = parseFloat(raw) || 0;
+              setDraft((prev) => ({
+                ...prev,
+                amount: num,
+                vatAmount: prev.vatRate > 0 ? round2(num * prev.vatRate / 100) : prev.vatAmount,
+              }));
+            }}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
             required
           />
@@ -181,10 +195,17 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
             <input
               type="number"
               step="0.1"
+              min="0"
               value={draft.vatRate}
-              onChange={(event) =>
-                updateField('vatRate', Number(event.target.value))
-              }
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                const rate = parseFloat(e.target.value) || 0;
+                setDraft((prev) => ({
+                  ...prev,
+                  vatRate: rate,
+                  vatAmount: prev.amount > 0 ? round2(prev.amount * rate / 100) : prev.vatAmount,
+                }));
+              }}
               className="w-full bg-transparent outline-none"
             />
             <span className="text-sm text-slate-400">%</span>
@@ -227,13 +248,19 @@ const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
           <input
             type="number"
             step="0.01"
+            min="0"
             value={draft.vatAmount ?? ''}
-            onChange={(event) =>
-              updateField(
-                'vatAmount',
-                event.target.value ? Number(event.target.value) : undefined,
-              )
-            }
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => {
+              const vatAmt = e.target.value ? parseFloat(e.target.value) : undefined;
+              setDraft((prev) => ({
+                ...prev,
+                vatAmount: vatAmt,
+                vatRate: vatAmt !== undefined && prev.amount > 0
+                  ? round1(vatAmt / prev.amount * 100)
+                  : prev.vatRate,
+              }));
+            }}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
             placeholder="z.B. 13.40"
           />

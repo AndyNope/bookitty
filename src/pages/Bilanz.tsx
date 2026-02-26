@@ -81,15 +81,29 @@ const Bilanz = () => {
   const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'mwst'>('erfolg');
   const cur = bookings[0]?.currency ?? 'CHF';
 
-  // Sum by account code (e.g. '4400 Aufwand...' → total)
-  const byAccount = bookings.reduce<Record<string, number>>((acc, b) => {
+  // Soll (Debit) side → Aktiven (1) and Aufwand (4–8)
+  const byDebit = bookings.reduce<Record<string, number>>((acc, b) => {
     acc[b.account] = (acc[b.account] ?? 0) + b.amount;
     return acc;
   }, {});
 
-  // Sum by category code
+  // Haben (Credit) side → Passiven (2) and Ertrag (3)
+  const byCredit = bookings.reduce<Record<string, number>>((acc, b) => {
+    acc[b.contraAccount] = (acc[b.contraAccount] ?? 0) + b.amount;
+    return acc;
+  }, {});
+
+  // Keep byAccount as alias for debit side (used in Aufwand/Aktiven renders)
+  const byAccount = byDebit;
+
+  // Sum by category: debit-side for Aktiven/Aufwand, credit-side for Passiven/Ertrag
+  const DEBIT_CATS = new Set(['1', '4', '5', '6', '7', '8']);
   const byCat = accounts.reduce<Record<string, number>>((acc, acct) => {
-    acc[acct.categoryCode] = (acc[acct.categoryCode] ?? 0) + (byAccount[formatAccount(acct)] ?? 0);
+    const code = formatAccount(acct);
+    const val = DEBIT_CATS.has(acct.categoryCode)
+      ? (byDebit[code] ?? 0)
+      : (byCredit[code] ?? 0);
+    acc[acct.categoryCode] = (acc[acct.categoryCode] ?? 0) + val;
     return acc;
   }, {});
 
@@ -148,26 +162,26 @@ const Bilanz = () => {
       doc.setFontSize(10); doc.setTextColor(40);
       doc.text(categoryLabel(cat), mX, y); y += 5;
       doc.setTextColor(0);
-      accounts.filter((a) => a.categoryCode === cat && (byAccount[formatAccount(a)] ?? 0) !== 0)
-        .forEach((a) => row(formatAccount(a), byAccount[formatAccount(a)]));
+      accounts.filter((a) => a.categoryCode === cat && (byCredit[formatAccount(a)] ?? 0) !== 0)
+        .forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
     });
     AUFWAND_CATS.forEach((cat) => {
       doc.setFontSize(10); doc.setTextColor(40);
       doc.text(categoryLabel(cat), mX, y); y += 5;
       doc.setTextColor(0);
-      accounts.filter((a) => a.categoryCode === cat && (byAccount[formatAccount(a)] ?? 0) !== 0)
-        .forEach((a) => row(formatAccount(a), byAccount[formatAccount(a)]));
+      accounts.filter((a) => a.categoryCode === cat && (byDebit[formatAccount(a)] ?? 0) !== 0)
+        .forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
     });
     doc.setFontSize(11);
     doc.text('Jahresergebnis', mX, y);
     doc.text(fmt(jahresergebnis, cur), pW - mX - 35, y); y += 10;
 
     section('Bilanz – Aktiven');
-    accounts.filter((a) => AKTIV_CATS.includes(a.categoryCode) && (byAccount[formatAccount(a)] ?? 0) !== 0)
-      .forEach((a) => row(formatAccount(a), byAccount[formatAccount(a)]));
+    accounts.filter((a) => AKTIV_CATS.includes(a.categoryCode) && (byDebit[formatAccount(a)] ?? 0) !== 0)
+      .forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
     section('Bilanz – Passiven');
-    accounts.filter((a) => PASSIV_CATS.includes(a.categoryCode) && (byAccount[formatAccount(a)] ?? 0) !== 0)
-      .forEach((a) => row(formatAccount(a), byAccount[formatAccount(a)]));
+    accounts.filter((a) => PASSIV_CATS.includes(a.categoryCode) && (byCredit[formatAccount(a)] ?? 0) !== 0)
+      .forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
 
     doc.setFontSize(8); doc.setTextColor(150);
     doc.text('Bookitty · Finanzbuchhaltung', mX, pH - 10);
@@ -232,7 +246,7 @@ const Bilanz = () => {
             return (
               <Section key={cat} title={categoryLabel(cat)} total={total} cur={cur} positive>
                 {accts.map((a) => {
-                  const v = byAccount[formatAccount(a)] ?? 0;
+                  const v = byCredit[formatAccount(a)] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>
@@ -305,7 +319,7 @@ const Bilanz = () => {
             return (
               <Section key={cat} title={categoryLabel(cat)} total={byCat[cat] ?? 0} cur={cur}>
                 {accts.map((a) => {
-                  const v = byAccount[formatAccount(a)] ?? 0;
+                  const v = byCredit[formatAccount(a)] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>
