@@ -6,7 +6,7 @@ import {
   formatAccount,
   getCategoryLabel,
 } from '../data/chAccounts';
-import { suggestContraAccount } from '../utils/documentParser';
+import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 
 const initialDraft: BookingDraft = {
   date: new Date().toISOString().split('T')[0],
@@ -43,12 +43,14 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
-  /** Update type or paymentStatus and re-suggest the contra account automatically */
+  /** Update type or paymentStatus and re-suggest both Soll and Haben accounts automatically */
   const updateWithContra = (patch: Partial<BookingDraft>) => {
     setDraft((prev) => {
       const next = { ...prev, ...patch };
+      const suggestedAcct = suggestAccount(next.type, next.paymentStatus);
       return {
         ...next,
+        account: suggestedAcct ?? next.account,
         contraAccount: suggestContraAccount(next.type, next.paymentStatus),
       };
     });
@@ -172,15 +174,16 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
         <label className="text-sm text-slate-600">
           Betrag
           <input
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
+            inputMode="decimal"
             value={rawAmount}
             onFocus={(e) => e.target.select()}
             onChange={(e) => {
               const raw = e.target.value;
+              // Allow digits, decimal separators, empty string
+              if (!/^[0-9]*[.,]?[0-9]*$/.test(raw) && raw !== '') return;
               setRawAmount(raw);
-              const num = parseFloat(raw) || 0;
+              const num = parseFloat(raw.replace(',', '.')) || 0;
               setDraft((prev) => ({
                 ...prev,
                 amount: num,
@@ -188,6 +191,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
               }));
             }}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+            placeholder="0.00"
             required
           />
         </label>

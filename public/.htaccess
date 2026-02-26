@@ -1,3 +1,8 @@
+# Ensure .mjs files are served as JavaScript (required for PDF.js worker in production)
+<IfModule mod_mime.c>
+  AddType application/javascript .mjs
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /

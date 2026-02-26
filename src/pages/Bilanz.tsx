@@ -191,7 +191,8 @@ const Bilanz = () => {
   const steuern = konto8900 ? (byDebit[formatAccount(konto8900)] ?? 0) : 0;
 
   // Intermediate Erfolgsrechnung (Slide 14)
-  const totalBetriebsertrag = byCat['3'] ?? 0;
+  // totalBetriebsertrag: type-based for robustness – handles any account assignment
+  const totalBetriebsertrag = bookings.filter((b) => b.type === 'Einnahme').reduce((s, b) => s + b.amount, 0);
   const materialaufwand     = byCat['4'] ?? 0;
   const bruttogewinnI       = totalBetriebsertrag - materialaufwand;
   const personalaufwand     = byCat['5'] ?? 0;
@@ -361,14 +362,23 @@ const Bilanz = () => {
 
           {/* Betriebsertrag */}
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1">Betriebsertrag</p>
-          {ERTRAG_CATS.map((cat) => (
-            <Section key={cat} title={categoryLabel(cat)} total={byCat[cat] ?? 0} cur={cur} positive>
-              {accounts.filter((a) => a.categoryCode === cat).map((a) => {
-                const v = byCredit[formatAccount(a)] ?? 0;
-                return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
-              })}
-            </Section>
-          ))}
+          {ERTRAG_CATS.map((cat) => {
+            const accts = accounts.filter((a) => a.categoryCode === cat);
+            // Dual-side: old bookings have 3xxx in account (byDebit), new ones in contraAccount (byCredit)
+            const catTotal = accts.reduce((s, a) => {
+              const code = formatAccount(a);
+              return s + (byDebit[code] ?? 0) + (byCredit[code] ?? 0);
+            }, 0);
+            return (
+              <Section key={cat} title={categoryLabel(cat)} total={catTotal} cur={cur} positive>
+                {accts.map((a) => {
+                  const code = formatAccount(a);
+                  const v = (byDebit[code] ?? 0) + (byCredit[code] ?? 0);
+                  return v !== 0 ? <AccountRow key={a.code} label={code} value={v} cur={cur} /> : null;
+                })}
+              </Section>
+            );
+          })}
           <SubtotalRow label="Total Betriebsertrag" value={totalBetriebsertrag} cur={cur} />
 
           {/* Material- und Warenaufwand (4xxx) */}

@@ -215,12 +215,27 @@ export const findVendorName = (text: string): string | undefined => {
 };
 
 /**
- * Suggest the contra account (Gegenkonto) for a booking using Swiss KMU logic:
+ * Suggest the primary Soll account for a booking.
+ * - Ausgabe: user selects Aufwandskonto manually → returns undefined
+ * - Einnahme + Offen   → 1100 FLL Debitoren  (Soll: accounts receivable)
+ * - Einnahme + Bezahlt → 1020 Bankguthaben   (Soll: cash received)
+ */
+export const suggestAccount = (
+  type: 'Einnahme' | 'Ausgabe',
+  paymentStatus: 'Offen' | 'Bezahlt',
+): string | undefined => {
+  if (type === 'Einnahme') {
+    return paymentStatus === 'Bezahlt' ? '1020 Bankguthaben' : '1100 FLL Debitoren';
+  }
+  return undefined;
+};
+
+/**
+ * Suggest the contra account (Gegenkonto/Haben) for a booking using Swiss KMU logic:
  *
- * Ausgabe + Bezahlt  → 1020 Bankguthaben   (bank account was debited)
- * Ausgabe + Offen    → 2000 VLL Kreditoren  (accounts payable)
- * Einnahme + Bezahlt → 1020 Bankguthaben   (money received on bank)
- * Einnahme + Offen   → 1100 FLL Debitoren  (accounts receivable)
+ * Ausgabe + Bezahlt  → 1020 Bankguthaben          (bank account credited)
+ * Ausgabe + Offen    → 2000 VLL Kreditoren          (accounts payable)
+ * Einnahme           → 3400 Dienstleistungserlöse   (Ertragskonto on Haben side)
  */
 export const suggestContraAccount = (
   type: 'Einnahme' | 'Ausgabe',
@@ -231,9 +246,8 @@ export const suggestContraAccount = (
       ? '1020 Bankguthaben'
       : '2000 VLL Kreditoren';
   }
-  return paymentStatus === 'Bezahlt'
-    ? '1020 Bankguthaben'
-    : '1100 FLL Debitoren';
+  // Einnahme: Ertragskonto goes on Haben (contraAccount) side
+  return '3400 Dienstleistungserlöse';
 };
 
 export const parseTextToDraft = (text: string, fallbackName: string): BookingDraft => {
