@@ -1,27 +1,31 @@
-# Bookitty 🐱
+# Bookitty
 
 Moderne Finanzbuchhaltungs-WebApp für Schweizer KMU — mit KI-Chatbot, automatischer Belegerkennung und intuitiver Buchungserfassung.
 
 ## Funktionen
 
-### 📊 Buchhaltung
+### Buchhaltung
 - **Dashboard** – Kennzahlen, Kontostand, letzte Buchungen auf einen Blick
 - **Buchungen** – Einnahmen/Ausgaben erfassen, bearbeiten, nach Zeitraum/Kategorie filtern
 - **Bilanz** – Aktiven/Passiven nach Schweizer KMU-Kontenrahmen, PDF-Export
 - **Erfolgsrechnung** – Ertrag/Aufwand-Übersicht mit Jahresvergleich
 - **Dokumente** – PDF- und Bildbelegs-Import mit automatischer OCR-Erkennung
 
-### 🐱 Kitty – KI-Chatbot
+### Kitty – KI-Chatbot
 - **Offline-First Knowledge Base** – 60+ Q&A-Einträge zu Bookitty-Funktionen, Schweizer Buchhaltung, MwSt und mehr
 - **Agentic UI**: Kitty kann direkt im Interface agieren:
-  - 🔆 **Nav-Highlight** – blinkt das relevante Menü-Element grün auf
-  - 💡 **Buchungsvorschläge** – zeigt vorausgefüllte Buchungskarte mit Soll/Haben/MwSt
-  - ✅ **Direkt erfassen** – ein Klick öffnet das Buchungsformular mit allen Werten vorausgefüllt
+  - **Nav-Highlight** – blinkt das relevante Menü-Element grün auf
+  - **Buchungsvorschläge** – zeigt vorausgefüllte Buchungskarte mit Soll/Haben/MwSt
+  - **Direkt erfassen** – ein Klick öffnet das Buchungsformular mit allen Werten vorausgefüllt
 - **OpenRouter-Fallback** – 9-Modell-Kette (kostenlose Modelle) für Fragen ausserhalb der Knowledge Base
 
-### 🔐 Authentifizierung
+### Authentifizierung
 - Registrierung / Login mit JWT
 - Demo-Modus ohne Account (Daten nur lokal)
+
+## Architektur
+
+![Systemarchitektur](docs/architecture.svg)
 
 ## Tech Stack
 

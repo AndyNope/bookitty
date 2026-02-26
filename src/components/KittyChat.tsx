@@ -49,7 +49,7 @@ const BookingCard = ({
 
   return (
     <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs">
-      <p className="mb-2 font-semibold text-emerald-800">💡 Buchungsvorschlag</p>
+      <p className="mb-2 font-semibold text-emerald-800">Buchungsvorschlag</p>
       <div className="space-y-1 text-slate-700">
         <div className="flex justify-between">
           <span className="text-slate-500">Beschreibung</span>

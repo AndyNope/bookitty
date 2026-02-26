@@ -12,7 +12,7 @@ function send_confirmation_email(string $toEmail, string $toName, string $token)
     $html = '<!DOCTYPE html>
 <html lang="de"><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:540px;margin:0 auto;padding:40px 24px;background:#f8fafc">
 <div style="background:#fff;border-radius:16px;padding:40px 32px;border:1px solid #e2e8f0">
-  <h1 style="font-size:22px;margin:0 0 8px">Willkommen bei ' . APP_NAME . ' 🎉</h1>
+  <h1 style="font-size:22px;margin:0 0 8px">Willkommen bei ' . APP_NAME . '</h1>
   <p style="color:#64748b;margin:0 0 24px">Hallo ' . htmlspecialchars($toName, ENT_QUOTES, 'UTF-8') . ',<br><br>
   bitte bestätige deine E-Mail-Adresse, um dein Konto zu aktivieren.</p>
   <a href="' . htmlspecialchars($confirmUrl, ENT_QUOTES, 'UTF-8') . '"

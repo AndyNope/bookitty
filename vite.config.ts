@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
           cpSync(resolve(__dirname, 'api'), resolve(__dirname, 'dist/api'), {
             recursive: true,
           })
-          console.log('✓ api/ → dist/api/')
+          console.log('[build] api/ -> dist/api/')
         },
       },
     ],

@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="900" height="560" font-family="system-ui, -apple-system, sans-serif">
+
+  <!-- Background -->
+  <rect width="900" height="560" fill="#f8fafc" rx="12"/>
+
+  <!-- Title -->
+  <text x="450" y="36" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">Bookitty – Systemarchitektur</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ZONE: Client -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="20" y="60" width="180" height="440" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="110" y="82" text-anchor="middle" font-size="11" font-weight="600" fill="#64748b" letter-spacing="1">CLIENT</text>
+
+  <!-- Browser box -->
+  <rect x="36" y="96" width="148" height="92" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2"/>
+  <text x="110" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">Browser</text>
+  <text x="110" y="134" text-anchor="middle" font-size="10" fill="#475569">React 18 + Vite 7</text>
+  <text x="110" y="150" text-anchor="middle" font-size="10" fill="#475569">TypeScript</text>
+  <text x="110" y="166" text-anchor="middle" font-size="10" fill="#475569">Tailwind CSS 4</text>
+
+  <!-- Kitty Chatbot box -->
+  <rect x="36" y="208" width="148" height="72" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.2"/>
+  <text x="110" y="228" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">Kitty Chatbot</text>
+  <text x="110" y="246" text-anchor="middle" font-size="10" fill="#166534">Knowledge Base</text>
+  <text x="110" y="262" text-anchor="middle" font-size="10" fill="#166534">TF-IDF Search</text>
+
+  <!-- Router / Auth -->
+  <rect x="36" y="300" width="148" height="60" rx="8" fill="#fefce8" stroke="#fde047" stroke-width="1.2"/>
+  <text x="110" y="320" text-anchor="middle" font-size="12" font-weight="700" fill="#713f12">Auth Guard</text>
+  <text x="110" y="338" text-anchor="middle" font-size="10" fill="#92400e">JWT (localStorage)</text>
+  <text x="110" y="354" text-anchor="middle" font-size="10" fill="#92400e">Demo / App Mode</text>
+
+  <!-- Local store -->
+  <rect x="36" y="380" width="148" height="50" rx="8" fill="#faf5ff" stroke="#d8b4fe" stroke-width="1.2"/>
+  <text x="110" y="400" text-anchor="middle" font-size="12" font-weight="700" fill="#6b21a8">Local State</text>
+  <text x="110" y="418" text-anchor="middle" font-size="10" fill="#7e22ce">useState / Context</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ZONE: Server (local) -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="270" y="60" width="220" height="440" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="380" y="82" text-anchor="middle" font-size="11" font-weight="600" fill="#64748b" letter-spacing="1">SERVER (DOCKER LOCAL)</text>
+
+  <!-- Vite Dev Server -->
+  <rect x="286" y="96" width="188" height="60" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.2"/>
+  <text x="380" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">Vite Dev Server</text>
+  <text x="380" y="134" text-anchor="middle" font-size="10" fill="#1e40af">localhost:5173</text>
+  <text x="380" y="150" text-anchor="middle" font-size="10" fill="#1e40af">HMR + API Proxy</text>
+
+  <!-- PHP -->
+  <rect x="286" y="180" width="188" height="80" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2"/>
+  <text x="380" y="200" text-anchor="middle" font-size="12" font-weight="700" fill="#c2410c">PHP 8.1 Backend</text>
+  <text x="380" y="218" text-anchor="middle" font-size="10" fill="#9a3412">localhost:8080 (Docker)</text>
+  <text x="380" y="234" text-anchor="middle" font-size="10" fill="#9a3412">Auth / Bookings / Docs</text>
+  <text x="380" y="250" text-anchor="middle" font-size="10" fill="#9a3412">chat.php – Kitty Proxy</text>
+
+  <!-- MariaDB -->
+  <rect x="286" y="282" width="188" height="70" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.2"/>
+  <text x="380" y="302" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">MariaDB 10.11</text>
+  <text x="380" y="320" text-anchor="middle" font-size="10" fill="#166534">localhost:3307 (Docker)</text>
+  <text x="380" y="336" text-anchor="middle" font-size="10" fill="#166534">users / bookings / docs</text>
+  <text x="380" y="352" text-anchor="middle" font-size="10" fill="#166534">multi-tenant schema</text>
+
+  <!-- MailHog -->
+  <rect x="286" y="374" width="188" height="56" rx="8" fill="#fdf4ff" stroke="#e879f9" stroke-width="1.2"/>
+  <text x="380" y="394" text-anchor="middle" font-size="12" font-weight="700" fill="#86198f">MailHog</text>
+  <text x="380" y="412" text-anchor="middle" font-size="10" fill="#a21caf">localhost:8025</text>
+  <text x="380" y="428" text-anchor="middle" font-size="10" fill="#a21caf">E-Mail Testing (lokal)</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ZONE: Production -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="560" y="60" width="200" height="280" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="660" y="82" text-anchor="middle" font-size="11" font-weight="600" fill="#64748b" letter-spacing="1">PRODUKTION</text>
+
+  <!-- Nginx -->
+  <rect x="576" y="96" width="168" height="60" rx="8" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1.2"/>
+  <text x="660" y="116" text-anchor="middle" font-size="12" font-weight="700" fill="#0369a1">Nginx</text>
+  <text x="660" y="134" text-anchor="middle" font-size="10" fill="#0c4a6e">Reverse Proxy</text>
+  <text x="660" y="150" text-anchor="middle" font-size="10" fill="#0c4a6e">bookitty.bidebliss.com</text>
+
+  <!-- PHP Prod -->
+  <rect x="576" y="176" width="168" height="60" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2"/>
+  <text x="660" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#c2410c">PHP 8.1</text>
+  <text x="660" y="214" text-anchor="middle" font-size="10" fill="#9a3412">Same server (127.0.0.1)</text>
+  <text x="660" y="230" text-anchor="middle" font-size="10" fill="#9a3412">api/ in dist/</text>
+
+  <!-- MariaDB Prod -->
+  <rect x="576" y="256" width="168" height="60" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.2"/>
+  <text x="660" y="276" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">MariaDB</text>
+  <text x="660" y="294" text-anchor="middle" font-size="10" fill="#166534">Produktionsdatenbank</text>
+  <text x="660" y="310" text-anchor="middle" font-size="10" fill="#166534">bookitty (DB)</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ZONE: External -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="560" y="370" width="200" height="130" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="660" y="392" text-anchor="middle" font-size="11" font-weight="600" fill="#64748b" letter-spacing="1">EXTERNE DIENSTE</text>
+
+  <!-- OpenRouter -->
+  <rect x="576" y="406" width="168" height="60" rx="8" fill="#fef9c3" stroke="#fde047" stroke-width="1.2"/>
+  <text x="660" y="426" text-anchor="middle" font-size="12" font-weight="700" fill="#854d0e">OpenRouter API</text>
+  <text x="660" y="444" text-anchor="middle" font-size="10" fill="#713f12">9 Free AI Models</text>
+  <text x="660" y="460" text-anchor="middle" font-size="10" fill="#713f12">Kitty Fallback</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ARROWS -->
+  <!-- ═══════════════════════════════════════════════════ -->
+
+  <!-- Browser -> Vite dev server (HTTPS/fetch) -->
+  <line x1="184" y1="126" x2="286" y2="126" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-blue)"/>
+  <text x="235" y="119" text-anchor="middle" font-size="9" fill="#6366f1">fetch / WS</text>
+
+  <!-- Vite -> PHP (proxy) -->
+  <line x1="380" y1="156" x2="380" y2="180" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <text x="395" y="171" font-size="9" fill="#f97316">proxy</text>
+
+  <!-- PHP -> MariaDB -->
+  <line x1="380" y1="260" x2="380" y2="282" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <text x="395" y="275" font-size="9" fill="#22c55e">PDO</text>
+
+  <!-- PHP -> MailHog -->
+  <line x1="380" y1="360" x2="380" y2="374" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+  <text x="395" y="370" font-size="9" fill="#a855f7">SMTP</text>
+
+  <!-- PHP (chat.php) -> OpenRouter -->
+  <line x1="474" y1="220" x2="576" y2="436" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-yellow)"/>
+  <text x="535" y="360" text-anchor="middle" font-size="9" fill="#a16207">HTTPS</text>
+
+  <!-- Kitty -> PHP fallback arrow -->
+  <line x1="184" y1="244" x2="286" y2="220" stroke="#22c55e" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-green)"/>
+  <text x="230" y="238" text-anchor="middle" font-size="9" fill="#166534">fallback</text>
+
+  <!-- Browser -> Nginx (prod) -->
+  <path d="M 110 96 Q 110 50 660 50 Q 660 82 660 96" fill="none" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-sky)"/>
+  <text x="420" y="44" text-anchor="middle" font-size="9" fill="#0284c7">HTTPS (Produktion)</text>
+
+  <!-- Nginx -> PHP prod -->
+  <line x1="660" y1="156" x2="660" y2="176" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- PHP prod -> MariaDB prod -->
+  <line x1="660" y1="236" x2="660" y2="256" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- LEGEND -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="20" y="510" width="860" height="36" rx="6" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="38" y1="528" x2="60" y2="528" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="66" y="532" font-size="10" fill="#334155">Browser-Anfragen</text>
+  <line x1="170" y1="528" x2="192" y2="528" stroke="#f97316" stroke-width="1.5"/>
+  <text x="198" y="532" font-size="10" fill="#334155">Backend-Calls</text>
+  <line x1="290" y1="528" x2="312" y2="528" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="318" y="532" font-size="10" fill="#334155">DB-Verbindung</text>
+  <line x1="420" y1="528" x2="442" y2="528" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="448" y="532" font-size="10" fill="#334155">KI-Fallback</text>
+  <line x1="530" y1="528" x2="552" y2="528" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="558" y="532" font-size="10" fill="#334155">Prod-Route</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ARROWHEAD MARKERS -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <defs>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f97316"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#a855f7"/>
+    </marker>
+    <marker id="arrow-yellow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#eab308"/>
+    </marker>
+    <marker id="arrow-sky" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#0ea5e9"/>
+    </marker>
+  </defs>
+</svg>
