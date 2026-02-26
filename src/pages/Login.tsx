@@ -21,7 +21,7 @@ const Login = () => {
     setLoading(true);
     try {
       await login(email, pass);
-      navigate('/', { replace: true });
+      navigate('/app', { replace: true });
     } catch (err: unknown) {
       setError((err as Error).message ?? 'Anmeldung fehlgeschlagen');
     } finally {
@@ -109,8 +109,8 @@ const Login = () => {
         {/* Demo link */}
         <p className="mt-4 text-center text-sm text-slate-400">
           Nur schauen?{' '}
-          <Link to="/" className="text-slate-500 hover:underline">
-            Demo-Modus starten →
+          <Link to="/demo" className="text-slate-500 hover:underline">
+            Demo starten →
           </Link>
         </p>
       </div>

@@ -10,7 +10,7 @@ import type { Booking, BookingDraft, DocumentImport } from '../types';
 import { initialBookings, initialDocuments } from '../data/mock';
 import { upsertTemplate } from '../utils/templateStore';
 import { useAuth } from './AuthContext';
-import { api, tokenStore } from '../services/api';
+import { api } from '../services/api';
 
 const createId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -91,44 +91,38 @@ const BookkeepingContext = createContext<BookkeepingContextValue | undefined>(
   undefined,
 );
 
-export const BookkeepingProvider = ({ children }: { children: ReactNode }) => {
+export const BookkeepingProvider = ({ children, isDemo = false }: { children: ReactNode; isDemo?: boolean }) => {
   const { user, isLoading: authLoading } = useAuth();
-  const isDemo = !user; // true = localStorage mode, false = API mode
 
   const [bookings,  setBookings]  = useState<Booking[]>(() =>
-    tokenStore.get() ? [] : loadBookings()
+    isDemo ? loadBookings() : []
   );
   const [documents, setDocuments] = useState<DocumentImport[]>(() =>
-    tokenStore.get() ? [] : loadDocuments()
+    isDemo ? loadDocuments() : []
   );
 
-  // ── Sync data based on auth state ──────────────────────────────────────────
+  // ── Sync data from API when logged in ────────────────────────────────────
   useEffect(() => {
-    if (authLoading) return; // wait for auth to resolve
-
+    if (isDemo) return; // demo uses localStorage state
+    if (authLoading) return;
     if (user) {
-      // Logged-in: fetch fresh data from API
       api.bookings.list().then(setBookings).catch(console.error);
       api.documents.list().then(setDocuments).catch(console.error);
-    } else {
-      // Demo mode: reset to localStorage / initial data
-      setBookings(loadBookings());
-      setDocuments(loadDocuments());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, authLoading]);
+  }, [isDemo, user?.id, authLoading]);
 
-  // ── Persist to localStorage only in demo mode ──────────────────────────────
+  // ── Persist to localStorage in demo mode only ────────────────────────────
   useEffect(() => {
-    if (tokenStore.get()) return; // logged-in users: don't overwrite localStorage
+    if (!isDemo) return;
     localStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings));
-  }, [bookings]);
+  }, [bookings, isDemo]);
 
   useEffect(() => {
-    if (tokenStore.get()) return;
+    if (!isDemo) return;
     const sanitized = documents.map(({ previewUrl, ...doc }) => doc);
     localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(sanitized));
-  }, [documents]);
+  }, [documents, isDemo]);
 
   const addBooking = (draft: BookingDraft) => {
     const booking: Booking = { id: createId(), ...draft };

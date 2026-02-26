@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 
-const navItems = [
+const buildNavItems = (base: string) => [
   {
-    to: '/',
+    to: base,
+    end: true,
     label: 'Dashboard',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -13,7 +14,8 @@ const navItems = [
     ),
   },
   {
-    to: '/buchungen',
+    to: `${base}/buchungen`,
+    end: false,
     label: 'Buchungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -22,7 +24,8 @@ const navItems = [
     ),
   },
   {
-    to: '/bilanz',
+    to: `${base}/bilanz`,
+    end: false,
     label: 'Bilanz',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -31,7 +34,8 @@ const navItems = [
     ),
   },
   {
-    to: '/dokumente',
+    to: `${base}/dokumente`,
+    end: false,
     label: 'Dokumente',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -40,7 +44,8 @@ const navItems = [
     ),
   },
   {
-    to: '/einstellungen',
+    to: `${base}/einstellungen`,
+    end: false,
     label: 'Einstellungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -56,6 +61,9 @@ const AppLayout = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
+  const isDemo = location.pathname.startsWith('/demo');
+  const base   = isDemo ? '/demo' : '/app';
+  const navItems = buildNavItems(base);
 
   const handleLogout = () => {
     logout();
@@ -121,7 +129,7 @@ const AppLayout = () => {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.end}
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-xl px-3 py-3 transition ${
@@ -182,7 +190,7 @@ const AppLayout = () => {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.end}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-xl px-3 py-2 transition ${
                   isActive
@@ -265,15 +273,14 @@ const AppLayout = () => {
     <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white lg:hidden">
       <div className="flex">
         {navItems.map((item) => {
-          const isActive =
-            item.to === '/'
-              ? location.pathname === '/'
-              : location.pathname.startsWith(item.to);
+          const isActive = item.end
+            ? location.pathname === item.to
+            : location.pathname.startsWith(item.to);
           return (
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.end}
               className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
                 isActive ? 'text-slate-900' : 'text-slate-400'
               }`}
