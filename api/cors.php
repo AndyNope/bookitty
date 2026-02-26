@@ -1,43 +1,38 @@
 <?php
-// ─── Environment Detection ────────────────────────────────────────────────────
-$host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$isProd  = ($host === 'bookitty.bidebliss.com');
+/**
+ * cors.php – CORS-Header + globaler Exception-Handler
+ *
+ * Wird nach config.php eingebunden, deshalb sind alle Konstanten bereits
+ * definiert (CORS_ORIGINS, APP_URL, …).
+ */
 
-// ─── Database ─────────────────────────────────────────────────────────────────
-// PHP runs ON the server in both cases – DB is always localhost there.
-// During development the frontend calls the remote server directly (CORS allowed).
-define('DB_HOST', '127.0.0.1');
-define('DB_PORT', 3306);
-define('DB_NAME', $isProd ? 'bookitty'     : 'dev_bookitty');
-define('DB_USER', $isProd ? 'bookitty'     : 'dev_bookitty');
-define('DB_PASS', $isProd ? 'ad1a%kGfK18P*izq' : 'xLp71JRpyv?1%llf');
+// ─── CORS ────────────────────────────────────────────────────────────────────
+function set_cors_headers(): void {
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if (in_array($origin, CORS_ORIGINS, true)) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+        header('Access-Control-Allow-Credentials: true');
+        header('Vary: Origin');
+    }
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Content-Type: application/json; charset=utf-8');
 
-// ─── JWT ──────────────────────────────────────────────────────────────────────
-// IMPORTANT: Replace with a strong random 64-char string before going live!
-define('JWT_SECRET', 'bkty_CHANGE_ME_to_a_long_random_string_64chars_XXXXXXXXXXXXXXXXXXXX');
-define('JWT_EXPIRY', 60 * 60 * 24 * 30); // 30 days
+    // Preflight
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+}
 
-// ─── App ──────────────────────────────────────────────────────────────────────
-define('APP_URL',       'https://bookitty.bidebliss.com');
-define('APP_NAME',      'Bookitty');
-define('MAIL_FROM',     'noreply@bidebliss.com');
-define('MAIL_FROM_NAME','Bookitty');
+// ─── Global Exception Handler ────────────────────────────────────────────────
+set_exception_handler(function (Throwable $e): void {
+    http_response_code(500);
+    $isProd = defined('APP_URL') && str_contains(APP_URL, 'bookitty.bidebliss.com');
+    echo json_encode(
+        $isProd
+            ? ['error' => 'Internal Server Error']
+            : ['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]
+    );
+});
 
-// ─── CORS allowed origins ─────────────────────────────────────────────────────
-define('CORS_ORIGINS', [
-    'http://localhost:5173',
-    'http://localhost:4173',
-    'https://bookitty.bidebliss.com',
-]);
-
-// ─── File uploads ─────────────────────────────────────────────────────────────
-define('UPLOAD_DIR',  __DIR__ . '/uploads/');
-define('UPLOAD_URL',  APP_URL . '/api/uploads/');
-define('ALLOWED_MIME_TYPES', [
-    'application/pdf',
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'image/tiff',
-]);
