@@ -125,10 +125,27 @@ const Dokumente = () => {
                     ) : (
                       <p className="font-medium text-slate-900">{doc.fileName}</p>
                     )}
-                    <p className="text-xs text-slate-500">
-                      {doc.uploadedAt} · Erkennung {doc.detection ?? (doc.fileName.endsWith('.pdf') ? 'PDF' : 'Standard')}
-                      {doc.templateApplied ? ' · ✓ Vorlage' : ''}
-                      {doc.vendorPattern ? ` · 🏷 ${doc.vendorPattern}` : ''}
+                    <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1">
+                      <span>{doc.uploadedAt} · Erkennung {doc.detection ?? (doc.fileName.endsWith('.pdf') ? 'PDF' : 'Standard')}</span>
+                      {doc.templateApplied && (
+                        <span className="inline-flex items-center gap-0.5">
+                          <span>·</span>
+                          <svg className="h-3 w-3 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Vorlage</span>
+                        </span>
+                      )}
+                      {doc.vendorPattern && (
+                        <span className="inline-flex items-center gap-0.5">
+                          <span>·</span>
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L8.4 3.659A2.25 2.25 0 0 0 6.81 3H5.25" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
+                          </svg>
+                          <span>{doc.vendorPattern}</span>
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

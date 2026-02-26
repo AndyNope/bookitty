@@ -44,8 +44,11 @@ const Login = () => {
 
           {/* Success banner */}
           {confirmed && (
-            <div className="mb-5 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm text-emerald-800">
-              ✓ E-Mail bestätigt! Du kannst dich jetzt anmelden.
+            <div className="mb-5 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm text-emerald-800 flex items-center gap-2">
+              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              E-Mail bestätigt! Du kannst dich jetzt anmelden.
             </div>
           )}
 

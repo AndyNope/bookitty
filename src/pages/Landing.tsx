@@ -2,22 +2,39 @@ import { Link } from 'react-router-dom';
 
 const features = [
   {
-    icon: '📄',
+    icon: (
+      <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 3v4a1 1 0 0 1-1 1H5m4 8h6m-6-4h6m4-8v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7.914a1 1 0 0 1 .293-.707l3.914-3.914A1 1 0 0 1 10.914 3H18a1 1 0 0 1 1 1Z" />
+      </svg>
+    ),
     title: 'Automatischer Beleg-Import',
     desc: 'PDFs und Bilder automatisch erkennen, verarbeiten und buchen – inklusive QR-Rechnung.',
   },
   {
-    icon: '📊',
+    icon: (
+      <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v15a1 1 0 0 0 1 1h15M8 16l4-6 4 3 4-7" />
+      </svg>
+    ),
     title: 'Doppelte Buchführung',
     desc: 'Schweizer Kontenrahmen KMU, Erfolgsrechnung und Bilanz jederzeit aktuell.',
   },
   {
-    icon: '🏷️',
+    icon: (
+      <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 9.4 7.55 4.24M18 14h-7m3.5-8.5A2.5 2.5 0 1 1 9 8a2.5 2.5 0 0 1 5 0Zm0 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM6 12a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z" />
+      </svg>
+    ),
     title: 'Auto-Vorlagen',
     desc: 'Bookitty lernt aus deinen Buchungen und erkennt Lieferanten beim nächsten Mal automatisch wieder.',
   },
   {
-    icon: '🔒',
+    icon: (
+      <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c7 0 8 1 8 1s1 2 1 7-1 7-9 10C4 18 3 16 3 11s1-7 1-7 1-1 8-1Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m9 12 1.5 1.5L15 9" />
+      </svg>
+    ),
     title: 'Sicher & Multi-Tenant',
     desc: 'Jedes Unternehmen hat seinen eigenen isolierten Workspace – gehostet in der Schweiz.',
   },
@@ -27,6 +44,21 @@ const steps = [
   { num: '1', title: 'Registrieren', desc: 'Konto erstellen, E-Mail bestätigen – fertig.' },
   { num: '2', title: 'Beleg hochladen', desc: 'PDF oder Foto der Rechnung hochladen.' },
   { num: '3', title: 'Prüfen & Buchen', desc: 'Vorschlag prüfen, anpassen und mit einem Klick buchen.' },
+];
+
+const stepIcons = [
+  // 1 – Person/register
+  <svg key="1" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7Z" />
+  </svg>,
+  // 2 – Upload
+  <svg key="2" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8-4-4m0 0L8 8m4-4v12" />
+  </svg>,
+  // 3 – Check/book
+  <svg key="3" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+  </svg>,
 ];
 
 const Landing = () => (
@@ -104,7 +136,9 @@ const Landing = () => (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
             <div key={f.title} className="rounded-2xl border border-slate-100 bg-slate-50 p-6">
-              <div className="text-3xl mb-3">{f.icon}</div>
+              <div className="mb-4 inline-flex items-center justify-center rounded-xl bg-slate-900 p-2.5 text-white">
+                {f.icon}
+              </div>
               <h3 className="font-semibold text-slate-900 mb-2 text-sm">{f.title}</h3>
               <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
             </div>
@@ -117,10 +151,10 @@ const Landing = () => (
     <section className="mx-auto max-w-6xl px-6 py-20">
       <h2 className="text-2xl font-bold text-center text-slate-900 mb-12">So funktioniert's</h2>
       <div className="grid gap-6 sm:grid-cols-3">
-        {steps.map((s) => (
+        {steps.map((s, i) => (
           <div key={s.num} className="flex gap-4">
-            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold">
-              {s.num}
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center">
+              {stepIcons[i]}
             </div>
             <div>
               <h3 className="font-semibold text-slate-900 mb-1">{s.title}</h3>
