@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { searchKittyKnowledge, pickAnswer } from '../utils/kittySearch';
 
 type Message = {
   role: 'user' | 'model';
   text: string;
+  followUp?: string[];
+  isLocal?: boolean;
 };
 
 const SUGGESTIONS = [
@@ -40,6 +43,21 @@ const KittyChat = () => {
     setInput('');
     setLoading(true);
 
+    // ── 1. Lokale Knowledge Base (offline, sofort) ────────────────────────────
+    const localMatch = searchKittyKnowledge(text.trim());
+    if (localMatch) {
+      await new Promise(r => setTimeout(r, 300 + Math.random() * 400));
+      setMessages(prev => [...prev, {
+        role: 'model',
+        text: pickAnswer(localMatch),
+        followUp: localMatch.followUp,
+        isLocal: true,
+      }]);
+      setLoading(false);
+      return;
+    }
+
+    // ── 2. Fallback: OpenRouter API ───────────────────────────────────────────
     try {
       const res = await fetch('/api/chat.php', {
         method: 'POST',
@@ -163,19 +181,36 @@ const KittyChat = () => {
               </div>
             ) : (
               messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+                <div key={i}>
                   <div
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-slate-900 text-white rounded-br-sm'
-                        : 'bg-slate-100 text-slate-800 rounded-bl-sm'
-                    }`}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {renderText(msg.text)}
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-slate-900 text-white rounded-br-sm'
+                          : 'bg-slate-100 text-slate-800 rounded-bl-sm'
+                      }`}
+                    >
+                      {renderText(msg.text)}
+                    </div>
                   </div>
+                  {/* Follow-up Vorschläge nach lokalen Antworten */}
+                  {msg.role === 'model' && msg.followUp && msg.followUp.length > 0 && i === messages.length - 1 && (
+                    <div className="mt-2 flex flex-col gap-1 pl-1">
+                      {msg.followUp.map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => send(q)}
+                          disabled={loading}
+                          className="rounded-xl border border-slate-200 px-3 py-1.5 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition disabled:opacity-40"
+                        >
+                          ↳ {q}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
