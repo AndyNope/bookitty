@@ -17,7 +17,7 @@
 - [x] **13. MwSt-Übersicht**
   Eigener Tab in Auswertungen: Vorsteuer, geschuldete MwSt, Saldo. Detailtabelle pro Buchung.
 
-- [ ] **9. Konto-Wechsel bei «bezahlt» + automatische Betrag- & MwSt-Erfassung**
+- [x] **9. Konto-Wechsel bei «bezahlt» + automatische Betrag- & MwSt-Erfassung**
   Bei Statuswechsel auf «bezahlt» soll das Gegenkonto automatisch wechseln (z. B. Kreditoren → Bank).
   Betrag und MwSt sollen aus dem Beleg automatisch übernommen werden.
 

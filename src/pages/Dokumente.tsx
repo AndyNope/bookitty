@@ -4,7 +4,7 @@ import { useBookkeeping } from '../store/BookkeepingContext';
 import type { BookingDraft } from '../types';
 import { processDocument } from '../utils/documentProcessing';
 import { addTemplate } from '../utils/templateStore';
-import { suggestContraAccount } from '../utils/documentParser';
+import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import {
   accounts,
   accountCategories,
@@ -63,8 +63,10 @@ const Dokumente = () => {
   const updateDraftWithContra = (patch: Partial<BookingDraft>) => {
     if (!selectedDocument) return;
     const next = { ...selectedDocument.draft, ...patch };
+    const suggestedAcct = suggestAccount(next.type, next.paymentStatus);
     updateDocumentDraft(selectedDocument.id, {
       ...next,
+      account: suggestedAcct ?? next.account,
       contraAccount: suggestContraAccount(next.type, next.paymentStatus),
     });
   };
@@ -259,6 +261,15 @@ const Dokumente = () => {
                       </option>
                     ))}
                   </select>
+                  <span className="mt-1 block text-xs text-slate-400">
+                    {selectedDocument.draft.type === 'Ausgabe'
+                      ? selectedDocument.draft.paymentStatus === 'Bezahlt'
+                        ? 'Soll: Aufwandskonto ∕ Haben: Bank'
+                        : 'Soll: Aufwandskonto ∕ Haben: Kreditoren'
+                      : selectedDocument.draft.paymentStatus === 'Bezahlt'
+                        ? 'Soll: Bank ∕ Haben: Erlöskonto'
+                        : 'Soll: Debitoren ∕ Haben: Erlöskonto'}
+                  </span>
                 </label>
                 <label>
                   Kategorie
@@ -277,13 +288,18 @@ const Dokumente = () => {
                 <label>
                   Betrag
                   <input
-                    type="number"
-                    step="0.01"
-                    value={selectedDocument.draft.amount}
-                    onChange={(event) =>
-                      updateDraft({ amount: Number(event.target.value) })
-                    }
+                    type="text"
+                    inputMode="decimal"
+                    value={selectedDocument.draft.amount || ''}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      if (!/^[0-9]*[.,]?[0-9]*$/.test(raw) && raw !== '') return;
+                      const num = parseFloat(raw.replace(',', '.')) || 0;
+                      updateDraft({ amount: num });
+                    }}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    placeholder="0.00"
                   />
                 </label>
                 <label>
@@ -304,19 +320,21 @@ const Dokumente = () => {
                   </div>
                 </label>
                 <label>
-                  USt Betrag
+                  {selectedDocument.draft.currency === 'CHF' ? 'MwSt.' : 'USt.'} Betrag
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={selectedDocument.draft.vatAmount ?? ''}
-                    onChange={(event) =>
+                    onFocus={(e) => e.target.select()}
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      if (!/^[0-9]*[.,]?[0-9]*$/.test(raw) && raw !== '') return;
                       updateDraft({
-                        vatAmount: event.target.value
-                          ? Number(event.target.value)
-                          : undefined,
-                      })
-                    }
+                        vatAmount: raw ? parseFloat(raw.replace(',', '.')) : undefined,
+                      });
+                    }}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    placeholder="z.B. 13.40"
                   />
                 </label>
                 <label>
