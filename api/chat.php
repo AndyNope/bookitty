@@ -58,7 +58,7 @@ Grenzen:
 Ton: freundlich, professionell, kurz und präzise. Keine langen Einleitungen.
 PROMPT;
 
-// ── Call OpenRouter API (kostenlose Modelle via :free Suffix) ─────────────────
+// ── Call OpenRouter API – Fallback-Kette bei Rate-Limit ──────────────────────
 $apiKey = defined('KITTY_API_KEY') ? KITTY_API_KEY : '';
 if (empty($apiKey)) {
     http_response_code(503);
@@ -66,43 +66,72 @@ if (empty($apiKey)) {
     exit;
 }
 
-$payload = json_encode([
-    'model'    => 'meta-llama/llama-4-maverick:free',
-    'messages' => array_merge(
-        [['role' => 'system', 'content' => $systemPrompt]],
-        $history
-    ),
-    'temperature' => 0.4,
-    'max_tokens'  => 1024,
-]);
+$models = [
+    'upstage/solar-pro-3:free',
+    'openai/gpt-oss-20b:free',
+    'openai/gpt-oss-120b:free',
+    'mistralai/mistral-small-3.1-24b-instruct:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'google/gemma-3-27b-it:free',
+    'nousresearch/hermes-3-llama-3.1-405b:free',
+    'nvidia/nemotron-nano-9b-v2:free',
+    'qwen/qwen3-4b:free',
+];
 
-$ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
-curl_setopt_array($ch, [
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => $payload,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 30,
-    CURLOPT_HTTPHEADER     => [
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . $apiKey,
-        'HTTP-Referer: https://bookitty.bidebliss.com',
-        'X-Title: Bookitty',
-    ],
-]);
+$raw = null; $httpCode = 0;
+foreach ($models as $model) {
+    $payload = json_encode([
+        'model'    => $model,
+        'messages' => array_merge(
+            [['role' => 'system', 'content' => $systemPrompt]],
+            $history
+        ),
+        'temperature' => 0.4,
+        'max_tokens'  => 2048,
+    ]);
 
-$raw      = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+    $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+            'HTTP-Referer: https://bookitty.bidebliss.com',
+            'X-Title: Bookitty',
+        ],
+    ]);
+    $raw      = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode === 200) break; // Erfolg → kein weiterer Versuch nötig
+}
 
 if ($raw === false || $httpCode !== 200) {
-    $detail = json_decode($raw ?? '{}', true)['error']['message'] ?? 'OpenRouter API-Fehler';
+    $detail = json_decode($raw ?? '{}', true)['error']['message'] ?? '';
+    // Rate-limit auf allen Modellen → freundliche Meldung
+    if (empty($detail) || str_contains($detail, 'rate') || str_contains($detail, 'quota') || $httpCode === 429) {
+        $detail = 'Kitty ist gerade sehr gefragt. Bitte versuche es in 30 Sekunden nochmal.';
+    }
     http_response_code(502);
     echo json_encode(['error' => $detail]);
     exit;
 }
 
 $response = json_decode($raw, true);
-$text     = $response['choices'][0]['message']['content'] ?? '';
+$message  = $response['choices'][0]['message'] ?? [];
+$text     = $message['content'] ?? '';
+
+// Reasoning-Modelle (z.B. solar-pro-3) liefern Antwort manchmal nur in reasoning_details
+if (empty($text)) {
+    $details = $message['reasoning_details'] ?? [];
+    foreach ($details as $d) {
+        if (!empty($d['text'])) { $text = $d['text']; break; }
+    }
+}
 
 if (empty($text)) {
     http_response_code(502);
