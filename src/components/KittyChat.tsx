@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { searchKittyKnowledge, pickAnswer } from '../utils/kittySearch';
+import type { KittyAction } from '../utils/kittySearch';
+import type { BookingSuggestion } from '../data/kittyKnowledge';
 
 type Message = {
   role: 'user' | 'model';
   text: string;
   followUp?: string[];
   isLocal?: boolean;
+  action?: KittyAction;
 };
 
 const SUGGESTIONS = [
@@ -15,7 +19,86 @@ const SUGGESTIONS = [
   'Wie buche ich eine Kreditoren-Rechnung?',
 ];
 
+// ── Booking preview card ─────────────────────────────────────────────────────
+const BookingCard = ({
+  suggestion,
+  base,
+  onNavigate,
+}: {
+  suggestion: BookingSuggestion;
+  base: string;
+  onNavigate: () => void;
+}) => {
+  const navigate = useNavigate();
+  const [amount, setAmount] = useState(suggestion.amount ? String(suggestion.amount) : '');
+
+  const handleBook = () => {
+    const params = new URLSearchParams({
+      kitty: '1',
+      kitty_desc:   suggestion.description,
+      kitty_debit:  suggestion.account,
+      kitty_credit: suggestion.contraAccount,
+      kitty_vat:    String(suggestion.vatRate),
+      kitty_type:   suggestion.type,
+      kitty_status: suggestion.paymentStatus,
+    });
+    if (amount) params.set('kitty_amount', amount);
+    onNavigate();
+    navigate(`${base}/buchungen?${params.toString()}`);
+  };
+
+  return (
+    <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs">
+      <p className="mb-2 font-semibold text-emerald-800">💡 Buchungsvorschlag</p>
+      <div className="space-y-1 text-slate-700">
+        <div className="flex justify-between">
+          <span className="text-slate-500">Beschreibung</span>
+          <span className="font-medium text-right max-w-[60%]">{suggestion.description}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-500">Soll</span>
+          <span className="font-medium">{suggestion.account}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-500">Haben</span>
+          <span className="font-medium">{suggestion.contraAccount}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-500">MwSt</span>
+          <span className="font-medium">{suggestion.vatRate} %</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-500">Status</span>
+          <span className="font-medium">{suggestion.paymentStatus}</span>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          type="number"
+          min="0"
+          step="0.05"
+          placeholder="Betrag CHF"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-emerald-400"
+        />
+        <button
+          type="button"
+          onClick={handleBook}
+          className="flex-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+        >
+          Jetzt erfassen →
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 const KittyChat = () => {
+  const { pathname } = useLocation();
+  const base = pathname.startsWith('/demo') ? '/demo' : '/app';
+
   const [open, setOpen]       = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput]     = useState('');
@@ -47,10 +130,19 @@ const KittyChat = () => {
     const localMatch = searchKittyKnowledge(text.trim());
     if (localMatch) {
       await new Promise(r => setTimeout(r, 300 + Math.random() * 400));
+
+      // Dispatch highlight event if action requires it
+      if (localMatch.action?.type === 'highlight') {
+        window.dispatchEvent(new CustomEvent('kitty:highlight', {
+          detail: { id: localMatch.action.targetId },
+        }));
+      }
+
       setMessages(prev => [...prev, {
         role: 'model',
         text: pickAnswer(localMatch),
         followUp: localMatch.followUp,
+        action: localMatch.action,
         isLocal: true,
       }]);
       setLoading(false);
@@ -210,6 +302,14 @@ const KittyChat = () => {
                         </button>
                       ))}
                     </div>
+                  )}
+                  {/* Buchungsvorschlag-Karte */}
+                  {msg.role === 'model' && msg.action?.type === 'booking' && i === messages.length - 1 && (
+                    <BookingCard
+                      suggestion={msg.action.suggestion}
+                      base={base}
+                      onNavigate={() => setOpen(false)}
+                    />
                   )}
                 </div>
               ))

@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import KittyChat from '../components/KittyChat';
+import { useKittyHighlight } from '../hooks/useKittyHighlight';
 
 const buildNavItems = (base: string) => [
   {
     to: base,
     end: true,
     label: 'Dashboard',
+    kittyId: 'dashboard',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -18,6 +20,7 @@ const buildNavItems = (base: string) => [
     to: `${base}/buchungen`,
     end: false,
     label: 'Buchungen',
+    kittyId: 'buchungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -28,6 +31,7 @@ const buildNavItems = (base: string) => [
     to: `${base}/bilanz`,
     end: false,
     label: 'Bilanz',
+    kittyId: 'bilanz',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -38,6 +42,7 @@ const buildNavItems = (base: string) => [
     to: `${base}/dokumente`,
     end: false,
     label: 'Dokumente',
+    kittyId: 'dokumente',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -48,6 +53,7 @@ const buildNavItems = (base: string) => [
     to: `${base}/einstellungen`,
     end: false,
     label: 'Einstellungen',
+    kittyId: 'einstellungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -69,6 +75,27 @@ const AppLayout = () => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  // Kitty highlight state for nav items
+  const hlBuchungen      = useKittyHighlight('nav-buchungen');
+  const hlBilanz         = useKittyHighlight('nav-bilanz');
+  const hlErfolg         = useKittyHighlight('nav-erfolgsrechnung');
+  const hlDokumente      = useKittyHighlight('nav-dokumente');
+  const hlDashboard      = useKittyHighlight('nav-dashboard');
+
+  const kittyHighlightMap: Record<string, boolean> = {
+    buchungen:       hlBuchungen,
+    bilanz:          hlBilanz,
+    erfolgsrechnung: hlErfolg,
+    dokumente:       hlDokumente,
+    dashboard:       hlDashboard,
+  };
+
+  const navHighlightClass = (kittyId: string, isActive: boolean) => {
+    const hl = kittyHighlightMap[kittyId] ?? false;
+    if (hl) return 'flex items-center gap-3 rounded-xl px-3 py-2 transition bg-emerald-500 text-white ring-2 ring-emerald-300 animate-pulse';
+    return `flex items-center gap-3 rounded-xl px-3 py-2 transition ${isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`;
   };
 
   return (
@@ -132,13 +159,7 @@ const AppLayout = () => {
                 to={item.to}
                 end={item.end}
                 onClick={() => setMenuOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-3 py-3 transition ${
-                    isActive
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`
-                }
+                className={({ isActive }) => navHighlightClass(item.kittyId, isActive)}
               >
                 {item.icon}
                 {item.label}
@@ -192,13 +213,7 @@ const AppLayout = () => {
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2 transition ${
-                  isActive
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`
-              }
+              className={({ isActive }) => navHighlightClass(item.kittyId, isActive)}
             >
               {item.icon}
               {item.label}
@@ -283,10 +298,16 @@ const AppLayout = () => {
               to={item.to}
               end={item.end}
               className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
-                isActive ? 'text-slate-900' : 'text-slate-400'
+                kittyHighlightMap[item.kittyId]
+                  ? 'text-emerald-600'
+                  : isActive ? 'text-slate-900' : 'text-slate-400'
               }`}
             >
-              <span className={`rounded-xl p-1.5 ${isActive ? 'bg-slate-900 text-white' : ''}`}>
+              <span className={`rounded-xl p-1.5 ${
+                kittyHighlightMap[item.kittyId]
+                  ? 'bg-emerald-500 text-white animate-pulse ring-2 ring-emerald-300'
+                  : isActive ? 'bg-slate-900 text-white' : ''
+              }`}>
                 {item.icon}
               </span>
               {item.label}

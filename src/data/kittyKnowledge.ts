@@ -1,3 +1,17 @@
+export type BookingSuggestion = {
+  description: string;
+  account: string;        // Soll-Konto (z. B. "6500 Büroaufwand")
+  contraAccount: string;  // Haben-Konto (z. B. "1020 Bankkonto")
+  type: 'Einnahme' | 'Ausgabe';
+  paymentStatus: 'Bezahlt' | 'Offen';
+  vatRate: number;
+  amount?: number;
+};
+
+export type KittyAction =
+  | { type: 'highlight'; targetId: string }
+  | { type: 'booking'; suggestion: BookingSuggestion };
+
 export type KnowledgeEntry = {
   id: string;
   keywords: string[];
@@ -5,11 +19,211 @@ export type KnowledgeEntry = {
   answers: string[];
   tags: string[];
   followUp?: string[];
+  action?: KittyAction;
 };
 
 const KNOWLEDGE: KnowledgeEntry[] = [
 
-  // ── Begrüssung ──────────────────────────────────────────────────────────────
+  // ── Navigation & UI-Hilfe ───────────────────────────────────────────────────
+  {
+    id: 'navigate-buchungen',
+    keywords: ['buchungen', 'navigate', 'navigieren', 'finden', 'öffnen', 'gehen', 'seite', 'menu', 'menü'],
+    question: 'Wie navigiere ich zu Buchungen?',
+    answers: [
+      'Klicke im Menü auf **"Buchungen"** – ich habe es gerade für dich markiert. 👆',
+    ],
+    tags: ['navigation'],
+    action: { type: 'highlight', targetId: 'nav-buchungen' },
+    followUp: ['Neue Buchung erfassen', 'Wie erfasse ich eine Buchung?'],
+  },
+  {
+    id: 'navigate-neue-buchung',
+    keywords: ['neue', 'buchung', 'erfassen', 'erstellen', 'button', 'knopf', 'hinzufügen', 'hinzufüg'],
+    question: 'Wo ist der Button für neue Buchungen?',
+    answers: [
+      'Klicke auf **"Neue Buchung"** – ich zeige dir wo. 👆',
+    ],
+    tags: ['navigation', 'buchung'],
+    action: { type: 'highlight', targetId: 'btn-neue-buchung' },
+    followUp: ['Büromaterial buchen', 'Kundenrechnung erfassen'],
+  },
+  {
+    id: 'navigate-bilanz',
+    keywords: ['bilanz', 'navigier', 'öffn', 'finden', 'gehen', 'zeig'],
+    question: 'Wo finde ich die Bilanz?',
+    answers: [
+      'Die **Bilanz** findest du im Menü – ich markiere sie für dich. 👆',
+    ],
+    tags: ['navigation', 'bilanz'],
+    action: { type: 'highlight', targetId: 'nav-bilanz' },
+  },
+
+  // ── Buchungsvorschläge ─────────────────────────────────────────────────────
+  {
+    id: 'suggest-buromaterial',
+    keywords: ['büromaterial', 'bürobedarf', 'papier', 'drucker', 'toner', 'stift', 'büro', 'material', 'kaufen', 'einkauf', 'vorschlag', 'suggest'],
+    question: 'Büromaterial kaufen – Buchungsvorschlag',
+    answers: [
+      'Ich habe einen Buchungsvorschlag für Büromaterial vorbereitet. Du kannst ihn direkt anpassen und erfassen:',
+    ],
+    tags: ['buchung', 'vorschlag', 'aufwand'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Büromaterial',
+        account: '6500 Büroaufwand',
+        contraAccount: '1020 Bankkonto',
+        type: 'Ausgabe',
+        paymentStatus: 'Bezahlt',
+        vatRate: 8.1,
+      },
+    },
+    followUp: ['Büromaterial auf Rechnung buchen', 'Wie buche ich eine Ausgabe?'],
+  },
+  {
+    id: 'suggest-buromaterial-rechnung',
+    keywords: ['büromaterial', 'auf', 'rechnung', 'kreditor', 'offen', 'noch', 'bezahlen', 'schulden'],
+    question: 'Büromaterial auf Rechnung buchen',
+    answers: [
+      'Büromaterial auf Rechnung (noch nicht bezahlt) – hier der Vorschlag:',
+    ],
+    tags: ['buchung', 'vorschlag', 'aufwand'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Büromaterial (Rechnung)',
+        account: '6500 Büroaufwand',
+        contraAccount: '2000 VLL Kreditoren',
+        type: 'Ausgabe',
+        paymentStatus: 'Offen',
+        vatRate: 8.1,
+      },
+    },
+  },
+  {
+    id: 'suggest-miete',
+    keywords: ['miete', 'mietzins', 'miete', 'buchen', 'zahlen', 'büro', 'lokal', 'raumaufwand', 'vorschlag'],
+    question: 'Monatsmiete buchen – Buchungsvorschlag',
+    answers: [
+      'Hier der Buchungsvorschlag für die Monatsmiete – Betrag bitte anpassen:',
+    ],
+    tags: ['buchung', 'vorschlag', 'aufwand'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Monatsmiete',
+        account: '6000 Raumaufwand',
+        contraAccount: '1020 Bankkonto',
+        type: 'Ausgabe',
+        paymentStatus: 'Bezahlt',
+        vatRate: 0,
+      },
+    },
+    followUp: ['Wie buche ich Nebenkosten?', 'Welches Konto für Versicherungen?'],
+  },
+  {
+    id: 'suggest-kundenrechnung',
+    keywords: ['kundenrechnung', 'rechnung', 'stellen', 'ausstellen', 'debitor', 'kunde', 'einnahme', 'erlös', 'faktura', 'vorschlag'],
+    question: 'Kundenrechnung stellen – Buchungsvorschlag',
+    answers: [
+      'Kundenrechnung gestellt (Zahlung noch ausstehend) – hier der Vorschlag:',
+    ],
+    tags: ['buchung', 'vorschlag', 'einnahme'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Dienstleistung / Rechnung',
+        account: '1100 Debitoren',
+        contraAccount: '3000 Erlöse aus Lieferungen',
+        type: 'Einnahme',
+        paymentStatus: 'Offen',
+        vatRate: 8.1,
+      },
+    },
+    followUp: ['Kundenzahlung eingegangen – Buchungsvorschlag', 'Was ist ein Debitor?'],
+  },
+  {
+    id: 'suggest-kundenzahlung',
+    keywords: ['kundenzahlung', 'zahlung', 'eingegangen', 'erhalten', 'bankeingang', 'zahlt', 'einnahme', 'direkt', 'sofort', 'bar'],
+    question: 'Kundenzahlung eingegangen – Buchungsvorschlag',
+    answers: [
+      'Zahlung direkt auf Bank eingegangen – hier der Vorschlag:',
+    ],
+    tags: ['buchung', 'vorschlag', 'einnahme'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Kundenzahlung',
+        account: '1020 Bankkonto',
+        contraAccount: '3000 Erlöse aus Lieferungen',
+        type: 'Einnahme',
+        paymentStatus: 'Bezahlt',
+        vatRate: 8.1,
+      },
+    },
+  },
+  {
+    id: 'suggest-telefon',
+    keywords: ['telefon', 'handy', 'mobile', 'swisscom', 'salt', 'sunrise', 'internet', 'telekomrechnung', 'telekommunikation'],
+    question: 'Telefonrechnung buchen – Buchungsvorschlag',
+    answers: [
+      'Telefon-/Internetrechnung – hier der Vorschlag:',
+    ],
+    tags: ['buchung', 'vorschlag', 'aufwand'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Telefon / Internet',
+        account: '6550 Telekommunikation',
+        contraAccount: '1020 Bankkonto',
+        type: 'Ausgabe',
+        paymentStatus: 'Bezahlt',
+        vatRate: 8.1,
+      },
+    },
+  },
+  {
+    id: 'suggest-reisekosten',
+    keywords: ['reise', 'reisekosten', 'benzin', 'zug', 'bahn', 'fahrt', 'fahrtkosten', 'spesen', 'auto'],
+    question: 'Reisekosten / Benzin buchen – Buchungsvorschlag',
+    answers: [
+      'Reisekosten oder Benzin – hier der Vorschlag:',
+    ],
+    tags: ['buchung', 'vorschlag', 'aufwand'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Reisekosten',
+        account: '6200 Reise- und Fahrzeugaufwand',
+        contraAccount: '1000 Kasse',
+        type: 'Ausgabe',
+        paymentStatus: 'Bezahlt',
+        vatRate: 8.1,
+      },
+    },
+  },
+  {
+    id: 'suggest-privateinlage',
+    keywords: ['privateinlage', 'einlage', 'eigenkapital', 'einbring', 'privates', 'kapital', 'startkapital'],
+    question: 'Privateinlage buchen – Buchungsvorschlag',
+    answers: [
+      'Privateinlage ins Unternehmen – hier der Vorschlag:',
+    ],
+    tags: ['buchung', 'vorschlag', 'eigenkapital'],
+    action: {
+      type: 'booking',
+      suggestion: {
+        description: 'Privateinlage',
+        account: '1020 Bankkonto',
+        contraAccount: '2800 Eigenkapital',
+        type: 'Einnahme',
+        paymentStatus: 'Bezahlt',
+        vatRate: 0,
+      },
+    },
+  },
+
+
   {
     id: 'greeting',
     keywords: ['hallo', 'hi', 'hey', 'guten', 'morgen', 'abend', 'servus', 'grüezi', 'bonjour', 'ciao', 'moin', 'salut'],

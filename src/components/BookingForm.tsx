@@ -25,14 +25,16 @@ const initialDraft: BookingDraft = {
 type BookingFormProps = {
   onSubmit: (draft: BookingDraft) => void;
   onCancel?: () => void;
+  initialValues?: Partial<BookingDraft>;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-const BookingForm = ({ onSubmit, onCancel }: BookingFormProps) => {
-  const [draft, setDraft] = useState<BookingDraft>(initialDraft);
-  const [rawAmount, setRawAmount] = useState('0');
+const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) => {
+  const merged: BookingDraft = { ...initialDraft, ...initialValues };
+  const [draft, setDraft] = useState<BookingDraft>(merged);
+  const [rawAmount, setRawAmount] = useState(String(merged.amount ?? 0));
 
   const updateField = <K extends keyof BookingDraft>(
     key: K,

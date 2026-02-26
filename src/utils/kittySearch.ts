@@ -1,4 +1,6 @@
-import KNOWLEDGE, { type KnowledgeEntry } from '../data/kittyKnowledge';
+import KNOWLEDGE, { type KnowledgeEntry, type KittyAction } from '../data/kittyKnowledge';
+
+export type { KittyAction };
 
 // ── Deutsche Stop-Wörter ──────────────────────────────────────────────────────
 const STOP_WORDS = new Set([
