@@ -55,8 +55,11 @@
   Ggf. alternativer Produktname (z. B. *EasyBook*) und angepasstes Logo prüfen.
   Landing Page stärker auf diese drei Werte ausrichten.
 
-- [~] **5. Automatische Steuererklärung als USP**
-  Erst nach Rücksprache mit den Onkeln und Klärung der rechtlichen Details umsetzen.
+- [-] **5. Automatische Steuererklärung als USP**
+  Provisorisch implementiert: «Steuern»-Tab in Auswertungen mit MwSt-Abrechnung (ESTV-Zahllast/Guthaben) und
+  geschätzten Direkten Steuern (Bundessteuer ~7.83% + Kantonssatz, alle 26 Kantone wählbar).
+  Buchungsvorschläge für 2200/1020 und 8900/2000 eingeblendet. PDF-Export inkl. Steuerzusammenfassung.
+  Rechtliche Prüfung / Rücksprache mit Steuerfachperson ausstehend – nicht verbindlich.
 
 - [ ] **16. Automatische Mahnungen bei vergessener Zahlung**
   Offene Debitoren automatisch erkennen und Mahnungen versenden.

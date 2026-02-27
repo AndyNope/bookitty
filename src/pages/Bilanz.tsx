@@ -31,6 +31,38 @@ const BILANZ_GROUPS = {
   ],
 };
 
+// Approximate combined effective corporate tax rates 2024 (federal + cantonal + municipal)
+// Sources: KPMG/PWC Swiss Tax Reports 2024 – provisional estimates for KMU tool
+const FEDERAL_RATE = 7.83; // Direkte Bundessteuer (8.5% gross ≈ 7.83% effective)
+const CANTON_RATES = [
+  { code: 'AG', name: 'Aargau',                rate: 18.6 },
+  { code: 'AI', name: 'App. Innerrhoden',       rate: 12.7 },
+  { code: 'AR', name: 'App. Ausserrhoden',      rate: 13.0 },
+  { code: 'BE', name: 'Bern',                   rate: 21.0 },
+  { code: 'BL', name: 'Basel-Landschaft',       rate: 20.7 },
+  { code: 'BS', name: 'Basel-Stadt',            rate: 13.0 },
+  { code: 'FR', name: 'Freiburg',               rate: 19.9 },
+  { code: 'GE', name: 'Genf',                   rate: 14.0 },
+  { code: 'GL', name: 'Glarus',                 rate: 15.3 },
+  { code: 'GR', name: 'Graubünden',             rate: 16.1 },
+  { code: 'JU', name: 'Jura',                   rate: 20.7 },
+  { code: 'LU', name: 'Luzern',                 rate: 12.3 },
+  { code: 'NE', name: 'Neuenburg',              rate: 14.7 },
+  { code: 'NW', name: 'Nidwalden',              rate: 12.0 },
+  { code: 'OW', name: 'Obwalden',               rate: 12.7 },
+  { code: 'SG', name: 'St. Gallen',             rate: 17.4 },
+  { code: 'SH', name: 'Schaffhausen',           rate: 15.0 },
+  { code: 'SO', name: 'Solothurn',              rate: 17.8 },
+  { code: 'SZ', name: 'Schwyz',                 rate: 11.9 },
+  { code: 'TG', name: 'Thurgau',               rate: 16.1 },
+  { code: 'TI', name: 'Tessin',                 rate: 19.0 },
+  { code: 'UR', name: 'Uri',                    rate: 14.9 },
+  { code: 'VD', name: 'Waadt',                  rate: 14.0 },
+  { code: 'VS', name: 'Wallis',                 rate: 18.0 },
+  { code: 'ZG', name: 'Zug',                    rate: 11.9 },
+  { code: 'ZH', name: 'Zürich',                 rate: 19.7 },
+];
+
 // ── Expandable section row ─────────────────────────────────────────────────
 const Section = ({
   title, total, cur, positive, children,
@@ -136,7 +168,8 @@ const SubtotalRow = ({ label, value, cur, highlight = false }: {
 // ── Main component ─────────────────────────────────────────────────────────
 const Bilanz = () => {
   const { bookings } = useBookkeeping();
-  const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'mwst'>('erfolg');
+  const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'mwst' | 'steuern'>('erfolg');
+  const [canton, setCanton] = useState('ZH');
   const cur = bookings[0]?.currency ?? 'CHF';
 
   // Soll (Debit) → Aktiven (1xxx) and Aufwand (4–8 Aufwand accounts)
@@ -231,6 +264,14 @@ const Bilanz = () => {
   const geschuldeteMwst = mwstRows.filter((r) => r.type === 'Einnahme').reduce((s, r) => s + r.vatAmount, 0);
   const mwstSaldo       = geschuldeteMwst - vorsteuer;
 
+  // ── Steuern (provisorisch) ────────────────────────────────────────────────
+  const selectedCanton = CANTON_RATES.find((c) => c.code === canton) ?? CANTON_RATES[CANTON_RATES.length - 1];
+  const taxBase    = Math.max(0, ergebnisVorSteuern);
+  const federalTax = taxBase * FEDERAL_RATE / 100;
+  const cantonRate = Math.max(0, selectedCanton.rate - FEDERAL_RATE);
+  const cantonTax  = taxBase * cantonRate / 100;
+  const totalTax   = taxBase * selectedCanton.rate / 100;
+
   // PDF Export
   const exportPdf = () => {
     const doc = new jsPDF();
@@ -310,6 +351,29 @@ const Bilanz = () => {
 
     doc.setFontSize(8); doc.setTextColor(150);
     doc.text('Bookitty · Finanzbuchhaltung', mX, pH - 10);
+
+    // MwSt-Abrechnung
+    y += 4;
+    section('MwSt-Abrechnung (ESTV)');
+    row('Steuerbarer Umsatz', totalBetriebsertrag);
+    row('Geschuldete MwSt (Ertrag)', geschuldeteMwst);
+    row('Vorsteuer (Aufwand)', vorsteuer);
+    subtotal(mwstSaldo >= 0 ? 'Zahllast' : 'Guthaben', Math.abs(mwstSaldo));
+
+    // Direkte Steuern (provisorisch)
+    if (taxBase > 0) {
+      y += 4;
+      section(`Direkte Steuern – ${selectedCanton.code} (provisorisch)`);
+      row('Steuerbarer Gewinn', taxBase);
+      row(`Direkte Bundessteuer (~${FEDERAL_RATE}%)`, federalTax);
+      row(`Kantons- und Gemeindesteuer (~${cantonRate.toFixed(1)}%)`, cantonTax);
+      subtotal(`Geschätzte Gesamtsteuer (${selectedCanton.rate}%)`, totalTax);
+      if (y > pH - 20) { doc.addPage(); y = 20; }
+      doc.setFontSize(7); doc.setTextColor(150);
+      doc.text('* Provisorische Schätzung – nicht verbindlich. Bitte Steuerfachperson konsultieren.', mX, y); y += 5;
+      doc.setTextColor(0);
+    }
+
     doc.save('bookitty-jahresbericht.pdf');
   };
 
@@ -344,7 +408,7 @@ const Bilanz = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-fit">
-        {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['mwst', 'MwSt']] as const).map(([key, label]) => (
+        {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['mwst', 'MwSt'], ['steuern', 'Steuern']] as const).map(([key, label]) => (
           <button key={key} type="button" onClick={() => setTab(key)}
             className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
               tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
@@ -589,6 +653,108 @@ const Bilanz = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+      {/* ── Steuern (Provisorisch) ── */}
+      {tab === 'steuern' && (
+        <div className="space-y-5">
+
+          {/* Disclaimer */}
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <strong>Provisorische Schätzung – nicht verbindlich.</strong>{' '}
+              Die angezeigten Steuerbeträge basieren auf aktuellen Durchschnittssätzen (Steuerjahr {new Date().getFullYear()}).
+              Massgebend sind die offiziellen Steuerveranlagungen der zuständigen Behörden.
+              Bitte konsultiere eine Steuerfachperson.
+            </p>
+          </div>
+
+          {/* A. MwSt-Abrechnung */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-base font-semibold text-slate-900 mb-4">A. MwSt-Abrechnung (ESTV)</h3>
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+              {[
+                { label: 'Steuerbarer Umsatz', value: totalBetriebsertrag, color: 'text-slate-800' },
+                { label: 'Geschuldete MwSt',   value: geschuldeteMwst,     color: 'text-rose-600' },
+                { label: 'Vorsteuer',           value: vorsteuer,           color: 'text-emerald-600' },
+                {
+                  label: mwstSaldo >= 0 ? 'Zahllast (schulde ich)' : 'Guthaben (bekomme ich)',
+                  value: Math.abs(mwstSaldo),
+                  color: mwstSaldo >= 0 ? 'text-rose-700' : 'text-emerald-700',
+                },
+              ].map((c) => (
+                <div key={c.label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-xs text-slate-500">{c.label}</p>
+                  <p className={`mt-1 text-lg font-bold tabular-nums ${c.color}`}>{fmt(c.value, cur)}</p>
+                </div>
+              ))}
+            </div>
+            {mwstSaldo > 0 && (
+              <p className="mt-3 text-xs text-slate-500">
+                Tipp: Buche die Zahllast als{' '}
+                <span className="font-mono bg-slate-100 px-1 rounded">2200 Geschuldete MwSt → 1020 Bank</span>
+              </p>
+            )}
+            {mwstRows.length === 0 && (
+              <p className="mt-3 text-sm text-slate-400">Noch keine Buchungen mit MwSt-Betrag vorhanden.</p>
+            )}
+          </div>
+
+          {/* B. Direkte Steuern */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h3 className="text-base font-semibold text-slate-900">B. Direkte Steuern (provisorisch)</h3>
+              <div className="flex items-center gap-2">
+                <label htmlFor="canton-select" className="text-xs text-slate-500">Kanton:</label>
+                <select
+                  id="canton-select"
+                  value={canton}
+                  onChange={(e) => setCanton(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                >
+                  {CANTON_RATES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} – {c.name} (~{c.rate}%)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {taxBase === 0 ? (
+              <p className="text-sm text-slate-400">
+                Kein steuerbarer Gewinn vorhanden – keine direkte Steuer geschätzt.
+              </p>
+            ) : (
+              <>
+                <div className="rounded-xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+                  <div className="flex justify-between px-4 py-3 bg-slate-50 text-sm font-semibold text-slate-800">
+                    <span>Steuerbarer Gewinn (vor direkten Steuern)</span>
+                    <span className="tabular-nums">{fmt(taxBase, cur)}</span>
+                  </div>
+                  <div className="flex justify-between px-4 py-3 text-sm text-slate-600">
+                    <span>Direkte Bundessteuer (DBst ~{FEDERAL_RATE}%)</span>
+                    <span className="tabular-nums">{fmt(federalTax, cur)}</span>
+                  </div>
+                  <div className="flex justify-between px-4 py-3 text-sm text-slate-600">
+                    <span>Kantons- und Gemeindesteuer {selectedCanton.code} (~{cantonRate.toFixed(1)}%)</span>
+                    <span className="tabular-nums">{fmt(cantonTax, cur)}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between px-4 py-3 rounded-xl text-sm font-bold border-2 border-rose-100 bg-rose-50 text-rose-800">
+                  <span>Geschätzte Gesamtsteuer ({selectedCanton.rate.toFixed(1)}%)</span>
+                  <span className="tabular-nums">{fmt(totalTax, cur)}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Tipp: Buche die geschätzte Steuer als{' '}
+                  <span className="font-mono bg-slate-100 px-1 rounded">8900 Direkte Steuern / 2000 Kreditoren</span>.
+                </p>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
