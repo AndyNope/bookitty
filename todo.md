@@ -66,7 +66,7 @@
 
 ## Integrationen & Erweiterungen
 
-- [ ] **12. Mailverkehr verbinden**
+- [x] **12. Mailverkehr verbinden**
   E-Mails mit Rechnungsanhängen automatisch importieren und als Buchungsvorschlag verarbeiten.
 
 - [ ] **7. Lohnbuchhaltung**

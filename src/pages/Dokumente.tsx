@@ -3,6 +3,7 @@ import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { BookingDraft } from '../types';
 import { processDocument } from '../utils/documentProcessing';
+import { parseEml } from '../utils/emlParser';
 import { addTemplate } from '../utils/templateStore';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
@@ -54,6 +55,52 @@ const Dokumente = () => {
     event.target.value = '';
   };
 
+  const handleEmlChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsProcessing(true);
+      const rawText = await file.text();
+      const email = parseEml(rawText);
+
+      if (email.attachments.length > 0) {
+        // Process each PDF attachment through the full pipeline
+        for (const att of email.attachments) {
+          const pdfFile = new File([att.data.buffer as ArrayBuffer], att.filename, { type: 'application/pdf' });
+          try {
+            const { draft, detection, templateApplied, vendorPattern } = await processDocument(pdfFile);
+            if (email.subject && !draft.description.startsWith('Rechnung')) {
+              draft.description = email.subject;
+            }
+            addDocument(pdfFile, draft, `E-Mail+${detection}`, templateApplied, vendorPattern);
+          } catch {
+            addDocument(pdfFile, undefined, 'E-Mail');
+          }
+        }
+      } else {
+        // No PDF attachment: derive draft from email body + subject
+        const emailText = [email.subject, email.from, email.textBody].filter(Boolean).join('\n');
+        const baseName = email.subject || file.name.replace(/\.eml$/i, '');
+        const { parseTextToDraft } = await import('../utils/documentParser');
+        const draft = parseTextToDraft(emailText, baseName);
+        if (email.subject) draft.description = email.subject;
+        const textFile = new File(
+          [new Blob([emailText], { type: 'text/plain' })],
+          `${baseName}.txt`,
+          { type: 'text/plain' },
+        );
+        addDocument(textFile, draft, 'E-Mail+Text');
+      }
+    } catch (err) {
+      console.error('E-Mail Import Fehler:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+    event.target.value = '';
+  };
+
   const updateDraft = (patch: Partial<BookingDraft>) => {
     if (!selectedDocument) return;
     updateDocumentDraft(selectedDocument.id, {
@@ -81,18 +128,37 @@ const Dokumente = () => {
           isProcessing ? ' Erkennung läuft…' : ''
         }`}
         action={
-          <label className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-            isProcessing ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'
-          }`}>
-            {isProcessing ? 'Erkennung…' : 'Beleg hochladen'}
-            <input
-              type="file"
-              className="hidden"
-              accept="application/pdf,image/*"
-              onChange={handleFileChange}
-              disabled={isProcessing}
-            />
-          </label>
+          <div className="flex gap-2">
+            <label className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+              isProcessing ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'
+            }`}>
+              {isProcessing ? 'Erkennung…' : 'Beleg hochladen'}
+              <input
+                type="file"
+                className="hidden"
+                accept="application/pdf,image/*"
+                onChange={handleFileChange}
+                disabled={isProcessing}
+              />
+            </label>
+            <label className={`cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 ${
+              isProcessing ? 'opacity-40' : 'hover:bg-slate-50'
+            }`}>
+              <span className="flex items-center gap-1.5">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                </svg>
+                E-Mail (.eml)
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                accept=".eml,message/rfc822"
+                onChange={handleEmlChange}
+                disabled={isProcessing}
+              />
+            </label>
+          </div>
         }
       />
 
@@ -131,6 +197,14 @@ const Dokumente = () => {
                     )}
                     <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1">
                       <span>{doc.uploadedAt} · Erkennung {doc.detection ?? (doc.fileName.endsWith('.pdf') ? 'PDF' : 'Standard')}</span>
+                      {(doc.detection ?? '').startsWith('E-Mail') && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                          </svg>
+                          E-Mail
+                        </span>
+                      )}
                       {doc.templateApplied && (
                         <span className="inline-flex items-center gap-0.5">
                           <span>·</span>
