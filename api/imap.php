@@ -6,36 +6,46 @@ require_once __DIR__ . '/auth.php';
 
 set_cors_headers();
 
+set_exception_handler(function (Throwable $e) {
+    if (!headers_sent()) http_response_code(500);
+    echo json_encode(['error' => 'Server-Fehler: ' . $e->getMessage()]);
+});
+set_error_handler(function (int $errno, string $errstr) {
+    throw new ErrorException($errstr, $errno);
+});
+
 $userId = require_auth();
 $pdo    = get_db();
 $method = $_SERVER['REQUEST_METHOD'];
 
 // ─── Ensure tables exist ──────────────────────────────────────────────────────
-$pdo->exec("
-    CREATE TABLE IF NOT EXISTS imap_settings (
-        user_id   INT          NOT NULL,
-        host      VARCHAR(255) NOT NULL DEFAULT '',
-        port      SMALLINT     NOT NULL DEFAULT 993,
-        username  VARCHAR(255) NOT NULL DEFAULT '',
-        password  VARCHAR(500) NOT NULL DEFAULT '',
-        ssl       TINYINT(1)   NOT NULL DEFAULT 1,
-        folder    VARCHAR(100) NOT NULL DEFAULT 'INBOX',
-        PRIMARY KEY (user_id),
-        CONSTRAINT fk_imap_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-");
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS imap_settings (
+            user_id   INT          NOT NULL,
+            host      VARCHAR(255) NOT NULL DEFAULT '',
+            port      SMALLINT     NOT NULL DEFAULT 993,
+            username  VARCHAR(255) NOT NULL DEFAULT '',
+            password  VARCHAR(500) NOT NULL DEFAULT '',
+            ssl       TINYINT(1)   NOT NULL DEFAULT 1,
+            folder    VARCHAR(100) NOT NULL DEFAULT 'INBOX',
+            PRIMARY KEY (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+} catch (Throwable $e) { /* table already exists or FK issue – ignore */ }
 
-$pdo->exec("
-    CREATE TABLE IF NOT EXISTS email_imports (
-        id          INT          NOT NULL AUTO_INCREMENT,
-        user_id     INT          NOT NULL,
-        message_id  VARCHAR(500) NOT NULL,
-        imported_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        UNIQUE KEY uq_email_user (user_id, message_id),
-        CONSTRAINT fk_email_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-");
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS email_imports (
+            id          INT          NOT NULL AUTO_INCREMENT,
+            user_id     INT          NOT NULL,
+            message_id  VARCHAR(500) NOT NULL,
+            imported_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_email_user (user_id, message_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+} catch (Throwable $e) { /* table already exists – ignore */ }
 
 // ─── GET – return saved settings (password masked) ───────────────────────────
 if ($method === 'GET') {
