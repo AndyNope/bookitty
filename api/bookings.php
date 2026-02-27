@@ -25,6 +25,8 @@ function row_to_booking(array $row): array {
         'currency'      => $row['currency'],
         'paymentStatus' => $row['payment_status'],
         'type'          => $row['type'],
+        'pdfUrl'        => $row['pdf_url'] ?? null,
+        'dueDate'       => $row['due_date'] ?? null,
     ];
 }
 
@@ -44,8 +46,9 @@ if ($method === 'GET') {
     $pdo->prepare(
         'INSERT INTO bookings
              (id, user_id, date, description, account, contra_account, category,
-              amount, vat_amount, vat_rate, currency, payment_status, type)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+              amount, vat_amount, vat_rate, currency, payment_status, type,
+              pdf_url, due_date)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     )->execute([
         $id, $userId,
         $d['date']          ?? date('Y-m-d'),
@@ -59,6 +62,8 @@ if ($method === 'GET') {
         $d['currency']      ?? 'CHF',
         $d['paymentStatus'] ?? 'Offen',
         $d['type']          ?? 'Ausgabe',
+        $d['pdfUrl']        ?? null,
+        $d['dueDate']       ?? null,
     ]);
 
     echo json_encode(['ok' => true, 'id' => $id]);
@@ -72,7 +77,8 @@ if ($method === 'GET') {
     $pdo->prepare(
         'UPDATE bookings
          SET date=?, description=?, account=?, contra_account=?, category=?,
-             amount=?, vat_amount=?, vat_rate=?, currency=?, payment_status=?, type=?
+             amount=?, vat_amount=?, vat_rate=?, currency=?, payment_status=?, type=?,
+             pdf_url=?, due_date=?
          WHERE id=? AND user_id=?'
     )->execute([
         $d['date']          ?? '',
@@ -86,6 +92,8 @@ if ($method === 'GET') {
         $d['currency']      ?? 'CHF',
         $d['paymentStatus'] ?? 'Offen',
         $d['type']          ?? 'Ausgabe',
+        $d['pdfUrl']        ?? null,
+        $d['dueDate']       ?? null,
         $id, $userId,
     ]);
     echo json_encode(['ok' => true]);
