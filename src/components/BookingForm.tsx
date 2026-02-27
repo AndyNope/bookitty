@@ -7,6 +7,7 @@ import {
   getCategoryLabel,
 } from '../data/chAccounts';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
+import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 
 const initialDraft: BookingDraft = {
   date: new Date().toISOString().split('T')[0],
@@ -35,6 +36,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
   const merged: BookingDraft = { ...initialDraft, ...initialValues };
   const [draft, setDraft] = useState<BookingDraft>(merged);
   const [rawAmount, setRawAmount] = useState(String(merged.amount ?? 0));
+  const [favorites, setFavorites] = useState<string[]>(getFavorites);
 
   const updateField = <K extends keyof BookingDraft>(
     key: K,
@@ -105,8 +107,41 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
             required
           />
         </label>
-        <label className="text-sm text-slate-600">
-          Konto (Soll)
+        <div className="flex flex-col gap-1 text-sm text-slate-600">
+          <div className="flex items-center justify-between">
+            <span>Konto (Soll)</span>
+            <button
+              type="button"
+              onClick={() => setFavorites(toggleFavorite(draft.account))}
+              title={favorites.includes(draft.account) ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
+              className="text-base leading-none text-amber-400 hover:text-amber-500 transition"
+            >
+              {favorites.includes(draft.account) ? '★' : '☆'}
+            </button>
+          </div>
+          {favorites.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {favorites.map((fav) => (
+                <button
+                  key={fav}
+                  type="button"
+                  title={fav}
+                  onClick={() => {
+                    const sel = accounts.find((a) => formatAccount(a) === fav);
+                    updateField('account', fav);
+                    if (sel) updateField('category', getCategoryLabel(sel.categoryCode));
+                  }}
+                  className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                    draft.account === fav
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                  }`}
+                >
+                  {fav.slice(0, 20)}
+                </button>
+              ))}
+            </div>
+          )}
           <select
             value={draft.account}
             onChange={(event) => {
@@ -118,7 +153,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
                 updateField('category', getCategoryLabel(selected.categoryCode));
               }
             }}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2"
             required
           >
             {accounts.map((account) => (
@@ -127,13 +162,42 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
               </option>
             ))}
           </select>
-        </label>
-        <label className="text-sm text-slate-600">
-          Gegenkonto (Haben)
+        </div>
+        <div className="flex flex-col gap-1 text-sm text-slate-600">
+          <div className="flex items-center justify-between">
+            <span>Gegenkonto (Haben)</span>
+            <button
+              type="button"
+              onClick={() => setFavorites(toggleFavorite(draft.contraAccount))}
+              title={favorites.includes(draft.contraAccount) ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
+              className="text-base leading-none text-amber-400 hover:text-amber-500 transition"
+            >
+              {favorites.includes(draft.contraAccount) ? '★' : '☆'}
+            </button>
+          </div>
+          {favorites.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {favorites.map((fav) => (
+                <button
+                  key={fav}
+                  type="button"
+                  title={fav}
+                  onClick={() => updateField('contraAccount', fav)}
+                  className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                    draft.contraAccount === fav
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                  }`}
+                >
+                  {fav.slice(0, 20)}
+                </button>
+              ))}
+            </div>
+          )}
           <select
             value={draft.contraAccount}
             onChange={(event) => updateField('contraAccount', event.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2"
           >
             {accounts.map((account) => (
               <option key={account.code} value={formatAccount(account)}>
@@ -141,8 +205,8 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
               </option>
             ))}
           </select>
-          <span className="mt-1 block text-xs text-slate-400">{contraHint}</span>
-        </label>
+          <span className="text-xs text-slate-400">{contraHint}</span>
+        </div>
         <label className="text-sm text-slate-600">
           Kategorie
           <select

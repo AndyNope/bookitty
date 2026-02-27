@@ -202,7 +202,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     const doc = documents.find((item) => item.id === id);
     if (!doc) return;
 
-    addBooking(doc.draft);
+    addBooking({ ...doc.draft, pdfUrl: doc.previewUrl });
 
     const pattern =
       doc.vendorPattern ??

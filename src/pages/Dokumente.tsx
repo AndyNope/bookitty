@@ -5,6 +5,7 @@ import type { BookingDraft } from '../types';
 import { processDocument } from '../utils/documentProcessing';
 import { addTemplate } from '../utils/templateStore';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
+import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import {
   accounts,
   accountCategories,
@@ -27,6 +28,7 @@ const Dokumente = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [mobileView, setMobileView] = useState<'list' | 'form'>('list');
+  const [favorites, setFavorites] = useState<string[]>(getFavorites);
 
   const selectedDocument = documents.find((doc) => doc.id === selectedId);
   const pendingDeleteDocument = documents.find(
@@ -224,8 +226,41 @@ const Dokumente = () => {
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                   />
                 </label>
-                <label>
-                  Konto (Soll)
+                <div className="flex flex-col gap-1 text-sm text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <span>Konto (Soll)</span>
+                    <button
+                      type="button"
+                      onClick={() => setFavorites(toggleFavorite(selectedDocument.draft.account))}
+                      title={favorites.includes(selectedDocument.draft.account) ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
+                      className="text-base leading-none text-amber-400 hover:text-amber-500 transition"
+                    >
+                      {favorites.includes(selectedDocument.draft.account) ? '★' : '☆'}
+                    </button>
+                  </div>
+                  {favorites.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {favorites.map((fav) => (
+                        <button
+                          key={fav}
+                          type="button"
+                          title={fav}
+                          onClick={() => {
+                            const sel = accounts.find((a) => formatAccount(a) === fav);
+                            updateDraft({ account: fav });
+                            if (sel) updateDraft({ category: getCategoryLabel(sel.categoryCode) });
+                          }}
+                          className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                            selectedDocument.draft.account === fav
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                          }`}
+                        >
+                          {fav.slice(0, 20)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <select
                     value={selectedDocument.draft.account}
                     onChange={(event) => {
@@ -239,7 +274,7 @@ const Dokumente = () => {
                         });
                       }
                     }}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
                     {accounts.map((account) => (
                       <option key={account.code} value={formatAccount(account)}>
@@ -247,13 +282,42 @@ const Dokumente = () => {
                       </option>
                     ))}
                   </select>
-                </label>
-                <label>
-                  Gegenkonto (Haben)
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <span>Gegenkonto (Haben)</span>
+                    <button
+                      type="button"
+                      onClick={() => setFavorites(toggleFavorite(selectedDocument.draft.contraAccount ?? ''))}
+                      title={favorites.includes(selectedDocument.draft.contraAccount ?? '') ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
+                      className="text-base leading-none text-amber-400 hover:text-amber-500 transition"
+                    >
+                      {favorites.includes(selectedDocument.draft.contraAccount ?? '') ? '★' : '☆'}
+                    </button>
+                  </div>
+                  {favorites.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {favorites.map((fav) => (
+                        <button
+                          key={fav}
+                          type="button"
+                          title={fav}
+                          onClick={() => updateDraft({ contraAccount: fav })}
+                          className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                            selectedDocument.draft.contraAccount === fav
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                          }`}
+                        >
+                          {fav.slice(0, 20)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <select
                     value={selectedDocument.draft.contraAccount ?? ''}
                     onChange={(event) => updateDraft({ contraAccount: event.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
                     {accounts.map((account) => (
                       <option key={account.code} value={formatAccount(account)}>
@@ -261,7 +325,7 @@ const Dokumente = () => {
                       </option>
                     ))}
                   </select>
-                  <span className="mt-1 block text-xs text-slate-400">
+                  <span className="text-xs text-slate-400">
                     {selectedDocument.draft.type === 'Ausgabe'
                       ? selectedDocument.draft.paymentStatus === 'Bezahlt'
                         ? 'Soll: Aufwandskonto ∕ Haben: Bank'
@@ -270,7 +334,7 @@ const Dokumente = () => {
                         ? 'Soll: Bank ∕ Haben: Erlöskonto'
                         : 'Soll: Debitoren ∕ Haben: Erlöskonto'}
                   </span>
-                </label>
+                </div>
                 <label>
                   Kategorie
                   <select

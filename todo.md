@@ -28,7 +28,7 @@
   Eigene Rechnung wird fälschlicherweise als Kreditorenrechnung erkannt.
   Lösung: Unternehmen hinterlegen → System erkennt «Rechnung von meinem Unternehmen = Einnahme».
 
-- [ ] **11. Stammkonten + Belegübersicht mit PDF-Link**
+- [x] **11. Stammkonten + Belegübersicht mit PDF-Link**
   Häufig verwendete Konten als Favoriten speichern.
   In der Buchungsliste: Klick auf Beleg öffnet direkt das zugehörige PDF.
 

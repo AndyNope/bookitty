@@ -15,6 +15,8 @@ export type Booking = {
   currency: string;
   paymentStatus: PaymentStatus;
   type: BookingType;
+  /** Link to the original PDF/image document */
+  pdfUrl?: string;
 };
 
 export type BookingDraft = Omit<Booking, 'id'> & { id?: string };
