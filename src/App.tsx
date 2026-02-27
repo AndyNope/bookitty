@@ -9,6 +9,7 @@ import Buchungen from './pages/Buchungen';
 import Bilanz from './pages/Bilanz';
 import Dokumente from './pages/Dokumente';
 import Einstellungen from './pages/Einstellungen';
+import Lohn from './pages/Lohn';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import NotFound from './pages/NotFound';
@@ -46,6 +47,7 @@ const App = () => (
       <Route path="buchungen"     element={<Buchungen />} />
       <Route path="bilanz"        element={<Bilanz />} />
       <Route path="dokumente"     element={<Dokumente />} />
+      <Route path="lohn"          element={<Lohn />} />
       <Route path="einstellungen" element={<Einstellungen />} />
     </Route>
 
@@ -64,6 +66,7 @@ const App = () => (
       <Route path="buchungen"     element={<Buchungen />} />
       <Route path="bilanz"        element={<Bilanz />} />
       <Route path="dokumente"     element={<Dokumente />} />
+      <Route path="lohn"          element={<Lohn />} />
       <Route path="einstellungen" element={<Einstellungen />} />
     </Route>
 

@@ -74,9 +74,12 @@
 - [x] **12. Mailverkehr verbinden**
   E-Mails mit Rechnungsanhängen automatisch importieren und als Buchungsvorschlag verarbeiten.
 
-- [ ] **7. Lohnbuchhaltung**
-  Lohnabrechnungen, Sozialversicherungen (AHV/IV/EO/ALV), Lohnausweise.
-  Grösserer Scope – separates Modul, nach Kern-MVP.
+- [x] **7. Lohnbuchhaltung**
+  Separates Modul «Lohn» mit eigenem Nav-Eintrag und localStorage-Persistenz.
+  Mitarbeiter-Verwaltung (Name, Funktion, Bruttolohn, AHV-Nr., NBUV/BVG/KK konfigurierbar).
+  Monatsabrechnung: Abzugstabelle AN (AHV/IV/EO 5.3%, ALV 1.1%, NBUV, BVG/PK, KK) + Arbeitgeberbeiträge (AG-AHV, ALV, FAK ~2%, BUV ~0.5%, BVG/PK).
+  Lohnausweis-Tab: pro Mitarbeiter/Monat mit Nettolohnberechnung.
+  PDF-Export Lohnliste via jsPDF. Sätze 2025 – provisorisch.
 
 ---
 
