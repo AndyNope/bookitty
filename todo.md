@@ -40,7 +40,7 @@
   Offline-Wissensbasis (60+ Einträge) + OpenRouter-Fallback (9-Modell-Kette).
   Buchungsvorschläge mit Direkterfassung, Nav-Highlight via CustomEvent.
 
-- [ ] **14. Onboarding-Tutorial**
+- [x] **14. Onboarding-Tutorial**
   Kurzes interaktives Tutorial für Einsteiger ohne Buchhaltungskenntnisse.
   Wird separat erstellt – erst nach Abschluss der Kernfunktionen sinnvoll.
 

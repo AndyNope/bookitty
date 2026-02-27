@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import KittyChat from '../components/KittyChat';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
+import OnboardingTutorial, { hasTutorialBeenSeen } from '../components/OnboardingTutorial';
 
 const buildNavItems = (base: string) => [
   {
@@ -65,6 +66,8 @@ const buildNavItems = (base: string) => [
 
 const AppLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(() => !hasTutorialBeenSeen());
+  const [tutorialStep, setTutorialStep] = useState(0);
   const location  = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
@@ -165,6 +168,16 @@ const AppLayout = () => {
                 {item.label}
               </NavLink>
             ))}
+            <button
+              type="button"
+              onClick={() => { setMenuOpen(false); setTutorialStep(0); setTutorialOpen(true); }}
+              className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+              </svg>
+              Tutorial
+            </button>
           </div>
           <div className="mt-auto rounded-2xl bg-slate-900 p-4 text-xs text-white">
             {user ? (
@@ -219,6 +232,16 @@ const AppLayout = () => {
               {item.label}
             </NavLink>
           ))}
+          <button
+            type="button"
+            onClick={() => { setTutorialStep(0); setTutorialOpen(true); }}
+            className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+            </svg>
+            Tutorial
+          </button>
         </nav>
         <div className="rounded-2xl bg-slate-900 p-4 text-xs text-white">
           {user ? (
@@ -318,6 +341,12 @@ const AppLayout = () => {
     </nav>
 
     <KittyChat />
+    <OnboardingTutorial
+      open={tutorialOpen}
+      step={tutorialStep}
+      onStepChange={setTutorialStep}
+      onClose={() => setTutorialOpen(false)}
+    />
   </div>
   );
 };
