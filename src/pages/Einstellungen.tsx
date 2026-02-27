@@ -169,7 +169,10 @@ const Einstellungen = () => {
             <p className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{imapError}</p>
           )}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="IMAP-Server" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.example.com" />
+            <div className="sm:col-span-2">
+              <Field label="IMAP-Server (Hostname)" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.andynope.com" />
+              <p className="mt-1 text-xs text-slate-400">Nur der Servername, z.B. <span className="font-mono">mail.andynope.com</span> – nicht die E-Mail-Adresse.</p>
+            </div>
             <Field label="Port" value={imap.port} onChange={(v) => setImap((p) => ({ ...p, port: v }))} placeholder="993" />
             <Field label="Benutzername / E-Mail" value={imap.username} onChange={(v) => setImap((p) => ({ ...p, username: v }))} placeholder="rechnung@firma.ch" />
             <Field label="Passwort" value={imap.password} onChange={(v) => setImap((p) => ({ ...p, password: v }))} type="password" />

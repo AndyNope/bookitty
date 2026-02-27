@@ -104,14 +104,19 @@ if ($method === 'POST') {
         exit;
     }
 
-    $proto  = $cfg['ssl'] ? 'ssl' : 'notls';
+    $proto  = $cfg['ssl'] ? 'ssl/novalidate-cert' : 'notls';
     $mbox   = sprintf('{%s:%d/imap/%s}%s', $cfg['host'], $cfg['port'], $proto, $cfg['folder']);
 
     $conn = @imap_open($mbox, $cfg['username'], $cfg['password'], 0, 1);
     if (!$conn) {
         http_response_code(502);
-        $err = imap_last_error() ?: 'Verbindung fehlgeschlagen';
-        echo json_encode(['error' => "IMAP: $err"]);
+        $errors = imap_errors() ?: [];
+        $last   = imap_last_error() ?: 'Verbindung fehlgeschlagen';
+        echo json_encode([
+            'error'   => "IMAP: $last",
+            'details' => $errors,
+            'mbox'    => $mbox,  // shows the connection string for debugging
+        ]);
         exit;
     }
 
