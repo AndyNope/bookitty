@@ -26,8 +26,8 @@ try {
             host      VARCHAR(255) NOT NULL DEFAULT '',
             port      SMALLINT     NOT NULL DEFAULT 993,
             username  VARCHAR(255) NOT NULL DEFAULT '',
-            password  VARCHAR(500) NOT NULL DEFAULT '',
-            ssl       TINYINT(1)   NOT NULL DEFAULT 1,
+            `password` VARCHAR(500) NOT NULL DEFAULT '',
+            `ssl`      TINYINT(1)   NOT NULL DEFAULT 1,
             folder    VARCHAR(100) NOT NULL DEFAULT 'INBOX',
             PRIMARY KEY (user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -49,7 +49,7 @@ try {
 
 // ─── GET – return saved settings (password masked) ───────────────────────────
 if ($method === 'GET') {
-    $stmt = $pdo->prepare('SELECT host, port, username, ssl, folder FROM imap_settings WHERE user_id = ?');
+    $stmt = $pdo->prepare('SELECT host, port, username, `ssl`, folder FROM imap_settings WHERE user_id = ?');
     $stmt->execute([$userId]);
     $row = $stmt->fetch();
     echo json_encode($row ?: (object)[]);
@@ -68,18 +68,18 @@ if ($method === 'PUT') {
 
     // Don't overwrite password if placeholder sent
     if ($password === '••••••••') {
-        $stmt = $pdo->prepare('SELECT password FROM imap_settings WHERE user_id = ?');
+        $stmt = $pdo->prepare('SELECT `password` FROM imap_settings WHERE user_id = ?');
         $stmt->execute([$userId]);
         $existing = $stmt->fetch();
         $password = $existing['password'] ?? '';
     }
 
     $pdo->prepare(
-        'INSERT INTO imap_settings (user_id, host, port, username, password, ssl, folder)
+        'INSERT INTO imap_settings (user_id, host, port, username, `password`, `ssl`, folder)
          VALUES (?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
              host=VALUES(host), port=VALUES(port), username=VALUES(username),
-             password=VALUES(password), ssl=VALUES(ssl), folder=VALUES(folder)'
+             `password`=VALUES(`password`), `ssl`=VALUES(`ssl`), folder=VALUES(folder)'
     )->execute([$userId, $host, $port, $username, $password, $ssl, $folder]);
 
     echo json_encode(['ok' => true]);
@@ -94,7 +94,7 @@ if ($method === 'POST') {
         exit;
     }
 
-    $stmt = $pdo->prepare('SELECT * FROM imap_settings WHERE user_id = ?');
+    $stmt = $pdo->prepare('SELECT host, port, username, `password`, `ssl`, folder FROM imap_settings WHERE user_id = ?');
     $stmt->execute([$userId]);
     $cfg = $stmt->fetch();
 
