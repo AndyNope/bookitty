@@ -221,14 +221,16 @@ const Lohn = () => {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-fit">
-        {([['mitarbeiter', 'Mitarbeiter'], ['abrechnung', 'Monatsabrechnung'], ['lohnausweis', 'Lohnausweis']] as const).map(([key, label]) => (
-          <button key={key} type="button" onClick={() => setTab(key)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-              tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >{label}</button>
-        ))}
+      <div className="overflow-x-auto">
+        <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-max">
+          {([['mitarbeiter', 'Mitarbeiter'], ['abrechnung', 'Monatsabrechnung'], ['lohnausweis', 'Lohnausweis']] as const).map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setTab(key)}
+              className={`rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold whitespace-nowrap transition ${
+                tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >{label}</button>
+          ))}
+        </div>
       </div>
 
       {/* ── Tab: Mitarbeiter ── */}
@@ -271,7 +273,7 @@ const Lohn = () => {
                         <td className="px-3 py-3 text-slate-400 whitespace-nowrap">{emp.startDate}</td>
                         <td className="px-3 py-3 text-slate-400 font-mono text-xs">{emp.ahvNr || '—'}</td>
                         <td className="px-3 py-3 text-right">
-                          <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition">
+                          <div className="flex gap-2 justify-end">
                             <button type="button" onClick={() => openEdit(emp)}
                               className="text-xs text-slate-500 hover:text-slate-800">Bearbeiten</button>
                             <button type="button" onClick={() => removeEmployee(emp.id)}

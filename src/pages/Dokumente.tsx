@@ -241,20 +241,20 @@ const Dokumente = () => {
                   setMobileView('form');
                 }}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     {doc.previewUrl ? (
                       <a
                         href={doc.previewUrl}
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="font-medium text-slate-900 hover:underline hover:text-slate-700"
+                        className="block truncate font-medium text-slate-900 hover:underline hover:text-slate-700"
                       >
                         {doc.fileName}
                       </a>
                     ) : (
-                      <p className="font-medium text-slate-900">{doc.fileName}</p>
+                      <p className="truncate font-medium text-slate-900">{doc.fileName}</p>
                     )}
                     <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1">
                       <span>{doc.uploadedAt} · Erkennung {doc.detection ?? (doc.fileName.endsWith('.pdf') ? 'PDF' : 'Standard')}</span>
@@ -295,9 +295,9 @@ const Dokumente = () => {
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
                         doc.status === 'Gebucht'
                           ? 'bg-emerald-50 text-emerald-700'
                           : 'bg-amber-50 text-amber-700'

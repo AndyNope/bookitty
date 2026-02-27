@@ -76,16 +76,16 @@ const Section = ({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition"
       >
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-2 min-w-0 flex-1 pr-2">
           <svg
-            className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}
+            className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-          {title}
+          <span className="min-w-0">{title}</span>
         </span>
-        <span className={`tabular-nums font-semibold ${
+        <span className={`tabular-nums font-semibold shrink-0 ${
           positive === undefined ? 'text-slate-900' : positive ? 'text-emerald-600' : 'text-rose-600'
         }`}>
           {fmt(total, cur)}
@@ -154,13 +154,13 @@ const AccountRow = ({ label, value, cur, tag }: { label: string; value: number; 
 const SubtotalRow = ({ label, value, cur, highlight = false }: {
   label: string; value: number; cur: string; highlight?: boolean;
 }) => (
-  <div className={`flex justify-between px-4 py-2 text-sm font-semibold border-t border-slate-200 mt-1 ${
+  <div className={`flex items-center justify-between gap-2 px-4 py-2 text-sm font-semibold border-t border-slate-200 mt-1 ${
     highlight
       ? (value >= 0 ? 'text-emerald-800' : 'text-rose-800')
       : (value >= 0 ? 'text-emerald-700' : 'text-rose-700')
   }`}>
-    <span>{label}</span>
-    <span className="tabular-nums">{fmt(value, cur)}</span>
+    <span className="min-w-0 flex-1">{label}</span>
+    <span className="tabular-nums shrink-0">{fmt(value, cur)}</span>
   </div>
 );
 
@@ -406,16 +406,18 @@ const Bilanz = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-fit">
-        {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['mwst', 'MwSt'], ['steuern', 'Steuern']] as const).map(([key, label]) => (
-          <button key={key} type="button" onClick={() => setTab(key)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-              tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="overflow-x-auto">
+        <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-max">
+          {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['mwst', 'MwSt'], ['steuern', 'Steuern']] as const).map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setTab(key)}
+              className={`rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold whitespace-nowrap transition ${
+                tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Erfolgsrechnung (Slide 14) ── */}
@@ -473,11 +475,11 @@ const Bilanz = () => {
               </Section>
             </>
           )}
-          <div className={`flex justify-between px-4 py-2.5 text-sm font-bold rounded-lg border mt-1 ${
+          <div className={`flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-bold rounded-lg border mt-1 ${
             bruttogewinnI >= 0 ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'
           }`}>
-            <span>Bruttogewinn I</span>
-            <span className="tabular-nums">{fmt(bruttogewinnI, cur)}</span>
+            <span className="min-w-0 flex-1">Bruttogewinn I</span>
+            <span className="tabular-nums shrink-0">{fmt(bruttogewinnI, cur)}</span>
           </div>
 
           {/* Personalaufwand (5xxx) */}
@@ -501,11 +503,11 @@ const Bilanz = () => {
             </>
           )}
           {personalaufwand > 0 && (
-            <div className={`flex justify-between px-4 py-2.5 text-sm font-bold rounded-lg border mt-1 ${
+            <div className={`flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-bold rounded-lg border mt-1 ${
               bruttogewinnII >= 0 ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'
             }`}>
-              <span>Bruttogewinn II</span>
-              <span className="tabular-nums">{fmt(bruttogewinnII, cur)}</span>
+              <span className="min-w-0 flex-1">Bruttogewinn II</span>
+              <span className="tabular-nums shrink-0">{fmt(bruttogewinnII, cur)}</span>
             </div>
           )}
 
@@ -531,11 +533,11 @@ const Bilanz = () => {
           )}
 
           {/* EBIT */}
-          <div className={`flex justify-between px-4 py-3 rounded-xl text-sm font-bold border-2 mt-2 ${
+          <div className={`flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm font-bold border-2 mt-2 ${
             ebit >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
           }`}>
-            <span>Betriebsergebnis (EBIT)</span>
-            <span className="tabular-nums">{fmt(ebit, cur)}</span>
+            <span className="min-w-0 flex-1">Betriebsergebnis (EBIT)</span>
+            <span className="tabular-nums shrink-0">{fmt(ebit, cur)}</span>
           </div>
 
           {/* Betrieblicher Nebenerfolg (7xxx) */}
@@ -579,13 +581,13 @@ const Bilanz = () => {
           )}
 
           {/* Jahresergebnis */}
-          <div className={`flex justify-between px-4 py-3 rounded-xl text-sm font-bold border-2 mt-3 ${
+          <div className={`flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm font-bold border-2 mt-3 ${
             jahresergebnis >= 0
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
               : 'border-rose-200 bg-rose-50 text-rose-800'
           }`}>
-            <span>Jahresergebnis</span>
-            <span className="tabular-nums">{fmt(jahresergebnis, cur)}</span>
+            <span className="min-w-0 flex-1">Jahresergebnis</span>
+            <span className="tabular-nums shrink-0">{fmt(jahresergebnis, cur)}</span>
           </div>
         </div>
       )}
@@ -609,9 +611,9 @@ const Bilanz = () => {
               </Section>
             );
           })}
-          <div className="flex justify-between px-4 py-2 text-sm font-bold text-emerald-700 border-t-2 border-emerald-200 mt-1">
-            <span>Total Aktiven</span>
-            <span className="tabular-nums">{fmt(totalAktiv, cur)}</span>
+          <div className="flex items-center justify-between gap-2 px-4 py-2 text-sm font-bold text-emerald-700 border-t-2 border-emerald-200 mt-1">
+            <span className="min-w-0 flex-1">Total Aktiven</span>
+            <span className="tabular-nums shrink-0">{fmt(totalAktiv, cur)}</span>
           </div>
 
           {/* Passiven */}
@@ -628,9 +630,9 @@ const Bilanz = () => {
               </Section>
             );
           })}
-          <div className="flex justify-between px-4 py-2 text-sm font-bold text-slate-700 border-t-2 border-slate-200 mt-1">
-            <span>Total Passiven</span>
-            <span className="tabular-nums">{fmt(totalPassiv, cur)}</span>
+          <div className="flex items-center justify-between gap-2 px-4 py-2 text-sm font-bold text-slate-700 border-t-2 border-slate-200 mt-1">
+            <span className="min-w-0 flex-1">Total Passiven</span>
+            <span className="tabular-nums shrink-0">{fmt(totalPassiv, cur)}</span>
           </div>
         </div>
       )}
