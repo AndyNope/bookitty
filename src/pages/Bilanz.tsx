@@ -10,7 +10,6 @@ const fmt = (value: number, cur: string) =>
 // ── Category classification ────────────────────────────────────────────────
 const AKTIV_CATS = ['1'];
 const PASSIV_CATS = ['2'];
-const ERTRAG_CATS = ['3'];
 
 const categoryLabel = (code: string) =>
   accountCategories.find((c) => c.code === code)?.name ?? code;
@@ -426,23 +425,29 @@ const Bilanz = () => {
 
           {/* Betriebsertrag */}
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1">Betriebsertrag</p>
-          {ERTRAG_CATS.map((cat) => {
-            const accts = accounts.filter((a) => a.categoryCode === cat);
-            // Dual-side: old bookings have 3xxx in account (byDebit), new ones in contraAccount (byCredit)
-            const catTotal = accts.reduce((s, a) => {
-              const code = formatAccount(a);
-              return s + (byDebit[code] ?? 0) + (byCredit[code] ?? 0);
-            }, 0);
+          {(() => {
+            // Group Einnahme bookings by their revenue account (contraAccount preferred,
+            // fall back to account if that looks like an Ertrag account).
+            // This works regardless of whether exact chAccounts strings are used.
+            const groups = bookings
+              .filter((b) => b.type === 'Einnahme')
+              .reduce<Record<string, number>>((acc, b) => {
+                const key = b.contraAccount || b.account;
+                acc[key] = (acc[key] ?? 0) + b.amount;
+                return acc;
+              }, {});
+            const entries = Object.entries(groups).filter(([, v]) => v !== 0);
             return (
-              <Section key={cat} title={categoryLabel(cat)} total={catTotal} cur={cur} positive>
-                {accts.map((a) => {
-                  const code = formatAccount(a);
-                  const v = (byDebit[code] ?? 0) + (byCredit[code] ?? 0);
-                  return v !== 0 ? <AccountRow key={a.code} label={code} value={v} cur={cur} /> : null;
-                })}
+              <Section title={categoryLabel('3')} total={totalBetriebsertrag} cur={cur} positive>
+                {entries.length > 0
+                  ? entries.map(([label, value]) => (
+                      <AccountRow key={label} label={label} value={value} cur={cur} />
+                    ))
+                  : <div className="px-8 py-2 text-xs text-slate-400">Keine Einnahmen vorhanden</div>
+                }
               </Section>
             );
-          })}
+          })()}
           <SubtotalRow label="Total Betriebsertrag" value={totalBetriebsertrag} cur={cur} />
 
           {/* Material- und Warenaufwand (4xxx) */}
@@ -450,10 +455,21 @@ const Bilanz = () => {
             <>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Material- und Warenaufwand</p>
               <Section title={categoryLabel('4')} total={materialaufwand} cur={cur}>
-                {accounts.filter((a) => a.categoryCode === '4').map((a) => {
-                  const v = byDebit[formatAccount(a)] ?? 0;
-                  return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
-                })}
+                {(() => {
+                  // Account-code match first; fall back to Ausgabe bookings whose account is 4xxx
+                  const matched = accounts.filter((a) => a.categoryCode === '4')
+                    .map((a) => ({ label: formatAccount(a), v: byDebit[formatAccount(a)] ?? 0 }))
+                    .filter((x) => x.v !== 0);
+                  if (matched.length > 0) {
+                    return matched.map(({ label, v }) => <AccountRow key={label} label={label} value={v} cur={cur} />);
+                  }
+                  // Fallback: group Ausgabe bookings with 4xxx account
+                  const groups = bookings
+                    .filter((b) => b.type === 'Ausgabe' && b.account.startsWith('4'))
+                    .reduce<Record<string, number>>((acc, b) => { acc[b.account] = (acc[b.account] ?? 0) + b.amount; return acc; }, {});
+                  return Object.entries(groups).filter(([, v]) => v !== 0)
+                    .map(([label, value]) => <AccountRow key={label} label={label} value={value} cur={cur} />);
+                })()}
               </Section>
             </>
           )}
@@ -469,10 +485,18 @@ const Bilanz = () => {
             <>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Personalaufwand</p>
               <Section title={categoryLabel('5')} total={personalaufwand} cur={cur}>
-                {accounts.filter((a) => a.categoryCode === '5').map((a) => {
-                  const v = byDebit[formatAccount(a)] ?? 0;
-                  return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
-                })}
+                {(() => {
+                  const matched = accounts.filter((a) => a.categoryCode === '5')
+                    .map((a) => ({ label: formatAccount(a), v: byDebit[formatAccount(a)] ?? 0 }))
+                    .filter((x) => x.v !== 0);
+                  if (matched.length > 0)
+                    return matched.map(({ label, v }) => <AccountRow key={label} label={label} value={v} cur={cur} />);
+                  const groups = bookings
+                    .filter((b) => b.type === 'Ausgabe' && b.account.startsWith('5'))
+                    .reduce<Record<string, number>>((acc, b) => { acc[b.account] = (acc[b.account] ?? 0) + b.amount; return acc; }, {});
+                  return Object.entries(groups).filter(([, v]) => v !== 0)
+                    .map(([label, value]) => <AccountRow key={label} label={label} value={value} cur={cur} />);
+                })()}
               </Section>
             </>
           )}
@@ -490,10 +514,18 @@ const Bilanz = () => {
             <>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Übriger betrieblicher Aufwand</p>
               <Section title={categoryLabel('6')} total={uebrBetriebsaufwand} cur={cur}>
-                {accounts.filter((a) => a.categoryCode === '6').map((a) => {
-                  const v = byDebit[formatAccount(a)] ?? 0;
-                  return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
-                })}
+                {(() => {
+                  const matched = accounts.filter((a) => a.categoryCode === '6')
+                    .map((a) => ({ label: formatAccount(a), v: byDebit[formatAccount(a)] ?? 0 }))
+                    .filter((x) => x.v !== 0);
+                  if (matched.length > 0)
+                    return matched.map(({ label, v }) => <AccountRow key={label} label={label} value={v} cur={cur} />);
+                  const groups = bookings
+                    .filter((b) => b.type === 'Ausgabe' && b.account.startsWith('6'))
+                    .reduce<Record<string, number>>((acc, b) => { acc[b.account] = (acc[b.account] ?? 0) + b.amount; return acc; }, {});
+                  return Object.entries(groups).filter(([, v]) => v !== 0)
+                    .map(([label, value]) => <AccountRow key={label} label={label} value={value} cur={cur} />);
+                })()}
               </Section>
             </>
           )}
