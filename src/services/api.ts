@@ -88,4 +88,10 @@ export const api = {
     get:  ()             => apiFetch<Record<string, string>>('/company.php'),
     save: (data: object) => apiFetch<{ ok: boolean }>('/company.php', { method: 'PUT', body: JSON.stringify(data) }),
   },
+
+  imap: {
+    get:   ()             => apiFetch<{ host?: string; port?: number; username?: string; ssl?: boolean; folder?: string }>('/imap.php'),
+    save:  (data: object) => apiFetch<{ ok: boolean }>('/imap.php', { method: 'PUT', body: JSON.stringify(data) }),
+    fetch: ()             => apiFetch<{ ok: boolean; emails: Array<{ subject: string; from: string; date: string; messageId: string; filename: string; data: string }> }>('/imap.php', { method: 'POST' }),
+  },
 };

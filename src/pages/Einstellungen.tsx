@@ -4,6 +4,15 @@ import { getCompany, saveCompany, type CompanyProfile } from '../utils/companySt
 import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
 
+type ImapConfig = {
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  ssl: boolean;
+  folder: string;
+};
+
 const Field = ({
   label,
   value,
@@ -33,6 +42,34 @@ const Einstellungen = () => {
   const { user } = useAuth();
   const [form, setForm] = useState<CompanyProfile>(getCompany);
   const [saved, setSaved] = useState(false);
+
+  const [imap, setImap] = useState<ImapConfig>({ host: '', port: '993', username: '', password: '', ssl: true, folder: 'INBOX' });
+  const [imapSaved, setImapSaved] = useState(false);
+  const [imapError, setImapError] = useState('');
+
+  // Load IMAP config from API when logged in
+  useEffect(() => {
+    if (!user) return;
+    api.imap.get().then((d) => {
+      if (d && d.host) {
+        setImap({
+          host:     d.host ?? '',
+          port:     String(d.port ?? 993),
+          username: d.username ?? '',
+          password: '••••••••',
+          ssl:      d.ssl !== false,
+          folder:   d.folder ?? 'INBOX',
+        });
+      }
+    }).catch(() => {});
+  }, [user?.id]);
+
+  const handleImapSave = () => {
+    setImapError('');
+    api.imap.save({ ...imap, port: Number(imap.port) })
+      .then(() => { setImapSaved(true); setTimeout(() => setImapSaved(false), 2000); })
+      .catch((e: Error) => setImapError(e.message));
+  };
 
   // Load company profile from API when logged in
   useEffect(() => {
@@ -109,6 +146,49 @@ const Einstellungen = () => {
           </div>
         )}
       </div>
+
+      {/* ── IMAP settings – only shown when logged in ── */}
+      {user && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-slate-900">E-Mail-Postfach (IMAP)</h3>
+            <button
+              type="button"
+              onClick={handleImapSave}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${
+                imapSaved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
+              }`}
+            >
+              {imapSaved ? '✓ Gespeichert' : 'Speichern'}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Verbinde dein Postfach, damit Bookitty automatisch Rechnungs-E-Mails abruft und als Belege importiert.
+          </p>
+          {imapError && (
+            <p className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{imapError}</p>
+          )}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="IMAP-Server" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.example.com" />
+            <Field label="Port" value={imap.port} onChange={(v) => setImap((p) => ({ ...p, port: v }))} placeholder="993" />
+            <Field label="Benutzername / E-Mail" value={imap.username} onChange={(v) => setImap((p) => ({ ...p, username: v }))} placeholder="rechnung@firma.ch" />
+            <Field label="Passwort" value={imap.password} onChange={(v) => setImap((p) => ({ ...p, password: v }))} type="password" />
+            <Field label="Ordner" value={imap.folder} onChange={(v) => setImap((p) => ({ ...p, folder: v }))} placeholder="INBOX" />
+            <label className="flex flex-col gap-1 text-sm text-slate-600">
+              SSL/TLS
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  checked={imap.ssl}
+                  onChange={(e) => setImap((p) => ({ ...p, ssl: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                <span className="text-slate-700">SSL aktiviert (empfohlen)</span>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-2 text-base font-semibold text-slate-900">Über Bookitty</h3>

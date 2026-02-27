@@ -7,6 +7,8 @@ import { parseEml } from '../utils/emlParser';
 import { addTemplate } from '../utils/templateStore';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
+import { api } from '../services/api';
+import { useAuth } from '../store/AuthContext';
 import {
   accounts,
   accountCategories,
@@ -22,11 +24,13 @@ const Dokumente = () => {
     confirmDocument,
     removeDocument,
   } = useBookkeeping();
+  const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(
     documents[0]?.id ?? null,
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [imapStatus, setImapStatus] = useState<string | null>(null);
 
   const [mobileView, setMobileView] = useState<'list' | 'form'>('list');
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
@@ -101,6 +105,43 @@ const Dokumente = () => {
     event.target.value = '';
   };
 
+  const handleImapFetch = async () => {
+    try {
+      setIsProcessing(true);
+      setImapStatus('E-Mails werden abgerufen…');
+      const { emails } = await api.imap.fetch();
+      if (emails.length === 0) {
+        setImapStatus('Keine neuen Rechnungs-E-Mails gefunden.');
+        setTimeout(() => setImapStatus(null), 4000);
+        return;
+      }
+      let count = 0;
+      for (const email of emails) {
+        const bytes = Uint8Array.from(atob(email.data), (c) => c.charCodeAt(0));
+        const pdfFile = new File([bytes.buffer as ArrayBuffer], email.filename, { type: 'application/pdf' });
+        try {
+          const { draft, detection, templateApplied, vendorPattern } = await processDocument(pdfFile);
+          if (email.subject && !draft.description.startsWith('Rechnung')) {
+            draft.description = email.subject;
+          }
+          addDocument(pdfFile, draft, `IMAP+${detection}`, templateApplied, vendorPattern);
+          count++;
+        } catch {
+          addDocument(pdfFile, undefined, 'IMAP');
+          count++;
+        }
+      }
+      setImapStatus(`${count} neue${count === 1 ? '' : ' '} Belege importiert.`);
+      setTimeout(() => setImapStatus(null), 5000);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unbekannter Fehler';
+      setImapStatus(`Fehler: ${msg}`);
+      setTimeout(() => setImapStatus(null), 6000);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const updateDraft = (patch: Partial<BookingDraft>) => {
     if (!selectedDocument) return;
     updateDocumentDraft(selectedDocument.id, {
@@ -128,36 +169,56 @@ const Dokumente = () => {
           isProcessing ? ' Erkennung läuft…' : ''
         }`}
         action={
-          <div className="flex gap-2">
-            <label className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-              isProcessing ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'
-            }`}>
-              {isProcessing ? 'Erkennung…' : 'Beleg hochladen'}
-              <input
-                type="file"
-                className="hidden"
-                accept="application/pdf,image/*"
-                onChange={handleFileChange}
-                disabled={isProcessing}
-              />
-            </label>
-            <label className={`cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 ${
-              isProcessing ? 'opacity-40' : 'hover:bg-slate-50'
-            }`}>
-              <span className="flex items-center gap-1.5">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                </svg>
-                E-Mail (.eml)
-              </span>
-              <input
-                type="file"
-                className="hidden"
-                accept=".eml,message/rfc822"
-                onChange={handleEmlChange}
-                disabled={isProcessing}
-              />
-            </label>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <label className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+                isProcessing ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'
+              }`}>
+                {isProcessing ? 'Erkennung…' : 'Beleg hochladen'}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="application/pdf,image/*"
+                  onChange={handleFileChange}
+                  disabled={isProcessing}
+                />
+              </label>
+              <label className={`cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 ${
+                isProcessing ? 'opacity-40' : 'hover:bg-slate-50'
+              }`}>
+                <span className="flex items-center gap-1.5">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                  </svg>
+                  E-Mail (.eml)
+                </span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".eml,message/rfc822"
+                  onChange={handleEmlChange}
+                  disabled={isProcessing}
+                />
+              </label>
+              {user && (
+                <button
+                  type="button"
+                  onClick={handleImapFetch}
+                  disabled={isProcessing}
+                  className={`flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition ${
+                    isProcessing ? 'opacity-40' : 'hover:bg-sky-100'
+                  }`}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  E-Mails abrufen
+                </button>
+              )}
+            </div>
+            {imapStatus && (
+              <p className="text-xs text-slate-500">{imapStatus}</p>
+            )}
           </div>
         }
       />
@@ -203,6 +264,14 @@ const Dokumente = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                           </svg>
                           E-Mail
+                        </span>
+                      )}
+                      {(doc.detection ?? '').startsWith('IMAP') && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800">
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                          </svg>
+                          IMAP
                         </span>
                       )}
                       {doc.templateApplied && (
