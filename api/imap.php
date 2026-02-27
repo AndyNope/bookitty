@@ -105,7 +105,19 @@ if ($method === 'POST') {
     }
 
     $proto  = $cfg['ssl'] ? 'ssl/novalidate-cert' : 'notls';
-    $mbox   = sprintf('{%s:%d/imap/%s}%s', $cfg['host'], $cfg['port'], $proto, $cfg['folder']);
+
+    // Auto-derive host from username if not set: mail.<domain>
+    $host = $cfg['host'];
+    if (empty($host) && str_contains($cfg['username'], '@')) {
+        $host = 'mail.' . explode('@', $cfg['username'])[1];
+    }
+    if (empty($host)) {
+        http_response_code(422);
+        echo json_encode(['error' => 'Kein IMAP-Server konfiguriert und kein Benutzername mit Domain vorhanden.']);
+        exit;
+    }
+
+    $mbox = sprintf('{%s:%d/imap/%s}%s', $host, $cfg['port'], $proto, $cfg['folder']);
 
     $conn = @imap_open($mbox, $cfg['username'], $cfg['password'], 0, 1);
     if (!$conn) {

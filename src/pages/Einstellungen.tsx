@@ -170,8 +170,8 @@ const Einstellungen = () => {
           )}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Field label="IMAP-Server (Hostname)" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.andynope.com" />
-              <p className="mt-1 text-xs text-slate-400">Nur der Servername, z.B. <span className="font-mono">mail.andynope.com</span> – nicht die E-Mail-Adresse.</p>
+              <Field label="IMAP-Server (optional)" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.andynope.com" />
+              <p className="mt-1 text-xs text-slate-400">Leer lassen → wird automatisch als <span className="font-mono">mail.&lt;domain&gt;</span> aus dem Benutzernamen abgeleitet.</p>
             </div>
             <Field label="Port" value={imap.port} onChange={(v) => setImap((p) => ({ ...p, port: v }))} placeholder="993" />
             <Field label="Benutzername / E-Mail" value={imap.username} onChange={(v) => setImap((p) => ({ ...p, username: v }))} placeholder="rechnung@firma.ch" />
