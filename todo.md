@@ -61,9 +61,11 @@
   Buchungsvorschläge für 2200/1020 und 8900/2000 eingeblendet. PDF-Export inkl. Steuerzusammenfassung.
   Rechtliche Prüfung / Rücksprache mit Steuerfachperson ausstehend – nicht verbindlich.
 
-- [ ] **16. Automatische Mahnungen bei vergessener Zahlung**
-  Offene Debitoren automatisch erkennen und Mahnungen versenden.
-  Guter USP – nach Steuerfunktion als nächster Premium-Baustein.
+- [x] **16. Automatische Mahnungen bei vergessener Zahlung**
+  Zahlungsfälligkeit-Feld («dueDate») bei offenen Buchungen (Einnahme + Ausgabe) mit +30/60/90-Tage Quick-Fill.
+  Fälligkeit-Spalte in der Buchungsliste mit farbcodierten Badges: «Überfällig NT», «Heute fällig», «In NT fällig».
+  Mahnungen-Banner auf der Buchungsseite zeigt Anzahl + Betrag überfälliger Zahlungen.
+  Dashboard: StatCard «Überfällige Zahlungen» mit Summe.
 
 ---
 

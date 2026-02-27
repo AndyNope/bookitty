@@ -6,6 +6,41 @@ const currency = (value: number, currencyCode: string) =>
     currency: currencyCode,
   }).format(value);
 
+const today = () => new Date().toISOString().split('T')[0];
+
+const DueBadge = ({ dueDate, paymentStatus }: { dueDate?: string; paymentStatus: string }) => {
+  if (!dueDate || paymentStatus === 'Bezahlt') return <span className="text-slate-300">—</span>;
+  const t = today();
+  const diffMs = new Date(dueDate).getTime() - new Date(t).getTime();
+  const diffDays = Math.round(diffMs / 86_400_000);
+  if (diffDays < 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 whitespace-nowrap">
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        Überfällig {Math.abs(diffDays)}T
+      </span>
+    );
+  }
+  if (diffDays === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 whitespace-nowrap">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Heute fällig
+      </span>
+    );
+  }
+  if (diffDays <= 7) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 whitespace-nowrap">
+        In {diffDays}T fällig
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs text-slate-400 whitespace-nowrap tabular-nums">{dueDate}</span>
+  );
+};
+
 const BookingTable = ({
   bookings,
   onDelete,
@@ -27,6 +62,7 @@ const BookingTable = ({
           </th>
           <th className="px-4 py-3 text-right">Betrag</th>
           <th className="px-4 py-3">Typ</th>
+          <th className="px-4 py-3">Fälligkeit</th>
           {onDelete && <th className="px-4 py-3" />}
         </tr>
       </thead>
@@ -73,6 +109,9 @@ const BookingTable = ({
               >
                 {booking.type}
               </span>
+            </td>
+            <td className="px-4 py-3">
+              <DueBadge dueDate={booking.dueDate} paymentStatus={booking.paymentStatus} />
             </td>
             {onDelete && (
               <td className="px-4 py-3 text-right">

@@ -21,9 +21,16 @@ const Dashboard = () => {
   const primaryCurrency = bookings[0]?.currency ?? 'CHF';
   const openDocs = documents.filter((doc) => doc.status !== 'Gebucht').length;
 
+  // Überfällige offene Buchungen
+  const today = new Date().toISOString().split('T')[0];
+  const overdueBookings = bookings.filter(
+    (b) => b.paymentStatus === 'Offen' && b.dueDate && b.dueDate < today,
+  );
+  const overdueSum = overdueBookings.reduce((s, b) => s + b.amount, 0);
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Einnahmen"
           value={currency(income, primaryCurrency)}
@@ -43,6 +50,11 @@ const Dashboard = () => {
           label="Offene Belege"
           value={openDocs.toString()}
           helper="In Prüfung"
+        />
+        <StatCard
+          label="Überfällige Zahlungen"
+          value={overdueBookings.length.toString()}
+          helper={overdueBookings.length > 0 ? currency(overdueSum, primaryCurrency) + ' ausstehend' : 'Alles im grünen Bereich'}
         />
       </div>
 

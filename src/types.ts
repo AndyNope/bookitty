@@ -17,6 +17,8 @@ export type Booking = {
   type: BookingType;
   /** Link to the original PDF/image document */
   pdfUrl?: string;
+  /** Zahlungsfälligkeit (ISO-Datum YYYY-MM-DD) – nur bei offenen Buchungen */
+  dueDate?: string;
 };
 
 export type BookingDraft = Omit<Booking, 'id'> & { id?: string };

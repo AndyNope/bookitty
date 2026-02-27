@@ -7,6 +7,8 @@ import { useBookkeeping } from '../store/BookkeepingContext';
 import type { BookingDraft, BookingType, PaymentStatus } from '../types';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
 
+const todayStr = () => new Date().toISOString().split('T')[0];
+
 const Buchungen = () => {
   const { bookings, addBooking, removeBooking } = useBookkeeping();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,6 +18,16 @@ const Buchungen = () => {
   const highlightBtn = useKittyHighlight('btn-neue-buchung');
 
   const pendingDeleteBooking = bookings.find((b) => b.id === pendingDeleteId);
+
+  // Überfällige offene Buchungen (mit gesetztem Fälligkeitsdatum)
+  const today = todayStr();
+  const overdueBookings = bookings.filter(
+    (b) => b.paymentStatus === 'Offen' && b.dueDate && b.dueDate < today,
+  );
+  const overdueSum = overdueBookings.reduce((s, b) => s + b.amount, 0);
+  const primaryCurrency = bookings[0]?.currency ?? 'CHF';
+  const fmt = (v: number) =>
+    new Intl.NumberFormat('de-CH', { style: 'currency', currency: primaryCurrency }).format(v);
 
   // Kitty-Buchungsvorschlag via URL-Params öffnen
   useEffect(() => {
@@ -60,6 +72,40 @@ const Buchungen = () => {
           </button>
         }
       />
+
+      {/* ── Mahnungen-Banner: überfällige Buchungen ── */}
+      {overdueBookings.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+          <svg className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-rose-800">
+              {overdueBookings.length} überfällige Zahlung{overdueBookings.length > 1 ? 'en' : ''} – {fmt(overdueSum)} ausstehend
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {overdueBookings.slice(0, 5).map((b) => {
+                const diffDays = Math.round(
+                  (new Date(today).getTime() - new Date(b.dueDate!).getTime()) / 86_400_000,
+                );
+                return (
+                  <li key={b.id} className="text-xs text-rose-700">
+                    <span className="font-medium">{b.description}</span>
+                    {' · '}
+                    {new Intl.NumberFormat('de-CH', { style: 'currency', currency: b.currency }).format(b.amount)}
+                    {' · '}
+                    <span className="font-semibold">{diffDays} Tag{diffDays !== 1 ? 'e' : ''} überfällig</span>
+                  </li>
+                );
+              })}
+              {overdueBookings.length > 5 && (
+                <li className="text-xs text-rose-500">… und {overdueBookings.length - 5} weitere</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
+
       <BookingTable bookings={bookings} onDelete={(id) => setPendingDeleteId(id)} />
 
       {/* ── Delete confirmation modal ── */}

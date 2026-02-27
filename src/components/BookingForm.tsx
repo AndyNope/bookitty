@@ -21,6 +21,13 @@ const initialDraft: BookingDraft = {
   currency: 'CHF',
   paymentStatus: 'Offen',
   type: 'Ausgabe',
+  dueDate: undefined,
+};
+
+const addDays = (baseDate: string, days: number) => {
+  const d = new Date(baseDate);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
 };
 
 type BookingFormProps = {
@@ -313,6 +320,30 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
             <option value="Bezahlt">Bezahlt</option>
           </select>
         </label>
+        {draft.paymentStatus === 'Offen' && (
+          <div className="flex flex-col gap-1 text-sm text-slate-600 md:col-span-2">
+            <span>Zahlungsfälligkeit</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={draft.dueDate ?? ''}
+                onChange={(e) => updateField('dueDate', e.target.value || undefined)}
+                className="flex-1 rounded-lg border border-slate-200 px-3 py-2"
+              />
+              {([30, 60, 90] as const).map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => updateField('dueDate', addDays(draft.date, days))}
+                  className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 whitespace-nowrap"
+                >
+                  +{days}T
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-slate-400">Frist für Zahlung (z.B. netto 30 Tage)</span>
+          </div>
+        )}
         <label className="text-sm text-slate-600">
           {vatLabel} Betrag
           <input
