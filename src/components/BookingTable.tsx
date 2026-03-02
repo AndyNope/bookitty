@@ -44,9 +44,11 @@ const DueBadge = ({ dueDate, paymentStatus }: { dueDate?: string; paymentStatus:
 const BookingTable = ({
   bookings,
   onDelete,
+  onEdit,
 }: {
   bookings: Booking[];
   onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
 }) => (
   <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
     <table className="min-w-[1000px] w-full text-left text-sm">
@@ -63,7 +65,7 @@ const BookingTable = ({
           <th className="px-4 py-3 text-right">Betrag</th>
           <th className="px-4 py-3">Typ</th>
           <th className="px-4 py-3">Fälligkeit</th>
-          {onDelete && <th className="px-4 py-3" />}
+          {(onDelete || onEdit) && <th className="px-4 py-3" />}
         </tr>
       </thead>
       <tbody>
@@ -113,16 +115,30 @@ const BookingTable = ({
             <td className="px-4 py-3">
               <DueBadge dueDate={booking.dueDate} paymentStatus={booking.paymentStatus} />
             </td>
-            {onDelete && (
+            {(onDelete || onEdit) && (
               <td className="px-4 py-3 text-right">
-                <button
-                  type="button"
-                  onClick={() => onDelete(booking.id)}
-                  className="opacity-0 group-hover:opacity-100 transition text-xs font-semibold text-rose-500 hover:text-rose-700"
-                  title="Buchung löschen"
-                >
-                  Löschen
-                </button>
+                <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition">
+                  {onEdit && (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(booking.id)}
+                      className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                      title="Buchung bearbeiten"
+                    >
+                      Bearbeiten
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(booking.id)}
+                      className="text-xs font-semibold text-rose-500 hover:text-rose-700"
+                      title="Buchung löschen"
+                    >
+                      Löschen
+                    </button>
+                  )}
+                </div>
               </td>
             )}
           </tr>

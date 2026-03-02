@@ -4,15 +4,16 @@ import BookingForm from '../components/BookingForm';
 import BookingTable from '../components/BookingTable';
 import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
-import type { BookingDraft, BookingType, PaymentStatus } from '../types';
+import type { Booking, BookingDraft, BookingType, PaymentStatus } from '../types';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 const Buchungen = () => {
-  const { bookings, addBooking, removeBooking } = useBookkeeping();
+  const { bookings, addBooking, removeBooking, updateBooking } = useBookkeeping();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [prefilledDraft, setPrefilledDraft] = useState<Partial<BookingDraft> | undefined>();
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightBtn = useKittyHighlight('btn-neue-buchung');
@@ -46,10 +47,27 @@ const Buchungen = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const handleSubmit = (draft: Parameters<typeof addBooking>[0]) => {
-    addBooking(draft);
+  const closeModal = () => {
     setIsModalOpen(false);
     setPrefilledDraft(undefined);
+    setEditingBooking(null);
+  };
+
+  const handleSubmit = (draft: Parameters<typeof addBooking>[0]) => {
+    if (editingBooking) {
+      updateBooking(editingBooking.id, draft);
+    } else {
+      addBooking(draft);
+    }
+    closeModal();
+  };
+
+  const openEdit = (id: string) => {
+    const b = bookings.find((x) => x.id === id);
+    if (!b) return;
+    setEditingBooking(b);
+    setPrefilledDraft(undefined);
+    setIsModalOpen(true);
   };
 
   return (
@@ -106,7 +124,7 @@ const Buchungen = () => {
         </div>
       )}
 
-      <BookingTable bookings={bookings} onDelete={(id) => setPendingDeleteId(id)} />
+      <BookingTable bookings={bookings} onDelete={(id) => setPendingDeleteId(id)} onEdit={openEdit} />
 
       {/* ── Delete confirmation modal ── */}
       {pendingDeleteBooking && (
@@ -147,9 +165,11 @@ const Buchungen = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
           <div className="w-full max-w-2xl">
             <BookingForm
+              key={editingBooking?.id ?? 'new'}
               onSubmit={handleSubmit}
-              onCancel={() => { setIsModalOpen(false); setPrefilledDraft(undefined); }}
-              initialValues={prefilledDraft}
+              onCancel={closeModal}
+              initialValues={editingBooking ?? prefilledDraft}
+              editMode={!!editingBooking}
             />
           </div>
         </div>

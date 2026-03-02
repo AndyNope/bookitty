@@ -34,12 +34,13 @@ type BookingFormProps = {
   onSubmit: (draft: BookingDraft) => void;
   onCancel?: () => void;
   initialValues?: Partial<BookingDraft>;
+  editMode?: boolean;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) => {
+const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFormProps) => {
   const merged: BookingDraft = { ...initialDraft, ...initialValues };
   const [draft, setDraft] = useState<BookingDraft>(merged);
   const [rawAmount, setRawAmount] = useState(String(merged.amount ?? 0));
@@ -68,8 +69,10 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit(draft);
-    setDraft(initialDraft);
-    setRawAmount('0');
+    if (!editMode) {
+      setDraft(initialDraft);
+      setRawAmount('0');
+    }
   };
 
   const vatLabel = draft.currency === 'CHF' ? 'MwSt.' : 'USt.';
@@ -90,7 +93,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
       className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
     >
       <h3 className="text-lg font-semibold text-slate-900">
-        Neue Buchung erfassen
+        {editMode ? 'Buchung bearbeiten' : 'Neue Buchung erfassen'}
       </h3>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <label className="text-sm text-slate-600">
@@ -381,7 +384,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues }: BookingFormProps) =>
           type="submit"
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
         >
-          Buchung speichern
+          {editMode ? 'Änderungen speichern' : 'Buchung speichern'}
         </button>
       </div>
     </form>

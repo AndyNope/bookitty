@@ -85,6 +85,7 @@ type BookkeepingContextValue = {
   confirmDocument: (id: string) => void;
   removeDocument: (id: string) => void;
   removeBooking: (id: string) => void;
+  updateBooking: (id: string, draft: BookingDraft) => void;
 };
 
 const BookkeepingContext = createContext<BookkeepingContextValue | undefined>(
@@ -247,6 +248,15 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     }
   };
 
+  const updateBooking = (id: string, draft: BookingDraft) => {
+    setBookings((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...draft } : item)),
+    );
+    if (!isDemo) {
+      api.bookings.update(id, draft).catch(console.error);
+    }
+  };
+
   const value = useMemo(
     () => ({
       bookings,
@@ -257,6 +267,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
       confirmDocument,
       removeDocument,
       removeBooking,
+      updateBooking,
     }),
     [bookings, documents],
   );
