@@ -67,9 +67,30 @@
   Mahnungen-Banner auf der Buchungsseite zeigt Anzahl + Betrag überfälliger Zahlungen.
   Dashboard: StatCard «Überfällige Zahlungen» mit Summe.
 
+- [ ] **20. Buchungen bearbeiten**
+  Bestehende Buchungen nachträglich editieren können (Beleg, Beträge, Konten, Status, Fälligkeit).
+  Edit-Button in der Buchungsliste öffnet das bestehende `BookingForm` im Bearbeitungs-Modus.
+
 ---
 
 ## Integrationen & Erweiterungen
+
+- [ ] **17. Eigene Kontenbezeichnungen**
+  Nutzer können eigene Konten anlegen und Standard-Kontobezeichnungen überschreiben
+  (z. B. «3400 Dienstleistungserlöse» → «Beratungshonorar XY»).
+  Onboarding-Schritt auf der Startseite: Unternehmen legt seine Stammkonten fest.
+  System speichert customized Konten (localStorage / DB) und bevorzugt diese bei Vorschlägen + Auswertungen.
+
+- [ ] **18. Datenimport aus Altsystemen**
+  Vorjahresbilanz hochladen (CSV/Excel/PDF), damit Kunden einfach von einem bestehenden System migrieren können.
+  Import-Assistent: erkennt Spalten (Konto, Soll, Haben, Betrag), mappt auf CH-KMU-Kontenrahmen, erstellt Eröffnungsbuchungen.
+  Minimallösung: manuelle Eingabe der Eröffnungssalden pro Konto.
+
+- [ ] **19. Bookitty als Buchungsbegleiter (KI-Assistent)**
+  KI gibt proaktiv Feedback während der Buchungserfassung:
+  «Bist du sicher? Ich hätte eher Konto X gewählt, weil …» mit Begründung + 1-Klick-Übernahme.
+  19.2: Buchung im Chat markieren – Nutzer kann eine Buchung aus der Liste auswählen und zusammen mit
+  weiterem Kontext (Ablage-Text, Notiz) direkt an Kitty senden, um gezielt nachzufragen.
 
 - [x] **12. Mailverkehr verbinden**
   E-Mails mit Rechnungsanhängen automatisch importieren und als Buchungsvorschlag verarbeiten.
@@ -80,6 +101,27 @@
   Monatsabrechnung: Abzugstabelle AN (AHV/IV/EO 5.3%, ALV 1.1%, NBUV, BVG/PK, KK) + Arbeitgeberbeiträge (AG-AHV, ALV, FAK ~2%, BUV ~0.5%, BVG/PK).
   Lohnausweis-Tab: pro Mitarbeiter/Monat mit Nettolohnberechnung.
   PDF-Export Lohnliste via jsPDF. Sätze 2025 – provisorisch.
+
+---
+
+## Strategische Überlegungen (noch offen)
+
+**Ausrichtung auf Grossunternehmen & Swiss GAAP FER**
+Langfristig: Steuererklärungsvorlage einer AG vollständig abbilden + Swiss GAAP FER-Konformität prüfen
+→ würde System auch für mittlere/grosse Unternehmen attraktiv machen.
+
+**Datensicherheit & 10-Jahres-Archivierung**
+Belege müssen gesetzlich 10 Jahre aufbewahrt werden.
+Option A: lokaler Export (ZIP-Download aller PDFs + JSON-Export).
+Option B: verschlüsselter Cloud-Speicher (S3 o. ä.). Noch zu entscheiden.
+
+**Staatliche Subventionen**
+Bookitty könnte dem Kanton/Bund helfen, unstrukturierte Steuererklärungen zu reduzieren.
+Eventuell Förderantrag oder Kooperation prüfen → erst relevant ab marktreifer Version.
+
+**Gründung über die HSG (Universität St. Gallen)**
+HSG-Startup-Programm bietet Mentoring, Infrastruktur und Netzwerk-Vorteile.
+→ Prüfen sobald MVP steht und Team vollständig.
 
 ---
 
