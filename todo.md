@@ -67,7 +67,7 @@
   Mahnungen-Banner auf der Buchungsseite zeigt Anzahl + Betrag überfälliger Zahlungen.
   Dashboard: StatCard «Überfällige Zahlungen» mit Summe.
 
-- [ ] **20. Buchungen bearbeiten**
+- [x] **20. Buchungen bearbeiten**
   Bestehende Buchungen nachträglich editieren können (Beleg, Beträge, Konten, Status, Fälligkeit).
   Edit-Button in der Buchungsliste öffnet das bestehende `BookingForm` im Bearbeitungs-Modus.
 
