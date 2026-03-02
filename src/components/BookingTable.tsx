@@ -1,5 +1,8 @@
 import type { Booking } from '../types';
 
+const sendToKitty = (booking: Booking) =>
+  window.dispatchEvent(new CustomEvent('kitty:context', { detail: booking }));
+
 const currency = (value: number, currencyCode: string) =>
   new Intl.NumberFormat('de-DE', {
     style: 'currency',
@@ -118,6 +121,20 @@ const BookingTable = ({
             {(onDelete || onEdit) && (
               <td className="px-4 py-3 text-right">
                 <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition">
+                  <button
+                    type="button"
+                    onClick={() => sendToKitty(booking)}
+                    title="Kitty fragen"
+                    className="text-slate-300 hover:text-slate-700 transition"
+                  >
+                    {/* cat face */}
+                    <svg className="h-4 w-4" viewBox="0 0 32 32" fill="currentColor">
+                      <path d="M6 4 L2 12 L6 11 Q8 18 16 18 Q24 18 26 11 L30 12 L26 4 L22 8 Q19 6 16 6 Q13 6 10 8 Z"/>
+                      <circle cx="11" cy="13" r="1.5"/>
+                      <circle cx="21" cy="13" r="1.5"/>
+                      <path d="M13 15.5 Q16 17.5 19 15.5" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round"/>
+                    </svg>
+                  </button>
                   {onEdit && (
                     <button
                       type="button"

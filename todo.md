@@ -87,11 +87,15 @@
   Minimallösung: manuelle Eingabe der Eröffnungssalden pro Konto.
   → Umgesetzt: `/import` Seite mit «Manuelle Eingabe» (gefilterte Kontoliste + Betragseingabe) und «CSV-Import» (Drag & Drop, Auto-Spalten-Erkennung, Vorschau-Tabelle). Erstellt typengerechte Eröffnungsbuchungen (Aktiven→byDebit, Passiven→byCredit). `importParser.ts` für CSV/TSV.
 
-- [ ] **19. Bookitty als Buchungsbegleiter (KI-Assistent)**
+- [x] **19. Bookitty als Buchungsbegleiter (KI-Assistent)**
   KI gibt proaktiv Feedback während der Buchungserfassung:
   «Bist du sicher? Ich hätte eher Konto X gewählt, weil …» mit Begründung + 1-Klick-Übernahme.
   19.2: Buchung im Chat markieren – Nutzer kann eine Buchung aus der Liste auswählen und zusammen mit
   weiterem Kontext (Ablage-Text, Notiz) direkt an Kitty senden, um gezielt nachzufragen.
+  → 19.1: kittySuggester.ts mit ~18 Regeln (Miete→6000, Büromaterial→6600, Lohn→5000, …). Debounced
+    Banner in BookingForm, 1-Klick «Soll/Haben übernehmen» + Ignorieren.
+  → 19.2: Kitty-Katzensymbol-Button per Buchungszeile (hover), dispatcht kitty:context CustomEvent.
+    KittyChat hört darauf, öffnet automatisch, stellt Buchung im Chat dar und lädt zum Nachfragen ein.
 
 - [x] **12. Mailverkehr verbinden**
   E-Mails mit Rechnungsanhängen automatisch importieren und als Buchungsvorschlag verarbeiten.

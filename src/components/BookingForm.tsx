@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { BookingDraft, BookingType } from '../types';
 import {
   accountCategories,
@@ -8,6 +8,7 @@ import {
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import { useAccounts } from '../hooks/useAccounts';
+import { suggestForDraft, type KittySuggestion } from '../utils/kittySuggester';
 
 const initialDraft: BookingDraft = {
   date: new Date().toISOString().split('T')[0],
@@ -46,6 +47,18 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
   const [rawAmount, setRawAmount] = useState(String(merged.amount ?? 0));
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
   const { accounts } = useAccounts();
+  const [kittySuggestion, setKittySuggestion] = useState<KittySuggestion | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Proactive Kitty feedback – debounced 700 ms after user stops typing
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setKittySuggestion(suggestForDraft(draft));
+    }, 700);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.description, draft.account, draft.contraAccount, draft.type, draft.paymentStatus]);
 
   const updateField = <K extends keyof BookingDraft>(
     key: K,
@@ -371,6 +384,63 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
           />
         </label>
       </div>
+      {/* ── Kitty-Hinweis ────────────────────────────────────────────────── */}
+      {kittySuggestion && (
+        <div className={`mt-4 flex flex-col gap-2 rounded-xl border px-4 py-3 text-sm ${
+          kittySuggestion.confidence === 'high'
+            ? 'border-amber-200 bg-amber-50'
+            : 'border-slate-200 bg-slate-50'
+        }`}>
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-base">🐱</span>
+            <p className="leading-snug text-slate-700">
+              {kittySuggestion.message.split(/\*\*([^*]+)\*\*/g).map((part, i) =>
+                i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+              )}
+            </p>
+          </div>
+          {(kittySuggestion.suggestedAccount || kittySuggestion.suggestedContraAccount) && (
+            <div className="flex flex-wrap gap-2">
+              {kittySuggestion.suggestedAccount && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const acct = accounts.find((a) => formatAccount(a).startsWith(kittySuggestion.suggestedAccount!.split(' ')[0]));
+                    setDraft((prev) => ({
+                      ...prev,
+                      account: kittySuggestion.suggestedAccount!,
+                      ...(acct ? { category: getCategoryLabel(acct.categoryCode) } : {}),
+                    }));
+                    setKittySuggestion(null);
+                  }}
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                >
+                  Soll → {kittySuggestion.suggestedAccount} übernehmen
+                </button>
+              )}
+              {kittySuggestion.suggestedContraAccount && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft((prev) => ({ ...prev, contraAccount: kittySuggestion.suggestedContraAccount! }));
+                    setKittySuggestion(null);
+                  }}
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                >
+                  Haben → {kittySuggestion.suggestedContraAccount} übernehmen
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setKittySuggestion(null)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                Ignorieren
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div className="mt-6 flex justify-end gap-3">
         {onCancel ? (
           <button

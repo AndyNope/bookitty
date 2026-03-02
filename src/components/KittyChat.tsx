@@ -107,6 +107,24 @@ const KittyChat = () => {
   const bottomRef             = useRef<HTMLDivElement>(null);
   const inputRef              = useRef<HTMLInputElement>(null);
 
+  // ── 19.2: Buchung im Chat markieren ──────────────────────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const b = (e as CustomEvent).detail;
+      if (!b) return;
+      const fmtAmt = new Intl.NumberFormat('de-CH', { style: 'currency', currency: b.currency ?? 'CHF' }).format(b.amount ?? 0);
+      const ctx = `📋 Buchung vom **${b.date}**: ${b.description} — ${fmtAmt} | Soll: ${b.account} | Haben: ${b.contraAccount}`;
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', text: ctx },
+        { role: 'model', text: `Ich sehe die Buchung **${b.description}** (${fmtAmt}, ${b.date}).\n\nWas möchtest du wissen? Zum Beispiel: Ist die Kontierung korrekt? Welcher MwSt-Satz gilt? Oder soll ich dir eine Änderung vorschlagen?`, isLocal: true },
+      ]);
+      setOpen(true);
+    };
+    window.addEventListener('kitty:context', handler);
+    return () => window.removeEventListener('kitty:context', handler);
+  }, []);
+
   // Scroll to bottom whenever messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
