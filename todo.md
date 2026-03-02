@@ -81,10 +81,11 @@
   Onboarding-Schritt auf der Startseite: Unternehmen legt seine Stammkonten fest.
   System speichert customized Konten (localStorage / DB) und bevorzugt diese bei Vorschlägen + Auswertungen.
 
-- [ ] **18. Datenimport aus Altsystemen**
+- [x] **18. Datenimport aus Altsystemen**
   Vorjahresbilanz hochladen (CSV/Excel/PDF), damit Kunden einfach von einem bestehenden System migrieren können.
   Import-Assistent: erkennt Spalten (Konto, Soll, Haben, Betrag), mappt auf CH-KMU-Kontenrahmen, erstellt Eröffnungsbuchungen.
   Minimallösung: manuelle Eingabe der Eröffnungssalden pro Konto.
+  → Umgesetzt: `/import` Seite mit «Manuelle Eingabe» (gefilterte Kontoliste + Betragseingabe) und «CSV-Import» (Drag & Drop, Auto-Spalten-Erkennung, Vorschau-Tabelle). Erstellt typengerechte Eröffnungsbuchungen (Aktiven→byDebit, Passiven→byCredit). `importParser.ts` für CSV/TSV.
 
 - [ ] **19. Bookitty als Buchungsbegleiter (KI-Assistent)**
   KI gibt proaktiv Feedback während der Buchungserfassung:
