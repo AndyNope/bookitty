@@ -51,6 +51,17 @@ const steps: {
       'Jede Buchung hat ein Soll- und ein Haben-Konto (doppelte Buchhaltung). Klicke auf «Neue Buchung», wähle Typ (Einnahme/Ausgabe) und Zahlungsstatus – die Konten werden automatisch vorgeschlagen.',
   },
   {
+    badge: 'Buchungsliste',
+    icon: (
+      <svg className="h-12 w-12 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.3}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+      </svg>
+    ),
+    title: 'Buchungen verwalten',
+    description:
+      'In der Tabelle siehst du nur das Wichtigste. Über das «…»-Menü findest du Details, Bearbeiten und Löschen. Lange Texte sind gekürzt – beim Hover siehst du alles.',
+  },
+  {
     badge: 'Dokumente',
     icon: (
       <svg className="h-12 w-12 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.3}>
@@ -93,7 +104,7 @@ const steps: {
     ),
     title: 'Tipp: Einstellungen & Stammkonten',
     description:
-      'Hinterlege deinen Firmennamen in den Einstellungen – dann erkennt Bookitty eigene Ausgangsrechnungen automatisch. Markiere häufig benutzte Konten mit ⭐ als Stammkonten für schnellen Zugriff.',
+      'Unter Einstellungen kannst du eigene Konten anlegen oder Bezeichnungen anpassen. Hinterlege deinen Firmennamen – dann erkennt Bookitty eigene Ausgangsrechnungen automatisch. Markiere häufig benutzte Konten mit ⭐ als Stammkonten für schnellen Zugriff.',
   },
 ];
 

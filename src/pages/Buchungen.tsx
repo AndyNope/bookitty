@@ -15,10 +15,12 @@ const Buchungen = () => {
   const [prefilledDraft, setPrefilledDraft] = useState<Partial<BookingDraft> | undefined>();
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [detailBookingId, setDetailBookingId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightBtn = useKittyHighlight('btn-neue-buchung');
 
   const pendingDeleteBooking = bookings.find((b) => b.id === pendingDeleteId);
+  const detailBooking = bookings.find((b) => b.id === detailBookingId);
 
   // Überfällige offene Buchungen (mit gesetztem Fälligkeitsdatum)
   const today = todayStr();
@@ -68,6 +70,10 @@ const Buchungen = () => {
     setEditingBooking(b);
     setPrefilledDraft(undefined);
     setIsModalOpen(true);
+  };
+
+  const openDetails = (id: string) => {
+    setDetailBookingId(id);
   };
 
   return (
@@ -124,7 +130,12 @@ const Buchungen = () => {
         </div>
       )}
 
-      <BookingTable bookings={bookings} onDelete={(id) => setPendingDeleteId(id)} onEdit={openEdit} />
+      <BookingTable
+        bookings={bookings}
+        onDelete={(id) => setPendingDeleteId(id)}
+        onEdit={openEdit}
+        onView={openDetails}
+      />
 
       {/* ── Delete confirmation modal ── */}
       {pendingDeleteBooking && (
@@ -155,6 +166,94 @@ const Buchungen = () => {
                 className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
               >
                 Löschen bestätigen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Buchungsdetails</h3>
+                <p className="mt-1 text-sm text-slate-500">{detailBooking.description}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailBookingId(null)}
+                className="text-slate-400 hover:text-slate-600"
+                aria-label="Schliessen"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+              <div>
+                <p className="text-xs text-slate-400">Datum</p>
+                <p className="font-medium text-slate-900">{detailBooking.date}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Betrag</p>
+                <p className="font-semibold text-slate-900">
+                  {new Intl.NumberFormat('de-CH', { style: 'currency', currency: detailBooking.currency }).format(detailBooking.amount)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Sollkonto</p>
+                <p className="font-medium text-slate-900">{detailBooking.account}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Habenkonto</p>
+                <p className="font-medium text-slate-900">{detailBooking.contraAccount}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Kategorie</p>
+                <p className="font-medium text-slate-900">{detailBooking.category || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Typ</p>
+                <p className="font-medium text-slate-900">{detailBooking.type}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Status</p>
+                <p className="font-medium text-slate-900">{detailBooking.paymentStatus}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Fälligkeit</p>
+                <p className="font-medium text-slate-900">{detailBooking.dueDate || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">MwSt-Satz</p>
+                <p className="font-medium text-slate-900">{detailBooking.vatRate ?? 0}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">MwSt-Betrag</p>
+                <p className="font-medium text-slate-900">
+                  {detailBooking.vatAmount !== null && detailBooking.vatAmount !== undefined
+                    ? new Intl.NumberFormat('de-CH', { style: 'currency', currency: detailBooking.currency }).format(detailBooking.vatAmount)
+                    : '—'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDetailBookingId(null)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Schliessen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailBookingId(null);
+                  openEdit(detailBooking.id);
+                }}
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Bearbeiten
               </button>
             </div>
           </div>
