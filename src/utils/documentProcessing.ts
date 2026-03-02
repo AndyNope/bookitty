@@ -137,6 +137,20 @@ const runOcr = async (file: File, preprocessed?: string) => {
   return data.text ?? '';
 };
 
+export const extractTextFromFile = async (file: File): Promise<{ text: string; detection: string }> => {
+  if (file.type === 'application/pdf') {
+    try {
+      const text = await extractPdfText(file);
+      return { text, detection: 'PDF' };
+    } catch {
+      return { text: '', detection: 'PDF' };
+    }
+  }
+  const preprocessed = await preprocessImage(file);
+  const text = await runOcr(file, preprocessed);
+  return { text, detection: 'OCR' };
+};
+
 export type ProcessedDocument = {
   draft: BookingDraft;
   detection: string;

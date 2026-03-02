@@ -19,6 +19,13 @@ export type ColMap = {
 const parseNum = (s: string) =>
   parseFloat(s.replace(/['''`\s]/g, '').replace(',', '.')) || 0;
 
+const normalizeLine = (line: string) =>
+  line
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/−/g, '-')
+    .trim();
+
 const idxOf = (headers: string[], patterns: string[]) =>
   headers.findIndex((h) => patterns.some((p) => h.includes(p)));
 
@@ -83,4 +90,37 @@ export const parseWithColMap = (
 export const parseCsv = (text: string): ParsedRow[] => {
   const { sep, lines, headers, hasHeader } = detectSeparatorAndHeader(text);
   return parseWithColMap(lines, sep, detectColumns(headers), hasHeader);
+};
+
+/** Parse unstructured text (OCR/PDF) to rows by detecting konto + amount per line. */
+export const parseTextToRows = (text: string): ParsedRow[] => {
+  const lines = text.split(/\r?\n/).map(normalizeLine).filter(Boolean);
+  const rows: ParsedRow[] = [];
+
+  for (const line of lines) {
+    if (!/\d{3,5}/.test(line)) continue;
+    const codeMatch = line.match(/\b(\d{3,5})\b/);
+    if (!codeMatch) continue;
+    const code = codeMatch[1];
+
+    // Try to find the last numeric amount in the line
+    const amountMatches = line.match(/[-+]?\d[\d'’.,\s]*\d/gi);
+    if (!amountMatches || amountMatches.length === 0) continue;
+    const rawAmount = amountMatches[amountMatches.length - 1];
+    const amount = parseNum(rawAmount);
+    if (!amount || Number.isNaN(amount)) continue;
+
+    const name = line
+      .replace(codeMatch[0], '')
+      .replace(rawAmount, '')
+      .replace(/(soll|haben|debit|credit|saldo|balance)/gi, '')
+      .trim() || 'Unbekannt';
+
+    const isCredit = /\b(haben|credit)\b/i.test(line) || /^-/.test(rawAmount);
+    const balance = isCredit ? -Math.abs(amount) : Math.abs(amount);
+
+    rows.push({ code, name, debit: 0, credit: 0, balance });
+  }
+
+  return rows.filter((r) => r.code && /^\d{3,5}$/.test(r.code) && r.balance !== 0);
 };

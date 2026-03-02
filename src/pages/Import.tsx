@@ -7,6 +7,7 @@ import {
   detectSeparatorAndHeader,
   detectColumns,
   parseWithColMap,
+  parseTextToRows,
   type ParsedRow,
   type ColMap,
 } from '../utils/importParser';
@@ -18,6 +19,8 @@ import {
   clearLearned,
 } from '../utils/importLearner';
 import type { BookingDraft } from '../types';
+import { extractTextFromFile } from '../utils/documentProcessing';
+import * as XLSX from 'xlsx';
 
 const CONTRA = '9200 Jahresgewinn oder -verlust';
 
@@ -220,6 +223,48 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
   const handleFile = async (file: File) => {
     setError('');
     try {
+      const ext = file.name.toLowerCase();
+
+      if (/(\.xlsx|\.xls)$/i.test(ext)) {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const csvText = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
+        const { sep, lines, headers, hasHeader } = detectSeparatorAndHeader(csvText);
+        const learned = getLearnedMapping(headers);
+        const detected = learned ? learned.colMap : detectColumns(headers);
+        setFileInfo({
+          sep, lines, headers, hasHeader,
+          learnedSource: learned ? { useCount: learned.useCount } : null,
+        });
+        setColMap(detected);
+        setShowColMapping(!learned);
+        return;
+      }
+
+      if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+        const { text } = await extractTextFromFile(file);
+        const parsed = parseTextToRows(text);
+        if (!parsed.length) {
+          setError('Keine Konten im Dokument erkannt. Bitte CSV/Excel verwenden oder Textqualität prüfen.');
+          return;
+        }
+        const headers = ['Konto', 'Bezeichnung', 'Saldo'];
+        const sep = ';';
+        const lines = [headers.join(sep), ...parsed.map((r) => `${r.code}${sep}${r.name}${sep}${r.balance}`)];
+        setFileInfo({
+          sep,
+          lines,
+          headers,
+          hasHeader: true,
+          learnedSource: null,
+        });
+        setColMap({ codeIdx: 0, nameIdx: 1, debitIdx: -1, creditIdx: -1, balanceIdx: 2 });
+        setShowColMapping(false);
+        return;
+      }
+
       const text = await file.text();
       const { sep, lines, headers, hasHeader } = detectSeparatorAndHeader(text);
       const learned = getLearnedMapping(headers);
@@ -273,14 +318,14 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
           </svg>
           <div>
-            <p className="text-sm font-semibold text-slate-700">CSV-Datei hier ablegen</p>
-            <p className="text-xs text-slate-400 mt-1">oder klicken zum Auswählen (.csv, .tsv)</p>
+            <p className="text-sm font-semibold text-slate-700">Datei hier ablegen</p>
+            <p className="text-xs text-slate-400 mt-1">CSV, Excel, PDF oder Bild (OCR)</p>
           </div>
           <p className="text-xs text-slate-400 max-w-xs">
             Unterstützte Spalten: <span className="font-mono">Konto;Bezeichnung;Soll;Haben</span> oder <span className="font-mono">Konto;Bezeichnung;Saldo</span>
           </p>
         </div>
-        <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" className="hidden"
+        <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,application/pdf,image/*" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
       </div>
     );
