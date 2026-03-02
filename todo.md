@@ -75,7 +75,7 @@
 
 ## Integrationen & Erweiterungen
 
-- [ ] **17. Eigene Kontenbezeichnungen**
+- [x] **17. Eigene Kontenbezeichnungen**
   Nutzer können eigene Konten anlegen und Standard-Kontobezeichnungen überschreiben
   (z. B. «3400 Dienstleistungserlöse» → «Beratungshonorar XY»).
   Onboarding-Schritt auf der Startseite: Unternehmen legt seine Stammkonten fest.

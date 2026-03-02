@@ -3,6 +3,8 @@ import SectionHeader from '../components/SectionHeader';
 import { getCompany, saveCompany, type CompanyProfile } from '../utils/companyStore';
 import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
+import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../data/chAccounts';
+import { useAccounts } from '../hooks/useAccounts';
 
 type ImapConfig = {
   host: string;
@@ -46,6 +48,11 @@ const Einstellungen = () => {
   const [imap, setImap] = useState<ImapConfig>({ host: '', port: '993', username: '', password: '', ssl: true, folder: 'INBOX' });
   const [imapSaved, setImapSaved] = useState(false);
   const [imapError, setImapError] = useState('');
+
+  // Custom accounts
+  const { customAccounts, upsert: upsertAccount, remove: removeAccount } = useAccounts();
+  const [acctForm, setAcctForm] = useState({ code: '', name: '', categoryCode: '3' });
+  const [acctError, setAcctError] = useState('');
 
   // Load IMAP config from API when logged in
   useEffect(() => {
@@ -94,11 +101,21 @@ const Einstellungen = () => {
     setForm((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
-    saveCompany(form); // always keep localStorage up-to-date (for demo mode + documentProcessing.ts)
+    saveCompany(form);
     if (user) {
       api.company.save(form).catch(console.error);
     }
     setSaved(true);
+  };
+
+  const handleUpsertAccount = () => {
+    const code = acctForm.code.trim();
+    const name = acctForm.name.trim();
+    if (!code || !name) { setAcctError('Kontonummer und Name sind Pflichtfelder.'); return; }
+    if (!/^\d+$/.test(code)) { setAcctError('Kontonummer darf nur Ziffern enthalten.'); return; }
+    upsertAccount({ code, name, categoryCode: acctForm.categoryCode });
+    setAcctForm({ code: '', name: '', categoryCode: '3' });
+    setAcctError('');
   };
 
   return (
@@ -192,6 +209,128 @@ const Einstellungen = () => {
           </div>
         </div>
       )}
+
+      {/* ── Eigene Kontenbezeichnungen ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-slate-900">Eigene Kontenbezeichnungen</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Passe bestehende Kontonamen an oder füge neue Konten hinzu. Deine Anpassungen werden
+          in allen Buchungsformularen und Auswertungen verwendet.
+        </p>
+
+        {/* Existing custom accounts */}
+        {customAccounts.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100 overflow-hidden">
+            {customAccounts
+              .slice()
+              .sort((a, b) => Number(a.code) - Number(b.code))
+              .map((acct) => {
+                const std = STD_ACCOUNTS.find((s) => s.code === acct.code);
+                return (
+                  <li key={acct.code} className="flex items-start justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900">
+                        <span className="font-mono text-slate-500 mr-1">{acct.code}</span>
+                        {acct.name}
+                      </p>
+                      {std ? (
+                        <p className="text-xs text-amber-600 mt-0.5">
+                          Überschreibt Standard: «{std.name}»
+                        </p>
+                      ) : (
+                        <p className="text-xs text-emerald-600 mt-0.5">Eigenes Konto</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAccount(acct.code)}
+                      className="shrink-0 text-xs font-semibold text-rose-500 hover:text-rose-700"
+                    >
+                      Entfernen
+                    </button>
+                  </li>
+                );
+              })}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-slate-400">
+            Noch keine eigenen Konten angelegt. Füge unten ein Konto hinzu.
+          </p>
+        )}
+
+        {/* Add / override form */}
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
+            Konto hinzufügen / überschreiben
+          </p>
+          {acctError && (
+            <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{acctError}</p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-[100px_1fr_1fr_auto]">
+            <label className="flex flex-col gap-1 text-xs text-slate-600">
+              Kontonr.
+              <input
+                type="text"
+                inputMode="numeric"
+                value={acctForm.code}
+                onChange={(e) => {
+                  const code = e.target.value.replace(/\D/g, '');
+                  // Auto-suggest category based on first digit
+                  const catCode = code[0] ?? '3';
+                  const validCat = accountCategories.some((c) => c.code === catCode) ? catCode : '3';
+                  setAcctForm((p) => ({ ...p, code, categoryCode: validCat }));
+                }}
+                placeholder="3400"
+                className="rounded-lg border border-slate-200 px-3 py-2 font-mono text-slate-900 focus:border-slate-400 focus:outline-none"
+              />
+              {acctForm.code && STD_ACCOUNTS.find((s) => s.code === acctForm.code) && (
+                <span className="text-[10px] text-amber-600">
+                  Überschreibt: «{STD_ACCOUNTS.find((s) => s.code === acctForm.code)!.name}»
+                </span>
+              )}
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-600">
+              Kontoname
+              <input
+                type="text"
+                value={acctForm.name}
+                onChange={(e) => setAcctForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="z.B. Beratungshonorar"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-slate-400 focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-600">
+              Kategorie
+              <select
+                value={acctForm.categoryCode}
+                onChange={(e) => setAcctForm((p) => ({ ...p, categoryCode: e.target.value }))}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-slate-900 focus:border-slate-400 focus:outline-none"
+              >
+                {accountCategories.map((c) => (
+                  <option key={c.code} value={c.code}>{c.code} – {c.name.slice(0, 30)}{c.name.length > 30 ? '…' : ''}</option>
+                ))}
+              </select>
+            </label>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleUpsertAccount}
+                className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Speichern
+              </button>
+            </div>
+          </div>
+          {/* Preview of what the merged list looks like for this code */}
+          {acctForm.code && acctForm.name && (
+            <p className="mt-2 text-xs text-slate-400">
+              Vorschau: <span className="font-mono text-slate-600">
+                {formatAccount({ code: acctForm.code, name: acctForm.name, categoryCode: acctForm.categoryCode })}
+              </span>
+            </p>
+          )}
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-2 text-base font-semibold text-slate-900">Über Bookitty</h3>

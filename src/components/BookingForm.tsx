@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import type { BookingDraft, BookingType } from '../types';
 import {
-  accounts,
   accountCategories,
   formatAccount,
   getCategoryLabel,
 } from '../data/chAccounts';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
+import { useAccounts } from '../hooks/useAccounts';
 
 const initialDraft: BookingDraft = {
   date: new Date().toISOString().split('T')[0],
   description: '',
-  account: formatAccount(accounts[0]),
+  account: '1020 Bankguthaben',
   contraAccount: '2000 VLL Kreditoren',
-  category: getCategoryLabel(accounts[0].categoryCode),
+  category: 'Aktiven',
   amount: 0,
   vatAmount: undefined,
   vatRate: 8.1,
@@ -45,6 +45,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
   const [draft, setDraft] = useState<BookingDraft>(merged);
   const [rawAmount, setRawAmount] = useState(String(merged.amount ?? 0));
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
+  const { accounts } = useAccounts();
 
   const updateField = <K extends keyof BookingDraft>(
     key: K,
