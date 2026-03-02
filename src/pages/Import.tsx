@@ -1,9 +1,22 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { formatAccount } from '../data/chAccounts';
-import { parseCsv, type ParsedRow } from '../utils/importParser';
+import {
+  detectSeparatorAndHeader,
+  detectColumns,
+  parseWithColMap,
+  type ParsedRow,
+  type ColMap,
+} from '../utils/importParser';
+import {
+  getLearnedMapping,
+  saveLearnedMapping,
+  learnAccounts,
+  getLearnerStats,
+  clearLearned,
+} from '../utils/importLearner';
 import type { BookingDraft } from '../types';
 
 const CONTRA = '9200 Jahresgewinn oder -verlust';
@@ -159,20 +172,64 @@ const ManualTab = ({ date, onImport }: { date: string; onImport: (drafts: Bookin
 };
 
 // ── CSV import tab ─────────────────────────────────────────────────────────
-const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDraft[]) => void }) => {
+
+type FileInfo = {
+  sep: string;
+  lines: string[];
+  headers: string[]; // original case, for display in dropdowns
+  hasHeader: boolean;
+  learnedSource: { useCount: number } | null;
+};
+
+const COL_ROLES: { key: keyof ColMap; label: string }[] = [
+  { key: 'codeIdx',    label: 'Konto-Nr.' },
+  { key: 'nameIdx',    label: 'Bezeichnung' },
+  { key: 'debitIdx',   label: 'Soll' },
+  { key: 'creditIdx',  label: 'Haben' },
+  { key: 'balanceIdx', label: 'Saldo' },
+];
+
+const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDraft[], newLearned?: number) => void }) => {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
+  const [colMap, setColMap] = useState<ColMap>({ codeIdx: 0, nameIdx: -1, debitIdx: -1, creditIdx: -1, balanceIdx: -1 });
+  const [showColMapping, setShowColMapping] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
+
+  // Derive parsed rows reactively whenever fileInfo or colMap changes
+  const rows = useMemo(() => {
+    if (!fileInfo) return [] as ParsedRow[];
+    return parseWithColMap(fileInfo.lines, fileInfo.sep, colMap, fileInfo.hasHeader);
+  }, [fileInfo, colMap]);
+
+  // Keep selection in sync with rows (auto-select all on new file/colMap change)
+  useEffect(() => {
+    setSelected(new Set(rows.map((r) => r.code)));
+  }, [rows]);
+
+  // Warn if parsing yields no results after a file is loaded
+  useEffect(() => {
+    if (fileInfo && rows.length === 0) {
+      setError('Keine gültigen Kontozeilen erkannt. Bitte Spalten-Zuordnung prüfen (Konto-Nr. + Soll/Haben oder Saldo benötigt).');
+    } else {
+      setError('');
+    }
+  }, [fileInfo, rows.length]);
 
   const handleFile = async (file: File) => {
     setError('');
     try {
       const text = await file.text();
-      const parsed = parseCsv(text);
-      if (parsed.length === 0) { setError('Keine gültigen Kontozeilen gefunden. Bitte Spalten prüfen (Konto;Bezeichnung;Soll;Haben oder ;Saldo).'); return; }
-      setRows(parsed);
-      setSelected(new Set(parsed.map((r) => r.code)));
+      const { sep, lines, headers, hasHeader } = detectSeparatorAndHeader(text);
+      const learned = getLearnedMapping(headers);
+      const detected = learned ? learned.colMap : detectColumns(headers);
+      setFileInfo({
+        sep, lines, headers, hasHeader,
+        learnedSource: learned ? { useCount: learned.useCount } : null,
+      });
+      setColMap(detected);
+      setShowColMapping(!learned); // auto-expand mapping panel for new/unknown sources
     } catch {
       setError('Datei konnte nicht gelesen werden.');
     }
@@ -182,18 +239,25 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
     setSelected((p) => { const n = new Set(p); n.has(code) ? n.delete(code) : n.add(code); return n; });
 
   const handleImport = () => {
-    const drafts = rows
-      .filter((r) => selected.has(r.code))
-      .map((r) => {
-        const amount = Math.abs(r.balance || r.debit || r.credit);
-        return rowToDraft(r.code, r.name, amount, date);
-      });
-    onImport(drafts);
-    setRows([]);
+    const toImport = rows.filter((r) => selected.has(r.code));
+    const drafts = toImport.map((r) => {
+      const amount = Math.abs(r.balance || r.debit || r.credit);
+      return rowToDraft(r.code, r.name, amount, date);
+    });
+    // Learn: save column mapping so next identical file is instantly recognized
+    if (fileInfo?.headers.length) {
+      saveLearnedMapping(fileInfo.headers, colMap);
+    }
+    // Learn: persist account code→name pairs for future imports
+    const newLearned = learnAccounts(toImport.map((r) => ({ code: r.code, name: r.name })));
+    onImport(drafts, newLearned);
+    setFileInfo(null);
     setSelected(new Set());
+    setColMap({ codeIdx: 0, nameIdx: -1, debitIdx: -1, creditIdx: -1, balanceIdx: -1 });
   };
 
-  if (rows.length === 0) {
+  // ── No file yet ────────────────────────────────────────────────────────────
+  if (!fileInfo) {
     return (
       <div>
         {error && (
@@ -222,73 +286,162 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
     );
   }
 
+  const colOptions = [
+    { value: -1, label: '— nicht vorhanden —' },
+    ...fileInfo.headers.map((h, i) => ({ value: i, label: `Sp. ${i + 1}: ${h || `Col ${i + 1}`}` })),
+  ];
+
+  // ── File loaded ────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">{rows.length} Konten erkannt · {selected.size} ausgewählt</p>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setSelected(new Set(rows.map((r) => r.code)))}
-            className="text-xs text-slate-500 hover:text-slate-800">Alle</button>
-          <button type="button" onClick={() => setSelected(new Set())}
-            className="text-xs text-slate-500 hover:text-slate-800">Keine</button>
-          <button type="button" onClick={() => { setRows([]); setSelected(new Set()); }}
+
+      {/* Source badge + controls */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {fileInfo.learnedSource ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 3.741-1.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>
+              Bekannte Quelle · {fileInfo.learnedSource.useCount}× importiert · Zuordnung automatisch angewendet
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+              Neue Quelle · Bitte Spalten-Zuordnung prüfen
+            </span>
+          )}
+          <span className="text-xs text-slate-400">{rows.length} Konten · {selected.size} ausgewählt</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowColMapping((v) => !v)}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:text-slate-800"
+          >
+            <svg className={`h-3 w-3 transition-transform ${showColMapping ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+            Spalten-Zuordnung
+          </button>
+          <button type="button" onClick={() => { setFileInfo(null); setSelected(new Set()); }}
             className="text-xs text-rose-500 hover:text-rose-700">Datei entfernen</button>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-3 py-2 w-8" />
-              <th className="px-3 py-2 text-left">Konto</th>
-              <th className="px-3 py-2 text-left">Bezeichnung</th>
-              <th className="px-3 py-2 text-right">Soll</th>
-              <th className="px-3 py-2 text-right">Haben</th>
-              <th className="px-3 py-2 text-right">Saldo</th>
-              <th className="px-3 py-2 text-left">Typ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => {
-              const cat = r.code[0];
-              const isAktiv  = cat === '1';
-              const isPassiv = cat === '2';
-              const typeLabel = isAktiv ? 'Aktiven' : isPassiv ? 'Passiven' : cat === '3' ? 'Ertrag' : 'Aufwand';
-              const typeColor = isAktiv ? 'text-sky-700 bg-sky-50' : isPassiv ? 'text-violet-700 bg-violet-50' : cat === '3' ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50';
-              return (
-                <tr key={r.code} className={`${selected.has(r.code) ? '' : 'opacity-40'} cursor-pointer hover:bg-slate-50`}
-                  onClick={() => toggle(r.code)}>
-                  <td className="px-3 py-2">
-                    <input type="checkbox" checked={selected.has(r.code)} onChange={() => toggle(r.code)}
-                      className="h-3.5 w-3.5 rounded border-slate-300" />
-                  </td>
-                  <td className="px-3 py-2 font-mono text-slate-500">{r.code}</td>
-                  <td className="px-3 py-2 text-slate-800">{r.name || '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{r.debit ? fmt(r.debit) : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{r.credit ? fmt(r.credit) : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums font-semibold">{fmt(Math.abs(r.balance))}</td>
-                  <td className="px-3 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeColor}`}>{typeLabel}</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-          <p className="text-sm font-semibold text-emerald-800">
-            {selected.size} Konto{selected.size !== 1 ? 'en' : ''} importieren
+      {/* Column mapping panel */}
+      {showColMapping && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Spalten-Zuordnung</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {COL_ROLES.map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-2">
+                <span className="w-28 shrink-0 text-sm text-slate-600">{label}</span>
+                <select
+                  value={colMap[key]}
+                  onChange={(e) => setColMap((prev) => ({ ...prev, [key]: parseInt(e.target.value) }))}
+                  className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-slate-400 focus:outline-none"
+                >
+                  {colOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400">
+            Korrekturen werden automatisch gespeichert und beim nächsten Import dieser Datei-Struktur angewendet.
           </p>
-          <button type="button" onClick={handleImport}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-            {selected.size} Eröffnungsbuchung{selected.size !== 1 ? 'en' : ''} erstellen
-          </button>
         </div>
       )}
+
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+      )}
+
+      {/* Preview table */}
+      {rows.length > 0 && (
+        <>
+          <div className="flex gap-3 text-xs text-slate-500">
+            <button type="button" onClick={() => setSelected(new Set(rows.map((r) => r.code)))} className="hover:text-slate-800">Alle</button>
+            <button type="button" onClick={() => setSelected(new Set())} className="hover:text-slate-800">Keine</button>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 w-8" />
+                  <th className="px-3 py-2 text-left">Konto</th>
+                  <th className="px-3 py-2 text-left">Bezeichnung</th>
+                  <th className="px-3 py-2 text-right">Soll</th>
+                  <th className="px-3 py-2 text-right">Haben</th>
+                  <th className="px-3 py-2 text-right">Saldo</th>
+                  <th className="px-3 py-2 text-left">Typ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((r) => {
+                  const cat = r.code[0];
+                  const isAktiv  = cat === '1';
+                  const isPassiv = cat === '2';
+                  const typeLabel = isAktiv ? 'Aktiven' : isPassiv ? 'Passiven' : cat === '3' ? 'Ertrag' : 'Aufwand';
+                  const typeColor = isAktiv ? 'text-sky-700 bg-sky-50' : isPassiv ? 'text-violet-700 bg-violet-50' : cat === '3' ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50';
+                  return (
+                    <tr key={r.code} className={`${selected.has(r.code) ? '' : 'opacity-40'} cursor-pointer hover:bg-slate-50`}
+                      onClick={() => toggle(r.code)}>
+                      <td className="px-3 py-2">
+                        <input type="checkbox" checked={selected.has(r.code)} onChange={() => toggle(r.code)}
+                          className="h-3.5 w-3.5 rounded border-slate-300" />
+                      </td>
+                      <td className="px-3 py-2 font-mono text-slate-500">{r.code}</td>
+                      <td className="px-3 py-2 text-slate-800">{r.name || '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{r.debit ? fmt(r.debit) : '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{r.credit ? fmt(r.credit) : '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-semibold">{fmt(Math.abs(r.balance))}</td>
+                      <td className="px-3 py-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeColor}`}>{typeLabel}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {selected.size > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+              <p className="text-sm font-semibold text-emerald-800">
+                {selected.size} Konto{selected.size !== 1 ? 'en' : ''} importieren
+              </p>
+              <button type="button" onClick={handleImport}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                {selected.size} Eröffnungsbuchung{selected.size !== 1 ? 'en' : ''} erstellen
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ── Learned knowledge footer ───────────────────────────────────────────────
+const LearnerStatsFooter = () => {
+  const stats = getLearnerStats(); // fresh read on each render
+  const [cleared, setCleared] = useState(false);
+  if (cleared || (stats.mappings === 0 && stats.accounts === 0)) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
+      <span>
+        🧠 Bookitty hat{' '}
+        <strong className="text-slate-700">{stats.mappings} Datei-Format{stats.mappings !== 1 ? 'e' : ''}</strong>
+        {' '}und{' '}
+        <strong className="text-slate-700">{stats.accounts} Kontobezeichnung{stats.accounts !== 1 ? 'en' : ''}</strong>
+        {' '}aus bisherigen Importen gelernt.
+      </span>
+      <button
+        type="button"
+        onClick={() => { clearLearned(); setCleared(true); }}
+        className="text-rose-400 hover:text-rose-600"
+      >
+        Gelernte Daten löschen
+      </button>
     </div>
   );
 };
@@ -299,11 +452,13 @@ const Import = () => {
   const [tab, setTab] = useState<'manual' | 'csv'>('manual');
   const [date, setDate] = useState(`${new Date().getFullYear() - 1}-12-31`);
   const [importedCount, setImportedCount] = useState<number | null>(null);
+  const [learnedCount, setLearnedCount] = useState(0);
 
-  const handleImport = (drafts: BookingDraft[]) => {
+  const handleImport = (drafts: BookingDraft[], newLearned = 0) => {
     drafts.forEach((d) => addBooking(d));
     setImportedCount(drafts.length);
-    setTimeout(() => setImportedCount(null), 5000);
+    setLearnedCount(newLearned);
+    setTimeout(() => setImportedCount(null), 6000);
   };
 
   return (
@@ -331,7 +486,8 @@ const Import = () => {
           <svg className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
-          {importedCount} Eröffnungsbuchung{importedCount !== 1 ? 'en' : ''} erfolgreich erstellt und in Buchungen gespeichert.
+          {importedCount} Eröffnungsbuchung{importedCount !== 1 ? 'en' : ''} erstellt
+          {learnedCount > 0 && <> · <strong>{learnedCount} neue Bezeichnung{learnedCount !== 1 ? 'en' : ''}</strong> gelernt</>}.
         </div>
       )}
 
@@ -359,6 +515,9 @@ const Import = () => {
           ? <ManualTab date={date} onImport={handleImport} />
           : <CsvTab    date={date} onImport={handleImport} />}
       </div>
+
+      {/* Gelerntes Wissen */}
+      <LearnerStatsFooter />
     </div>
   );
 };
