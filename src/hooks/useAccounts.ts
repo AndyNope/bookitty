@@ -1,6 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { accounts as STD_ACCOUNTS, type Account } from '../data/chAccounts';
 import { getCustomAccounts, saveCustomAccounts } from '../utils/customAccountStore';
+import { useAuth } from '../store/AuthContext';
+import { api } from '../services/api';
 
 /**
  * Returns a merged account list (standard accounts with custom overrides applied,
@@ -9,7 +11,20 @@ import { getCustomAccounts, saveCustomAccounts } from '../utils/customAccountSto
  * Sorting: numeric by account code so selects are always in order.
  */
 export const useAccounts = () => {
+  const { user } = useAuth();
   const [custom, setCustom] = useState<Account[]>(getCustomAccounts);
+
+  // Load from API when logged in and sync to localStorage
+  useEffect(() => {
+    if (!user) return;
+    api.customAccounts.list()
+      .then((list) => {
+        saveCustomAccounts(list);
+        setCustom(list);
+      })
+      .catch(() => {/* keep localStorage state */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   /** Standard accounts with names overridden where a custom entry exists for the same code */
   const merged: Account[] = [
@@ -28,7 +43,9 @@ export const useAccounts = () => {
       saveCustomAccounts(next);
       return next;
     });
-  }, []);
+    if (user) api.customAccounts.upsert(account).catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   /** Remove a custom account (restores standard name if it was an override) */
   const remove = useCallback((code: string) => {
@@ -37,7 +54,9 @@ export const useAccounts = () => {
       saveCustomAccounts(next);
       return next;
     });
-  }, []);
+    if (user) api.customAccounts.remove(code).catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   return { accounts: merged, customAccounts: custom, upsert, remove };
 };

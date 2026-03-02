@@ -1,4 +1,5 @@
 import type { Booking, DocumentImport } from '../types';
+import type { Account } from '../data/chAccounts';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // In development (.env.development) this points to the remote server so you can
@@ -93,5 +94,11 @@ export const api = {
     get:   ()             => apiFetch<{ host?: string; port?: number; username?: string; ssl?: boolean; folder?: string }>('/imap.php'),
     save:  (data: object) => apiFetch<{ ok: boolean }>('/imap.php', { method: 'PUT', body: JSON.stringify(data) }),
     fetch: ()             => apiFetch<{ ok: boolean; emails: Array<{ subject: string; from: string; date: string; messageId: string; filename: string; data: string }> }>('/imap.php', { method: 'POST' }),
+  },
+
+  customAccounts: {
+    list:   ()               => apiFetch<Account[]>('/custom_accounts.php'),
+    upsert: (a: Account)     => apiFetch<{ ok: boolean }>('/custom_accounts.php', { method: 'PUT',    body: JSON.stringify(a) }),
+    remove: (code: string)   => apiFetch<{ ok: boolean }>('/custom_accounts.php', { method: 'DELETE', body: JSON.stringify({ code }) }),
   },
 };
