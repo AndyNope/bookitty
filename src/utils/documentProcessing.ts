@@ -27,6 +27,8 @@ const applyOwnInvoiceDetection = (draft: BookingDraft, text: string): void => {
   draft.type = 'Einnahme';
   draft.account = suggestAccount('Einnahme', status) ?? draft.account;
   draft.contraAccount = suggestContraAccount('Einnahme', status);
+  // Also update category so BookingForm shows the correct Ertrag category
+  draft.category = 'Betrieblicher Ertrag aus Lieferungen/Leistungen';
 };
 
 const reader = new BrowserMultiFormatReader();

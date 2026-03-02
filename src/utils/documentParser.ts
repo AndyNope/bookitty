@@ -81,6 +81,13 @@ const amountPatterns = [
   /Endbetrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
   /(?:Summe\s+)?Total\s+(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
   /Rechnungstotal\s*(?:inkl\.?\s*MWST)?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  // Swiss-specific: "Gesamttotal", "Zahlbetrag", "Fälliger Betrag", "Zu zahlender Betrag"
+  /Gesamttotal\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Zahlbetrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /F[äa]lliger\s+Betrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Zu\s+(?:bezahlender|zahlender)\s+Betrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Total\s+(?:inkl\.?|inklusive)\s*(?:MwSt|MWST|USt)\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
+  /Offener\s+Betrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
   // "Summe Netto" / "Nettobetrag" – lowest priority, only used when nothing else found
   /Nettobetrag\s*:?\s*(?:€|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\b/i,
 ];
@@ -107,7 +114,7 @@ const findAmount = (rawText: string) => {
   // Multi-line: keyword on one line, amount on the next
   // e.g. "Gesamtbetrag CHF" / "1234.50"  or  "Endsumme" / "€ 222,51"
   for (let i = 0; i < lines.length - 1; i++) {
-    if (/gesamtbetrag|rechnungstotal|rechnungsbetrag|endbetrag|endsumme|total/i.test(lines[i])) {
+    if (/gesamtbetrag|gesamttotal|rechnungstotal|rechnungsbetrag|endbetrag|endsumme|total|zahlbetrag|f.lliger\s+betrag|zu\s+(bezahlender|zahlender)\s+betrag/i.test(lines[i])) {
       const nextAmount = lines[i + 1]?.match(/^\s*(?:[€$£]|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\s*$/);
       if (nextAmount) return currencyToNumber(nextAmount[1]);
     }

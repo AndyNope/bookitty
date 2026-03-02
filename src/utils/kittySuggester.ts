@@ -163,17 +163,19 @@ const RULES: Rule[] = [
   {
     keywords: ['umsatz', 'erlös', 'faktura', 'rechnung', 'dienstleistung', 'leistung', 'verkauf'],
     type: 'Einnahme',
-    isWrong: (d) => notIn(code(d.contraAccount), '30', '31', '32'),
-    suggestedContraAccount: '3000 Umsatzerlöse',
-    message: 'Umsatzerlöse aus Lieferungen und Leistungen gehören auf **3000 Umsatzerlöse** (Klasse 3).',
+    // Accept ANY Klasse-3 Ertragskonto – only warn when account is outside class 3
+    isWrong: (d) => notIn(code(d.contraAccount), '3'),
+    suggestedContraAccount: '3400 Dienstleistungserlöse',
+    message: 'Ertrag aus Rechnungen / Leistungen gehört auf ein **Klasse-3 Ertragskonto** (z. B. **3400 Dienstleistungserlöse** oder **3000 Produktionserlöse**).',
     confidence: 'high',
   },
   {
     keywords: ['zins', 'zinsen', 'kapitalzins', 'bankkonto'],
     type: 'Einnahme',
-    isWrong: (d) => notIn(code(d.contraAccount), '390', '391', '900'),
+    // Zinserträge: accept Klasse-3 or 9xxx
+    isWrong: (d) => notIn(code(d.contraAccount), '3', '9'),
     suggestedContraAccount: '3900 Zinsertrag',
-    message: 'Zinserträge werden auf **3900 Zinsertrag** oder **9000 Finanzertrag** verbucht.',
+    message: 'Zinserträge werden auf **3900 Zinsertrag** oder einem anderen Klasse-3-Konto verbucht.',
     confidence: 'medium',
   },
 
