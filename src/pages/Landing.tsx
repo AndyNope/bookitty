@@ -23,6 +23,10 @@ const faqs = [
     a: 'Jedes Unternehmen hat einen isolierten Workspace. Daten werden verschlüsselt übertragen und in der Schweiz gehostet. Ohne Konto verlassen keine Daten deinen Browser.',
   },
   {
+    q: 'Kann ich eigene Konten definieren?',
+    a: 'Ja. Unter **Einstellungen → Eigene Kontenbezeichnungen** kannst du Konten umbenennen oder neue Konten anlegen. Die Namen erscheinen danach in Buchungen und Auswertungen.',
+  },
+  {
     q: 'Was kann Kitty, der KI-Assistent?',
     a: 'Kitty beantwortet Fragen zu Buchungen, Kontenrahmen, MwSt und Bookitty-Funktionen – auch offline. Bei komplexeren Fragen greift Kitty auf ein Netzwerk von KI-Modellen zurück.',
   },

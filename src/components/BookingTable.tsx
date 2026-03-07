@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Booking } from '../types';
 
 const sendToKitty = (booking: Booking) =>
@@ -57,11 +58,76 @@ const BookingTable = ({
   onView?: (id: string) => void;
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; placement: 'bottom' | 'top' } | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const hasActions = Boolean(onDelete || onEdit || onView);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const onOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    const onScrollOrResize = () => setOpenMenuId(null);
+    window.addEventListener('mousedown', onOutside);
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('mousedown', onOutside);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [openMenuId]);
 
   return (
     <div className="overflow-x-auto overflow-y-visible rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-[1000px] w-full text-left text-sm">
+      {/* Mobile cards */}
+      <div className="divide-y divide-slate-100 lg:hidden">
+        {bookings.map((booking) => (
+          <div key={booking.id} className="px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500">{booking.date}</p>
+                <p className="mt-0.5 truncate text-sm font-semibold text-slate-900" title={booking.description}>
+                  {booking.description}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  {booking.account} → {booking.contraAccount}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-slate-900 whitespace-nowrap">
+                  {currency(booking.amount, booking.currency)}
+                </p>
+                <span
+                  className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    booking.type === 'Einnahme'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-rose-50 text-rose-700'
+                  }`}
+                >
+                  {booking.type}
+                </span>
+              </div>
+            </div>
+            {onView && (
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => onView(booking.id)}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                >
+                  Details anzeigen
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <table className="hidden w-full table-fixed text-left text-sm lg:table">
         <thead className="bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
             <th className="px-4 py-3">Datum</th>
@@ -136,70 +202,24 @@ const BookingTable = ({
               </td>
               {hasActions && (
                 <td className="px-4 py-3 text-right relative">
-                  <div
-                    className="relative inline-flex"
-                    onMouseLeave={() => setOpenMenuId(null)}
-                  >
+                  <div className="relative inline-flex">
                     <button
                       type="button"
-                      onClick={() =>
-                        setOpenMenuId((prev) => (prev === booking.id ? null : booking.id))
-                      }
+                      onClick={(event) => {
+                        const rect = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                        const menuHeight = 200;
+                        const spaceBelow = window.innerHeight - rect.bottom;
+                        const placement = spaceBelow < menuHeight ? 'top' : 'bottom';
+                        const top = placement === 'bottom' ? rect.bottom + 8 : rect.top - 8;
+                        const left = rect.right;
+                        setMenuPos({ top, left, placement });
+                        setOpenMenuId((prev) => (prev === booking.id ? null : booking.id));
+                      }}
                       className="rounded-lg px-2 py-1 text-slate-400 hover:text-slate-700"
                       aria-label="Aktionen"
                     >
                       <span className="text-lg leading-none">…</span>
                     </button>
-                    {openMenuId === booking.id && (
-                      <div className="absolute right-0 top-8 z-50 w-44 rounded-xl border border-slate-200 bg-white shadow-lg">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sendToKitty(booking);
-                            setOpenMenuId(null);
-                          }}
-                          className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50"
-                        >
-                          Kitty fragen
-                        </button>
-                        {onView && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onView(booking.id);
-                              setOpenMenuId(null);
-                            }}
-                            className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50"
-                          >
-                            Details anzeigen
-                          </button>
-                        )}
-                        {onEdit && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onEdit(booking.id);
-                              setOpenMenuId(null);
-                            }}
-                            className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50"
-                          >
-                            Bearbeiten
-                          </button>
-                        )}
-                        {onDelete && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onDelete(booking.id);
-                              setOpenMenuId(null);
-                            }}
-                            className="flex w-full items-center px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
-                          >
-                            Löschen
-                          </button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </td>
               )}
@@ -207,6 +227,73 @@ const BookingTable = ({
           ))}
         </tbody>
       </table>
+      {openMenuId && menuPos && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="fixed inset-0 z-[2147483647] pointer-events-none">
+              <div
+                ref={menuRef}
+                className="absolute w-44 rounded-xl border border-slate-200 bg-white shadow-lg pointer-events-auto"
+                style={{
+                  top: menuPos.top,
+                  left: menuPos.left,
+                  transform:
+                    menuPos.placement === 'bottom'
+                      ? 'translateX(-100%)'
+                      : 'translate(-100%, -100%)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    const booking = bookings.find((b) => b.id === openMenuId);
+                    if (booking) sendToKitty(booking);
+                    setOpenMenuId(null);
+                  }}
+                  className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50"
+                >
+                  Kitty fragen
+                </button>
+                {onView && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onView(openMenuId);
+                      setOpenMenuId(null);
+                    }}
+                    className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    Details anzeigen
+                  </button>
+                )}
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onEdit(openMenuId);
+                      setOpenMenuId(null);
+                    }}
+                    className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    Bearbeiten
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete(openMenuId);
+                      setOpenMenuId(null);
+                    }}
+                    className="flex w-full items-center px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                  >
+                    Löschen
+                  </button>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 };

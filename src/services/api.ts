@@ -10,9 +10,9 @@ const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api';
 const TOKEN_KEY = 'bookitty.token';
 
 export const tokenStore = {
-  get:   (): string | null => localStorage.getItem(TOKEN_KEY),
-  set:   (t: string)       => localStorage.setItem(TOKEN_KEY, t),
-  clear: ()                => localStorage.removeItem(TOKEN_KEY),
+  get:   (): string | null => sessionStorage.getItem(TOKEN_KEY),
+  set:   (t: string)       => sessionStorage.setItem(TOKEN_KEY, t),
+  clear: ()                => sessionStorage.removeItem(TOKEN_KEY),
 };
 
 // ─── Generic fetch wrapper ────────────────────────────────────────────────────

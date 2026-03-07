@@ -307,6 +307,16 @@ const KNOWLEDGE: KnowledgeEntry[] = [
  ],
  tags: ['account', 'einstellungen'],
  },
+ {
+ id: 'eigene-konten',
+ keywords: ['eigene konten', 'konten anpassen', 'konto umbenennen', 'kontenbezeichnungen', 'stammkonten', 'einstellungen', 'kontenplan'],
+ question: 'Wo kann ich eigene Konten definieren oder Konten umbenennen?',
+ answers: [
+ 'Eigene Konten definierst du in den **Einstellungen**:\n\n1. Menü **Einstellungen** öffnen\n2. Bereich **Eigene Kontenbezeichnungen**\n3. **Kontonummer** und **Name** eingeben → **Hinzufügen**\n\nDu kannst damit bestehende Standard-Konten **umbenennen** oder **neue Konten** anlegen. Die Namen erscheinen danach überall in Buchungen und Auswertungen.',
+ ],
+ tags: ['einstellungen', 'konten'],
+ followUp: ['Wie funktioniert der Kontenrahmen?', 'Wie erfasse ich eine Buchung?'],
+ },
 
  // ── Buchungen ────────────────────────────────────────────────────────────────
  {
@@ -325,7 +335,7 @@ const KNOWLEDGE: KnowledgeEntry[] = [
  keywords: ['bearbeiten', 'ändern', 'korrigier', 'edit', 'anpass', 'falsch', 'fehler', 'korrektur'],
  question: 'Wie ändere ich eine bestehende Buchung?',
  answers: [
- 'Buchung bearbeiten:\n\n1. **Buchungen** öffnen\n2. Gewünschte Buchung anklicken\n3. Felder anpassen → **Speichern**\n\nIn der Praxis ist es sauberer, Fehler mit einer **Gegenbuchung** zu korrigieren – besonders nach dem Jahresabschluss.',
+ 'Buchung bearbeiten:\n\n1. **Buchungen** öffnen\n2. Beim Eintrag auf **…** klicken\n3. **Bearbeiten** wählen → Felder anpassen → **Speichern**\n\nIn der Praxis ist es sauberer, Fehler mit einer **Gegenbuchung** zu korrigieren – besonders nach dem Jahresabschluss.',
  ],
  tags: ['buchung'],
  },
@@ -334,7 +344,7 @@ const KNOWLEDGE: KnowledgeEntry[] = [
  keywords: ['lösch', 'entfern', 'delete', 'weg', 'rückgängig', 'stornieren', 'löschen'],
  question: 'Wie lösche ich eine Buchung?',
  answers: [
- 'Buchung löschen:\n\n1. Buchung öffnen\n2. Auf das **Löschen-Symbol** () klicken\n3. Bestätigen\n\n Gelöschte Buchungen können nicht wiederhergestellt werden. Bei abgeschlossenen Perioden lieber mit einer **Korrekturbuchung** arbeiten.',
+ 'Buchung löschen:\n\n1. **Buchungen** öffnen\n2. Beim Eintrag auf **…** klicken\n3. **Löschen** wählen → Bestätigen\n\nGelöschte Buchungen können nicht wiederhergestellt werden. Bei abgeschlossenen Perioden lieber mit einer **Korrekturbuchung** arbeiten.',
  ],
  tags: ['buchung'],
  },

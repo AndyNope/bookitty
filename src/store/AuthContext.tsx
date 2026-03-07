@@ -21,6 +21,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user,      setUser]      = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
   // On mount – restore session from stored JWT
   useEffect(() => {
     const token = tokenStore.get();
@@ -44,6 +46,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     tokenStore.clear();
     setUser(null);
   };
+
+  // Auto-logout on inactivity
+  useEffect(() => {
+    if (!user) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const resetTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        logout();
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach((event) => window.addEventListener(event, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      events.forEach((event) => window.removeEventListener(event, resetTimer));
+    };
+  }, [user]);
 
   const register = async (name: string, email: string, password: string) => {
     const res = await api.auth.register(name, email, password);

@@ -131,9 +131,9 @@ const ManualTab = ({ date, onImport }: { date: string; onImport: (drafts: Bookin
               const val = balances[key] ?? '';
               return (
                 <tr key={key} className={`${val ? 'bg-emerald-50/50' : 'hover:bg-slate-50'}`}>
-                  <td className="px-4 py-2 text-slate-700">
-                    <span className="font-mono text-slate-400 text-xs mr-2">{a.code}</span>
-                    {a.name}
+                  <td className="px-4 py-2 text-slate-700 break-words">
+                    <span className="font-mono text-slate-400 text-xs mr-2 inline-block">{a.code}</span>
+                    <span className="break-words">{a.name}</span>
                   </td>
                   <td className="px-4 py-2 text-right">
                     <input
@@ -541,7 +541,7 @@ const Import = () => {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="overflow-x-auto">
             <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-max">
-              {([['manual', 'Manuelle Eingabe'], ['csv', 'CSV-Import']] as const).map(([key, label]) => (
+              {([['manual', 'Manuelle Eingabe'], ['csv', 'Datei-Import']] as const).map(([key, label]) => (
                 <button key={key} type="button" onClick={() => setTab(key)}
                   className={`rounded-lg px-4 py-1.5 text-sm font-semibold whitespace-nowrap transition ${
                     tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'

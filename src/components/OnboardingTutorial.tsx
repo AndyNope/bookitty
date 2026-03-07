@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const SEEN_KEY = 'bookitty.tutorial.seen';
 
@@ -16,6 +17,11 @@ const steps: {
   title: string;
   description: string;
   badge?: string;
+  action?: {
+    highlightId?: string;
+    navigateTo?: string;
+    cta?: string;
+  };
 }[] = [
   {
     badge: 'Willkommen 👋',
@@ -38,6 +44,7 @@ const steps: {
     title: 'Dashboard – Überblick',
     description:
       'Das Dashboard zeigt dir auf einen Blick deine Einnahmen, Ausgaben, den aktuellen Saldo und offene Belege. Hier siehst du auch die letzten Buchungen.',
+    action: { highlightId: 'dashboard', navigateTo: '/dashboard', cta: 'Zum Dashboard' },
   },
   {
     badge: 'Buchungen',
@@ -49,6 +56,7 @@ const steps: {
     title: 'Buchungen erfassen',
     description:
       'Jede Buchung hat ein Soll- und ein Haben-Konto (doppelte Buchhaltung). Klicke auf «Neue Buchung», wähle Typ (Einnahme/Ausgabe) und Zahlungsstatus – die Konten werden automatisch vorgeschlagen.',
+    action: { highlightId: 'buchungen', navigateTo: '/buchungen', cta: 'Zu den Buchungen' },
   },
   {
     badge: 'Buchungsliste',
@@ -60,6 +68,7 @@ const steps: {
     title: 'Buchungen verwalten',
     description:
       'In der Tabelle siehst du nur das Wichtigste. Über das «…»-Menü findest du Details, Bearbeiten und Löschen. Lange Texte sind gekürzt – beim Hover siehst du alles.',
+    action: { highlightId: 'buchungen', navigateTo: '/buchungen', cta: 'Buchungsliste öffnen' },
   },
   {
     badge: 'Dokumente',
@@ -71,6 +80,7 @@ const steps: {
     title: 'Belege automatisch erkennen',
     description:
       'Lade ein PDF oder Foto einer Rechnung hoch. Bookitty liest Betrag, Datum und Konto per OCR + QR-Code automatisch aus und erstellt einen Buchungsvorschlag. Eigene Rechnungen (mit deinem Firmennamen) werden als Einnahme erkannt.',
+    action: { highlightId: 'dokumente', navigateTo: '/dokumente', cta: 'Zu den Dokumenten' },
   },
   {
     badge: 'Bilanz',
@@ -82,6 +92,7 @@ const steps: {
     title: 'Bilanz & Erfolgsrechnung',
     description:
       'Unter «Bilanz» findest du die vollständige Bilanz (Aktiven/Passiven), die Erfolgsrechnung nach Schweizer KMU-Standard sowie die MwSt-Übersicht. Alle Werte werden in Echtzeit berechnet.',
+    action: { highlightId: 'bilanz', navigateTo: '/bilanz', cta: 'Zur Bilanz' },
   },
   {
     badge: 'Kitty KI',
@@ -105,6 +116,7 @@ const steps: {
     title: 'Tipp: Einstellungen & Stammkonten',
     description:
       'Unter Einstellungen kannst du eigene Konten anlegen oder Bezeichnungen anpassen. Hinterlege deinen Firmennamen – dann erkennt Bookitty eigene Ausgangsrechnungen automatisch. Markiere häufig benutzte Konten mit ⭐ als Stammkonten für schnellen Zugriff.',
+    action: { highlightId: 'einstellungen', navigateTo: '/einstellungen', cta: 'Zu den Einstellungen' },
   },
 ];
 
@@ -115,11 +127,13 @@ type Props = {
   step: number;
   onStepChange: (s: number) => void;
   onClose: () => void;
+  basePath?: string;
 };
 
-const OnboardingTutorial = ({ open, step, onStepChange, onClose }: Props) => {
+const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }: Props) => {
   const current = steps[step];
   const isLast = step === steps.length - 1;
+  const navigate = useNavigate();
 
   const handleClose = useCallback(() => {
     markTutorialSeen();
@@ -137,6 +151,15 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose }: Props) => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, step, isLast, handleClose, onStepChange]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (current?.action?.highlightId) {
+      window.dispatchEvent(new CustomEvent('kitty:highlight', {
+        detail: { id: current.action.highlightId },
+      }));
+    }
+  }, [open, step, current]);
 
   if (!open) return null;
 
@@ -169,6 +192,15 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose }: Props) => {
           </div>
           <h2 className="text-xl font-bold text-slate-900">{current.title}</h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-500">{current.description}</p>
+          {current.action?.navigateTo && (
+            <button
+              type="button"
+              onClick={() => navigate(`${basePath}${current.action!.navigateTo}`)}
+              className="mt-4 rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              {current.action.cta ?? 'Bereich öffnen'}
+            </button>
+          )}
         </div>
 
         {/* Footer */}

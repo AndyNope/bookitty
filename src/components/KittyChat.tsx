@@ -125,6 +125,12 @@ const KittyChat = () => {
     return () => window.removeEventListener('kitty:context', handler);
   }, []);
 
+  useEffect(() => {
+    const openHandler = () => setOpen(true);
+    window.addEventListener('kitty:open', openHandler);
+    return () => window.removeEventListener('kitty:open', openHandler);
+  }, []);
+
   // Scroll to bottom whenever messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -216,7 +222,7 @@ const KittyChat = () => {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Kitty öffnen"
-        className={`fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all lg:bottom-6 lg:right-6 ${
+        className={`fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all lg:hidden ${
           open ? 'bg-slate-700 rotate-0' : 'bg-slate-900 hover:bg-slate-700'
         }`}
       >
