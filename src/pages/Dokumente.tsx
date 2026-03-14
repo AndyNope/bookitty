@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { BookingDraft } from '../types';
+import LogoLoader from '../components/LogoLoader';
+import NotificationModal from '../components/NotificationModal';
 import { processDocument } from '../utils/documentProcessing';
 import { parseEml } from '../utils/emlParser';
 import { addTemplate } from '../utils/templateStore';
@@ -25,12 +28,18 @@ const Dokumente = () => {
     removeDocument,
   } = useBookkeeping();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(
     documents[0]?.id ?? null,
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [imapStatus, setImapStatus] = useState<string | null>(null);
+  const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
+    open: false, type: 'success', title: '', message: '',
+  });
+  const showNotify = (type: 'success' | 'error', title: string, message: string) =>
+    setNotify({ open: true, type, title, message });
 
   const [mobileView, setMobileView] = useState<'list' | 'form'>('list');
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
@@ -50,8 +59,10 @@ const Dokumente = () => {
       setIsProcessing(true);
       const { draft, detection, templateApplied, vendorPattern } = await processDocument(file);
       addDocument(file, draft, detection, templateApplied, vendorPattern);
+      showNotify('success', 'Beleg erkannt', `„${file.name}“ wurde erfolgreich verarbeitet und ist bereit zur Buchung.`);
     } catch {
       addDocument(file);
+      showNotify('error', 'Erkennung fehlgeschlagen', 'Beleg wurde hinzugefügt, konnte aber nicht automatisch erkannt werden.');
     } finally {
       setIsProcessing(false);
     }
@@ -133,10 +144,12 @@ const Dokumente = () => {
       }
       setImapStatus(`${count} neue${count === 1 ? '' : ' '} Belege importiert.`);
       setTimeout(() => setImapStatus(null), 5000);
+      showNotify('success', 'E-Mails abgerufen', `${count} neue${count === 1 ? 'r' : ''} Beleg${count === 1 ? '' : 'e'} wurden importiert.`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unbekannter Fehler';
       setImapStatus(`Fehler: ${msg}`);
       setTimeout(() => setImapStatus(null), 6000);
+      showNotify('error', 'IMAP-Abruf fehlgeschlagen', msg);
     } finally {
       setIsProcessing(false);
     }
@@ -163,6 +176,14 @@ const Dokumente = () => {
 
   return (
     <div className="space-y-6">
+      {isProcessing && <LogoLoader text="Beleg wird verarbeitet…" />}
+      <NotificationModal
+        open={notify.open}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((n) => ({ ...n, open: false }))}
+      />
       <SectionHeader
         title="Dokumenten-Import"
         subtitle={`PDF- oder Bildbelege automatisch erkennen und als Buchung vorbereiten (OCR & QR-Scan).${
@@ -346,7 +367,26 @@ const Dokumente = () => {
           </h3>
           {selectedDocument ? (
             <div className="mt-4 space-y-4 text-sm text-slate-600">
-              <div className="grid gap-4 md:grid-cols-2">
+              {/* Already-booked banner */}
+              {selectedDocument.status === 'Gebucht' && (
+                <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-emerald-800">Bereits gebucht</p>
+                    <p className="text-xs text-emerald-700 mt-0.5">Dieser Beleg wurde bereits als Buchung erfasst. Um Änderungen vorzunehmen, bitte die bestehende Buchung bearbeiten.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/app/buchungen')}
+                    className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Zur Buchung
+                  </button>
+                </div>
+              )}
+              <div className={`grid gap-4 md:grid-cols-2 ${selectedDocument.status === 'Gebucht' ? 'pointer-events-none opacity-50' : ''}`}>
                 <label>
                   Datum
                   <input
@@ -627,18 +667,35 @@ const Dokumente = () => {
                       .slice(0, 24)
                       .toLowerCase();
                     addTemplate(pattern, selectedDocument.draft);
+                    showNotify('success', 'Vorlage gespeichert', `„${selectedDocument.fileName.slice(0, 30)}“ wurde als Buchungsvorlage gespeichert.`);
                   }}
                   className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Als Vorlage speichern
                 </button>
-                <button
-                  type="button"
-                  onClick={() => confirmDocument(selectedDocument.id)}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                >
-                  Buchung bestätigen
-                </button>
+                {selectedDocument.status === 'Gebucht' ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/app/buchungen')}
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 flex items-center gap-1.5"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                    </svg>
+                    Buchung bearbeiten
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      confirmDocument(selectedDocument.id);
+                      showNotify('success', 'Buchung bestätigt!', `„${selectedDocument.draft.description}“ wurde erfolgreich als Buchung erfasst.`);
+                    }}
+                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Buchung bestätigen
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -682,6 +739,7 @@ const Dokumente = () => {
                     setSelectedId(documents[0]?.id ?? null);
                   }
                   setPendingDeleteId(null);
+                  showNotify('success', 'Beleg entfernt', `„${pendingDeleteDocument.fileName}“ wurde aus der Liste entfernt.`);
                 }}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
               >
