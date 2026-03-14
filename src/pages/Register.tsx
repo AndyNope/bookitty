@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
+import LogoLoader from '../components/LogoLoader';
+import NotificationModal from '../components/NotificationModal';
 
 const Register = () => {
   const { register, user, isLoading } = useAuth();
@@ -17,6 +19,9 @@ const Register = () => {
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [notify,  setNotify]  = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
+    open: false, type: 'error', title: '', message: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +31,10 @@ const Register = () => {
     try {
       const { message } = await register(name, email, pass);
       setSuccess(message);
+      setNotify({ open: true, type: 'success', title: 'Registrierung erfolgreich!', message });
     } catch (err: unknown) {
       setError((err as Error).message ?? 'Registrierung fehlgeschlagen');
+      setNotify({ open: true, type: 'error', title: 'Registrierung fehlgeschlagen', message: (err as Error).message ?? 'Bitte überprüfe deine Eingaben.' });
     } finally {
       setLoading(false);
     }
@@ -35,6 +42,14 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      {loading && <LogoLoader text="Konto erstellen…" />}
+      <NotificationModal
+        open={notify.open}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((n) => ({ ...n, open: false }))}
+      />
       <div className="w-full max-w-md">
 
         {/* Logo */}

@@ -3,6 +3,8 @@ import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { formatAccount } from '../data/chAccounts';
+import LogoLoader from '../components/LogoLoader';
+import NotificationModal from '../components/NotificationModal';
 import {
   detectSeparatorAndHeader,
   detectColumns,
@@ -198,6 +200,7 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
   const [colMap, setColMap] = useState<ColMap>({ codeIdx: 0, nameIdx: -1, debitIdx: -1, creditIdx: -1, balanceIdx: -1 });
   const [showColMapping, setShowColMapping] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loadingFile, setLoadingFile] = useState(false);
   const [error, setError] = useState('');
 
   // Derive parsed rows reactively whenever fileInfo or colMap changes
@@ -222,6 +225,7 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
 
   const handleFile = async (file: File) => {
     setError('');
+    setLoadingFile(true);
     try {
       const ext = file.name.toLowerCase();
 
@@ -276,8 +280,8 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
       setColMap(detected);
       setShowColMapping(!learned); // auto-expand mapping panel for new/unknown sources
     } catch {
-      setError('Datei konnte nicht gelesen werden.');
-    }
+      setError('Datei konnte nicht gelesen werden.');    } finally {
+      setLoadingFile(false);    }
   };
 
   const toggle = (code: string) =>
@@ -305,6 +309,7 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
   if (!fileInfo) {
     return (
       <div>
+        {loadingFile && <LogoLoader text="Datei wird verarbeitet…" />}
         {error && (
           <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
         )}
@@ -498,16 +503,33 @@ const Import = () => {
   const [date, setDate] = useState(`${new Date().getFullYear() - 1}-12-31`);
   const [importedCount, setImportedCount] = useState<number | null>(null);
   const [learnedCount, setLearnedCount] = useState(0);
+  const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
+    open: false, type: 'success', title: '', message: '',
+  });
 
   const handleImport = (drafts: BookingDraft[], newLearned = 0) => {
     drafts.forEach((d) => addBooking(d));
     setImportedCount(drafts.length);
     setLearnedCount(newLearned);
     setTimeout(() => setImportedCount(null), 6000);
+    const learnedMsg = newLearned > 0 ? ` \u00b7 ${newLearned} neue Bezeichnung${newLearned !== 1 ? 'en' : ''} gelernt.` : '';
+    setNotify({
+      open: true,
+      type: 'success',
+      title: 'Import erfolgreich!',
+      message: `${drafts.length} Eröffnungsbuchung${drafts.length !== 1 ? 'en' : ''} wurde${drafts.length !== 1 ? 'n' : ''} erstellt.${learnedMsg}`,
+    });
   };
 
   return (
     <div className="space-y-6">
+      <NotificationModal
+        open={notify.open}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((n) => ({ ...n, open: false }))}
+      />
       <SectionHeader
         title="Datenimport"
         subtitle="Vorjahresbilanz übertragen und Eröffnungssalden erfassen."

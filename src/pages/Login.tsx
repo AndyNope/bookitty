@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
+import LogoLoader from '../components/LogoLoader';
+import NotificationModal from '../components/NotificationModal';
 
 const Login = () => {
   const { login, user, isLoading } = useAuth();
@@ -11,6 +13,9 @@ const Login = () => {
   const [pass,    setPass]    = useState('');
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
+  const [notify,  setNotify]  = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
+    open: false, type: 'error', title: '', message: '',
+  });
 
   const confirmed = params.get('confirmed') === '1';
   const tokenErr  = params.get('error');
@@ -29,6 +34,7 @@ const Login = () => {
       navigate('/app', { replace: true });
     } catch (err: unknown) {
       setError((err as Error).message ?? 'Anmeldung fehlgeschlagen');
+      setNotify({ open: true, type: 'error', title: 'Anmeldung fehlgeschlagen', message: (err as Error).message ?? 'Bitte E-Mail und Passwort prüfen.' });
     } finally {
       setLoading(false);
     }
@@ -36,6 +42,14 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      {loading && <LogoLoader text="Anmelden…" />}
+      <NotificationModal
+        open={notify.open}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((n) => ({ ...n, open: false }))}
+      />
       <div className="w-full max-w-md">
 
         {/* Logo */}

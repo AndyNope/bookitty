@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import BookingForm from '../components/BookingForm';
 import BookingTable from '../components/BookingTable';
 import SectionHeader from '../components/SectionHeader';
+import NotificationModal from '../components/NotificationModal';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { Booking, BookingDraft, BookingType, PaymentStatus } from '../types';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
@@ -17,6 +18,9 @@ const Buchungen = () => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [detailBookingId, setDetailBookingId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
+    open: false, type: 'success', title: '', message: '',
+  });
   const highlightBtn = useKittyHighlight('btn-neue-buchung');
 
   const pendingDeleteBooking = bookings.find((b) => b.id === pendingDeleteId);
@@ -58,8 +62,10 @@ const Buchungen = () => {
   const handleSubmit = (draft: Parameters<typeof addBooking>[0]) => {
     if (editingBooking) {
       updateBooking(editingBooking.id, draft);
+      setNotify({ open: true, type: 'success', title: 'Buchung gespeichert', message: `„${draft.description}“ wurde erfolgreich aktualisiert.` });
     } else {
       addBooking(draft);
+      setNotify({ open: true, type: 'success', title: 'Buchung erstellt', message: `„${draft.description}“ wurde erfolgreich erfasst.` });
     }
     closeModal();
   };
@@ -78,6 +84,13 @@ const Buchungen = () => {
 
   return (
     <div className="space-y-6">
+      <NotificationModal
+        open={notify.open}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((n) => ({ ...n, open: false }))}
+      />
       <SectionHeader
         title="Buchungen"
         subtitle="Erfassen, prüfen und verwalten Sie alle Buchungen."
@@ -162,7 +175,7 @@ const Buchungen = () => {
               </button>
               <button
                 type="button"
-                onClick={() => { removeBooking(pendingDeleteBooking.id); setPendingDeleteId(null); }}
+                onClick={() => { removeBooking(pendingDeleteBooking.id); setPendingDeleteId(null); setNotify({ open: true, type: 'success', title: 'Buchung gelöscht', message: `„${pendingDeleteBooking.description}“ wurde gelöscht.` }); }}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
               >
                 Löschen bestätigen

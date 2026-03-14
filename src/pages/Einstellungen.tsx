@@ -5,6 +5,7 @@ import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
 import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
+import NotificationModal from '../components/NotificationModal';
 
 type ImapConfig = {
   host: string;
@@ -54,6 +55,12 @@ const Einstellungen = () => {
   const [acctForm, setAcctForm] = useState({ code: '', name: '', categoryCode: '3' });
   const [acctError, setAcctError] = useState('');
 
+  const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
+    open: false, type: 'success', title: '', message: '',
+  });
+  const showNotify = (type: 'success' | 'error', title: string, message: string) =>
+    setNotify({ open: true, type, title, message });
+
   // Load IMAP config from API when logged in
   useEffect(() => {
     if (!user) return;
@@ -74,8 +81,15 @@ const Einstellungen = () => {
   const handleImapSave = () => {
     setImapError('');
     api.imap.save({ ...imap, port: Number(imap.port) })
-      .then(() => { setImapSaved(true); setTimeout(() => setImapSaved(false), 2000); })
-      .catch((e: Error) => setImapError(e.message));
+      .then(() => {
+        setImapSaved(true);
+        setTimeout(() => setImapSaved(false), 2000);
+        showNotify('success', 'E-Mail-Empfang gespeichert', 'Die IMAP-Verbindung wurde erfolgreich gespeichert.');
+      })
+      .catch((e: Error) => {
+        setImapError(e.message);
+        showNotify('error', 'Speichern fehlgeschlagen', e.message);
+      });
   };
 
   // Load company profile from API when logged in
@@ -106,6 +120,7 @@ const Einstellungen = () => {
       api.company.save(form).catch(console.error);
     }
     setSaved(true);
+    showNotify('success', 'Einstellungen gespeichert', 'Das Unternehmensprofil wurde erfolgreich gespeichert.');
   };
 
   const handleUpsertAccount = () => {
@@ -116,10 +131,18 @@ const Einstellungen = () => {
     upsertAccount({ code, name, categoryCode: acctForm.categoryCode });
     setAcctForm({ code: '', name: '', categoryCode: '3' });
     setAcctError('');
+    showNotify('success', 'Konto gespeichert', `Konto ${code} „${name}“ wurde erfolgreich gespeichert.`);
   };
 
   return (
     <div className="space-y-6">
+      <NotificationModal
+        open={notify.open}
+        type={notify.type}
+        title={notify.title}
+        message={notify.message}
+        onClose={() => setNotify((n) => ({ ...n, open: false }))}
+      />
       <SectionHeader
         title="Einstellungen"
         subtitle="Unternehmensprofil hinterlegen – wird zur Erkennung eigener Rechnungen verwendet."
