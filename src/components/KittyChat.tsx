@@ -233,10 +233,12 @@ const KittyChat = () => {
         ) : (
           /* Cat face icon */
           <svg className="h-7 w-7 text-white" viewBox="0 0 32 32" fill="currentColor">
-            <path d="M6 4 L2 12 L6 11 Q8 18 16 18 Q24 18 26 11 L30 12 L26 4 L22 8 Q19 6 16 6 Q13 6 10 8 Z"/>
-            <circle cx="11" cy="13" r="1.5" fill="#0f172a"/>
-            <circle cx="21" cy="13" r="1.5" fill="#0f172a"/>
-            <path d="M13 15.5 Q16 17.5 19 15.5" stroke="#0f172a" strokeWidth="1" fill="none" strokeLinecap="round"/>
+            <path d="M5 11 L3 4 L11 8.5 Q13.5 7 16 7 Q18.5 7 21 8.5 L29 4 L27 11 Q29.5 14 29.5 18 Q29.5 25 23 27.5 Q19.5 29 16 29 Q12.5 29 9 27.5 Q2.5 25 2.5 18 Q2.5 14 5 11 Z"/>
+            <ellipse cx="11.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
+            <ellipse cx="20.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
+            <path d="M14.5 22 L16 20 L17.5 22 L16 23.5 Z" fill="#0f172a" opacity="0.5"/>
+            <path d="M16 23.5 Q13 25.5 11 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
+            <path d="M16 23.5 Q19 25.5 21 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
           </svg>
         )}
         {/* Unread dot when closed and has messages */}
@@ -253,10 +255,12 @@ const KittyChat = () => {
           <div className="flex items-center gap-3 rounded-t-2xl bg-slate-900 px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
               <svg className="h-5 w-5 text-white" viewBox="0 0 32 32" fill="currentColor">
-                <path d="M6 4 L2 12 L6 11 Q8 18 16 18 Q24 18 26 11 L30 12 L26 4 L22 8 Q19 6 16 6 Q13 6 10 8 Z"/>
-                <circle cx="11" cy="13" r="1.5" fill="#0f172a"/>
-                <circle cx="21" cy="13" r="1.5" fill="#0f172a"/>
-                <path d="M13 15.5 Q16 17.5 19 15.5" stroke="#0f172a" strokeWidth="1" fill="none" strokeLinecap="round"/>
+                <path d="M5 11 L3 4 L11 8.5 Q13.5 7 16 7 Q18.5 7 21 8.5 L29 4 L27 11 Q29.5 14 29.5 18 Q29.5 25 23 27.5 Q19.5 29 16 29 Q12.5 29 9 27.5 Q2.5 25 2.5 18 Q2.5 14 5 11 Z"/>
+                <ellipse cx="11.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
+                <ellipse cx="20.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
+                <path d="M14.5 22 L16 20 L17.5 22 L16 23.5 Z" fill="#0f172a" opacity="0.5"/>
+                <path d="M16 23.5 Q13 25.5 11 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
+                <path d="M16 23.5 Q19 25.5 21 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
               </svg>
             </div>
             <div>
