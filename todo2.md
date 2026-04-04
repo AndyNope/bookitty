@@ -85,7 +85,7 @@
   Produkte / Artikel-Stamm für Rechnungspositionen.
   Lagerbestand bei Ausgangsrechnung reduzieren, Wareneinkauf erhöhen.
 
-- [ ] **18. Mehrsprachigkeit DE / FR / IT / EN**
+- [x] **18. Mehrsprachigkeit DE / FR / IT / EN**
   i18n-Framework (z. B. i18next) einbauen.
   Priorität: Französisch für Westschweizer KMU.
 
