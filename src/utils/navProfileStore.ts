@@ -2,7 +2,6 @@ export type NavProfile = 'starter' | 'rechnungssteller' | 'haendler' | 'arbeitge
 
 export interface ProfileDef {
   label: string;
-  emoji: string;
   description: string;
   /** kittyId list — empty array means ALL pages visible (Volle Übersicht) */
   pages: string[];
@@ -11,31 +10,26 @@ export interface ProfileDef {
 export const NAV_PROFILES: Record<NavProfile, ProfileDef> = {
   starter: {
     label: 'Starter',
-    emoji: '🗂',
     description: 'Freelancer & Einzelunternehmer',
     pages: ['dashboard', 'buchungen', 'dokumente'],
   },
   rechnungssteller: {
     label: 'Rechnungssteller',
-    emoji: '📄',
     description: 'Selbständige mit Rechnungsstellung',
     pages: ['dashboard', 'buchungen', 'rechnungen', 'offerten', 'kontakte', 'mwst', 'dokumente'],
   },
   haendler: {
     label: 'Händler',
-    emoji: '🏪',
     description: 'KMU mit Warenhandel',
     pages: ['dashboard', 'buchungen', 'rechnungen', 'offerten', 'kontakte', 'bankabgleich', 'lager', 'import', 'bilanz', 'mwst', 'dokumente', 'jahresabschluss', 'anlagen'],
   },
   arbeitgeber: {
     label: 'Arbeitgeber',
-    emoji: '👥',
     description: 'Unternehmen mit Angestellten',
     pages: ['dashboard', 'buchungen', 'rechnungen', 'offerten', 'kontakte', 'lohn', 'spesen', 'zeiterfassung', 'bilanz', 'mwst', 'dokumente'],
   },
   voll: {
     label: 'Volle Übersicht',
-    emoji: '🏢',
     description: 'Buchhalter & Admins – alle Seiten sichtbar',
     pages: [], // empty = all visible
   },

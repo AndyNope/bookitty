@@ -244,7 +244,7 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
               }}
               className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition"
             >
-              {isLast ? 'Loslegen 🚀' : 'Weiter →'}
+              {isLast ? 'Loslegen' : 'Weiter'}
             </button>
           </div>
 

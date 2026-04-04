@@ -931,7 +931,7 @@ export default function Rechnungen() {
                 </div>
                 {Math.abs(diff) > 0.01 && (
                   <p className={`text-xs font-medium ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {diff > 0 ? '📈 Kursgewinn' : '📉 Kursverlust'}: CHF {Math.abs(diff).toFixed(2)} → wird automatisch auf Konto 3901 gebucht.
+                    {diff > 0 ? 'Kursgewinn' : 'Kursverlust'}: CHF {Math.abs(diff).toFixed(2)} – wird automatisch auf Konto 3901 gebucht.
                   </p>
                 )}
               </div>

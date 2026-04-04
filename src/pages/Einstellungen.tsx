@@ -12,6 +12,7 @@ import {
   getNavProfile, saveNavProfile, getHiddenPages, saveHiddenPages,
   NAV_PROFILES, ALL_PAGES, PAGE_LABELS, isPageVisible, type NavProfile,
 } from '../utils/navProfileStore';
+import { NAV_PROFILE_ICONS } from '../utils/navProfileIcons';
 
 type ImapConfig = {
   host: string;
@@ -614,7 +615,11 @@ const Einstellungen = () => {
                     : 'border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                <span className="text-2xl">{profile.emoji}</span>
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+                    isActive ? 'border-white/20 text-white' : 'border-slate-200 text-slate-600'
+                  }`}>
+                    {NAV_PROFILE_ICONS[key]}
+                  </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-tight">{profile.label}</p>
                   <p className={`text-xs leading-tight mt-0.5 ${

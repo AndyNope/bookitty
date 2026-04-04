@@ -4,6 +4,7 @@ import { useAuth } from '../store/AuthContext';
 import LogoLoader from '../components/LogoLoader';
 import NotificationModal from '../components/NotificationModal';
 import { saveNavProfile, NAV_PROFILES, type NavProfile } from '../utils/navProfileStore';
+import { NAV_PROFILE_ICONS } from '../utils/navProfileIcons';
 
 const Register = () => {
   const { register, user, isLoading } = useAuth();
@@ -98,7 +99,11 @@ const Register = () => {
                             : 'border-slate-200 hover:bg-slate-50'
                         }`}
                       >
-                        <span className="text-lg">{p.emoji}</span>
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+                            isChosen ? 'border-white/20 text-white' : 'border-slate-200 text-slate-600'
+                          }`}>
+                            {NAV_PROFILE_ICONS[key]}
+                          </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold">{p.label}</p>
                           <p className={`text-xs ${isChosen ? 'text-slate-300' : 'text-slate-500'}`}>{p.description}</p>
