@@ -316,8 +316,8 @@ const AppLayout = () => {
           className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden"
           onClick={() => setMenuOpen(false)}
         />
-        <nav className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col gap-6 bg-white p-6 shadow-xl lg:hidden">
-          <div className="flex items-center justify-between">
+        <nav className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white shadow-xl lg:hidden">
+          <div className="flex items-center justify-between p-6 pb-4">
             <div className="flex items-center gap-3">
               <img src="/logo.svg" alt="Bookitty" className="h-10 w-10" />
               <div>
@@ -335,7 +335,8 @@ const AppLayout = () => {
               </svg>
             </button>
           </div>
-          <div className="flex flex-col gap-1 text-sm">
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <div className="flex flex-col gap-1 text-sm">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -358,8 +359,10 @@ const AppLayout = () => {
               </svg>
               Tutorial
             </button>
+            </div>
           </div>
-          <div className="mt-auto rounded-2xl bg-slate-900 p-4 text-xs text-white">
+          <div className="border-t border-slate-100 p-4">
+            <div className="rounded-2xl bg-slate-900 p-4 text-xs text-white">
             {user ? (
               <>
                 <p className="font-semibold truncate">{user.name}</p>
@@ -385,6 +388,7 @@ const AppLayout = () => {
                 </NavLink>
               </>
             )}
+            </div>
           </div>
         </nav>
       </>
@@ -495,10 +499,10 @@ const AppLayout = () => {
       </main>
     </div>
 
-    {/* ── Mobile bottom tab bar ── */}
+    {/* ── Mobile bottom tab bar – 5 fixed tabs + Mehr ── */}
     <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white lg:hidden">
       <div className="flex">
-        {navItems.map((item) => {
+        {navItems.slice(0, 4).map((item) => {
           const isActive = item.end
             ? location.pathname === item.to
             : location.pathname.startsWith(item.to);
@@ -524,6 +528,21 @@ const AppLayout = () => {
             </NavLink>
           );
         })}
+        {/* Mehr-Button – öffnet den Drawer mit allen Seiten */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition ${
+            menuOpen ? 'text-slate-900' : 'text-slate-400'
+          }`}
+        >
+          <span className={`rounded-xl p-1.5 ${menuOpen ? 'bg-slate-900 text-white' : ''}`}>
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A.75.75 0 0 1 4.5 5.25h15a.75.75 0 0 1 0 1.5h-15A.75.75 0 0 1 3.75 6Zm0 6a.75.75 0 0 1 .75-.75h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1-.75-.75Zm0 6a.75.75 0 0 1 .75-.75h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1-.75-.75Z" />
+            </svg>
+          </span>
+          Mehr
+        </button>
       </div>
     </nav>
 
