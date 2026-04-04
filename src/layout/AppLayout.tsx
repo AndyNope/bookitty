@@ -73,6 +73,17 @@ const buildNavItems = (base: string) => [
     ),
   },
   {
+    to: `${base}/mwst`,
+    end: false,
+    label: 'MwSt-Abrechnung',
+    kittyId: 'mwst',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
     to: `${base}/dokumente`,
     end: false,
     label: 'Dokumente',

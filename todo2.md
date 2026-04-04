@@ -24,7 +24,7 @@
   Zeilen automatisch auf offene Buchungen matchen (Betrag + Datum + Referenz).
   Manuelles Zuordnen für ungematchte Positionen.
 
-- [ ] **5. Offizielle MwSt-Abrechnung (ESTV-Formular)**
+- [x] **5. Offizielle MwSt-Abrechnung (ESTV-Formular)**
   Formular 533 (effektive Methode) oder 583 (Saldosteuersatz) befüllen.
   Auf Basis der vorhandenen MwSt-Übersicht automatisch berechnen.
   PDF-Export für Einreichung bei der ESTV.
