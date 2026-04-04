@@ -263,7 +263,7 @@ export default function Anlagen() {
                           <button onClick={() => toggleDispose(a.id)} className="text-xs text-slate-400 hover:text-amber-600">
                             {a.disposed ? 'Reaktivieren' : 'Abgang'}
                           </button>
-                          <button onClick={() => removeAsset(a.id)} className="text-xs text-rose-400 hover:text-rose-600">✕</button>
+                          <button onClick={() => removeAsset(a.id)} className="rounded p-0.5 text-rose-400 hover:text-rose-600" aria-label="Entfernen"><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
                         </div>
                       </td>
                     </tr>
@@ -306,7 +306,7 @@ export default function Anlagen() {
                         <td className="px-4 py-3 text-right tabular-nums font-medium text-rose-600">{fmt(afa)}</td>
                         <td className="px-4 py-3 text-center">
                           {done ? (
-                            <span className="text-xs text-emerald-600 font-medium">✓ Gebucht</span>
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium"><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Gebucht</span>
                           ) : afa <= 0 ? (
                             <span className="text-xs text-slate-400">Vollständig abgeschrieben</span>
                           ) : (

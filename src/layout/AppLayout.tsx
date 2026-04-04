@@ -9,10 +9,10 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 
 const LANGS = [
-  { code: 'de', flag: '🇩🇪', label: 'DE' },
-  { code: 'fr', flag: '🇫🇷', label: 'FR' },
-  { code: 'it', flag: '🇮🇹', label: 'IT' },
-  { code: 'en', flag: '🇬🇧', label: 'EN' },
+  { code: 'de', label: 'DE', name: 'Deutsch' },
+  { code: 'fr', label: 'FR', name: 'Français' },
+  { code: 'it', label: 'IT', name: 'Italiano' },
+  { code: 'en', label: 'EN', name: 'English' },
 ];
 
 const switchLang = (code: string) => {
@@ -455,7 +455,7 @@ const AppLayout = () => {
             {LANGS.map((l) => (
               <button key={l.code} onClick={() => switchLang(l.code)}
                 className={`rounded-full px-2 py-1 text-xs font-medium transition-colors ${i18n.language === l.code ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800'}`}
-                title={l.flag}>
+                title={l.name}>
                 {l.label}
               </button>
             ))}

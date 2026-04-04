@@ -765,7 +765,9 @@ export default function Rechnungen() {
                     <td className="hidden px-4 py-3 text-slate-500 sm:table-cell">{fmtDate(inv.date)}</td>
                     <td className={`hidden px-4 py-3 md:table-cell font-medium ${overdue ? 'text-red-600' : 'text-slate-500'}`}>
                       {fmtDate(inv.dueDate)}
-                      {overdue && <span className="ml-1 text-[10px]">⚠</span>}
+                      {overdue && (
+                        <svg className="ml-1 inline-block h-3.5 w-3.5 text-red-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-800">
                       {inv.currency} {fmtCHF(total)}
@@ -875,7 +877,7 @@ export default function Rechnungen() {
       {portalLink && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-semibold text-slate-800">🔗 Portal-Link</h3>
+            <h3 className="text-base font-semibold text-slate-800">Portal-Link</h3>
             <p className="text-sm text-slate-500">Teile diesen Link mit dem Kunden. Die Rechnung ist ohne Login einsehbar.</p>
             <div className="flex items-center gap-2">
               <input readOnly value={portalLink}

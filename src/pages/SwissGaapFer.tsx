@@ -81,11 +81,11 @@ export default function SwissGaapFer() {
       {/* Tab bar */}
       <div className="flex flex-wrap gap-2">
         {[
-          { id: 'overview', label: '📋 Übersicht' },
-          { id: 'bilanz',   label: '⚖️ FER-Bilanz' },
-          { id: 'erfolg',   label: '📈 Erfolgsrechnung' },
-          { id: 'fer',      label: '📚 FER-Standards' },
-          { id: 'checklist', label: '✅ Checkliste' },
+          { id: 'overview', label: 'Übersicht' },
+          { id: 'bilanz',   label: 'FER-Bilanz' },
+          { id: 'erfolg',   label: 'Erfolgsrechnung' },
+          { id: 'fer',      label: 'FER-Standards' },
+          { id: 'checklist', label: 'Checkliste' },
         ].map(({ id, label }) => (
           <button key={id} onClick={() => setActiveTab(id as typeof activeTab)} className={tabCls(id)}>{label}</button>
         ))}
@@ -183,7 +183,10 @@ export default function SwissGaapFer() {
           </div>
           {Math.abs(fer.total_a - fer.total_p) > 1 && (
             <div className="border-t border-amber-200 bg-amber-50 px-5 py-2 text-xs text-amber-700">
-              ⚠ Differenz Aktiven/Passiven: {fmtCHF(Math.abs(fer.total_a - fer.total_p))} – Buchungen prüfen
+              <div className="flex items-center gap-1.5">
+                  <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                  Differenz Aktiven/Passiven: {fmtCHF(Math.abs(fer.total_a - fer.total_p))} – Buchungen prüfen
+                </div>
             </div>
           )}
         </div>
@@ -257,7 +260,10 @@ export default function SwissGaapFer() {
           <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             <span className="font-semibold">{Object.values(checked).filter(Boolean).length}/{CHECKLIST.length}</span> Punkte erledigt
             {Object.values(checked).filter(Boolean).length === CHECKLIST.length && (
-              <span className="ml-2 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white font-medium">FER-konform ✓</span>
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white font-medium">
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                FER-konform
+              </span>
             )}
           </div>
         </div>

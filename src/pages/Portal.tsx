@@ -85,7 +85,9 @@ export default function Portal() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
         <div className="max-w-sm text-center space-y-3">
-          <div className="text-5xl">🔍</div>
+          <div className="flex justify-center">
+            <svg className="h-16 w-16 text-slate-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+          </div>
           <h1 className="text-lg font-semibold text-slate-900">Rechnung nicht gefunden</h1>
           <p className="text-sm text-slate-500">{error || 'Dieser Link ist ungültig oder abgelaufen.'}</p>
         </div>

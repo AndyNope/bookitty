@@ -113,7 +113,7 @@ const KittyChat = () => {
       const b = (e as CustomEvent).detail;
       if (!b) return;
       const fmtAmt = new Intl.NumberFormat('de-CH', { style: 'currency', currency: b.currency ?? 'CHF' }).format(b.amount ?? 0);
-      const ctx = `📋 Buchung vom **${b.date}**: ${b.description} — ${fmtAmt} | Soll: ${b.account} | Haben: ${b.contraAccount}`;
+      const ctx = `Buchung vom **${b.date}**: ${b.description} — ${fmtAmt} | Soll: ${b.account} | Haben: ${b.contraAccount}`;
       setMessages((prev) => [
         ...prev,
         { role: 'user', text: ctx },

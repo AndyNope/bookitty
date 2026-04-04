@@ -126,9 +126,9 @@ export default function Subventionen() {
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => setActiveTab('foerder')}  className={tabCls('foerder')}>🏦 Förderprogramme</button>
-        <button onClick={() => setActiveTab('buchhaltung')} className={tabCls('buchhaltung')}>📒 Buchungshinweise</button>
-        <button onClick={() => setActiveTab('hsg')}      className={tabCls('hsg')}>🎓 HSG Startup</button>
+        <button onClick={() => setActiveTab('foerder')}  className={tabCls('foerder')}>Förderprogramme</button>
+        <button onClick={() => setActiveTab('buchhaltung')} className={tabCls('buchhaltung')}>Buchungshinweise</button>
+        <button onClick={() => setActiveTab('hsg')}      className={tabCls('hsg')}>HSG Startup</button>
       </div>
 
       {/* ── Förderprogramme ───────────────────────────────────────────────── */}

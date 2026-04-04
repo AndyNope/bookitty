@@ -420,7 +420,7 @@ export default function Bankabgleich() {
                                 ? 'bg-emerald-600 text-white'
                                 : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
                             }`}>
-                            ✓ Bezahlt markieren
+                            Bezahlt markieren
                           </button>
                         )}
                         <button
@@ -592,7 +592,11 @@ export default function Bankabgleich() {
                   </>
                 )}
               </button>
-              {obDone && <span className="text-xs text-emerald-600 font-medium">✓ Synchronisierung abgeschlossen</span>}
+              {obDone && (
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Synchronisierung abgeschlossen
+              </span>)}
             </div>
           ) : (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

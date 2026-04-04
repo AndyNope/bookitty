@@ -262,7 +262,9 @@ export default function JahresabschlussAssistent() {
               <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
                 i === step ? 'bg-white text-slate-900' : i < step ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-600'
               }`}>
-                {i < step ? '✓' : i + 1}
+                {i < step ? (
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                ) : i + 1}
               </span>
               <span className="hidden sm:inline">{label}</span>
             </button>
@@ -329,7 +331,7 @@ export default function JahresabschlussAssistent() {
                         <td className="px-4 py-2 text-slate-500">{r.credit}</td>
                         <td className="px-4 py-2 text-right font-medium tabular-nums">{fmt(parseFloat(r.amount))}</td>
                         <td className="px-4 py-2 text-right">
-                          <button onClick={() => setRueckstellungen(rueckstellungen.filter((x) => x.id !== r.id))} className="text-rose-400 hover:text-rose-600 text-xs">✕</button>
+                          <button onClick={() => setRueckstellungen(rueckstellungen.filter((x) => x.id !== r.id))} className="rounded p-0.5 text-rose-400 hover:text-rose-600" aria-label="Entfernen"><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
                         </td>
                       </tr>
                     ))}
@@ -426,7 +428,7 @@ export default function JahresabschlussAssistent() {
                           <td className="px-4 py-2 text-slate-500">{a.assetAccount}</td>
                           <td className="px-4 py-2 text-right font-medium tabular-nums">{fmt(Math.round(amt * 100) / 100)}</td>
                           <td className="px-4 py-2 text-right">
-                            <button onClick={() => setAbschreibungen(abschreibungen.filter((x) => x.id !== a.id))} className="text-rose-400 hover:text-rose-600 text-xs">✕</button>
+                            <button onClick={() => setAbschreibungen(abschreibungen.filter((x) => x.id !== a.id))} className="rounded p-0.5 text-rose-400 hover:text-rose-600" aria-label="Entfernen"><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
                           </td>
                         </tr>
                       );
@@ -511,7 +513,7 @@ export default function JahresabschlussAssistent() {
                         <td className="px-4 py-2 text-slate-500">{t.expenseAccount}</td>
                         <td className="px-4 py-2 text-right font-medium tabular-nums">{fmt(parseFloat(t.amount))}</td>
                         <td className="px-4 py-2 text-right">
-                          <button onClick={() => setTransitorische(transitorische.filter((x) => x.id !== t.id))} className="text-rose-400 hover:text-rose-600 text-xs">✕</button>
+                          <button onClick={() => setTransitorische(transitorische.filter((x) => x.id !== t.id))} className="rounded p-0.5 text-rose-400 hover:text-rose-600" aria-label="Entfernen"><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
                         </td>
                       </tr>
                     ))}
@@ -561,7 +563,9 @@ export default function JahresabschlussAssistent() {
 
             {committed ? (
               <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-6 text-center space-y-2">
-                <div className="text-3xl">✓</div>
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+                  <svg className="h-6 w-6 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
                 <p className="font-semibold text-emerald-800">{previewBookings.length} Buchung{previewBookings.length !== 1 ? 'en' : ''} erfolgreich erfasst</p>
                 <p className="text-sm text-emerald-600">Alle Abschlussbuchungen sind nun im Buchungsjournal sichtbar.</p>
               </div>

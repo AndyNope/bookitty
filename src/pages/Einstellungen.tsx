@@ -294,7 +294,12 @@ const Einstellungen = () => {
                 imapSaved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
               }`}
             >
-              {imapSaved ? '✓ Gespeichert' : 'Speichern'}
+              {imapSaved ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  Gespeichert
+                </span>
+              ) : 'Speichern'}
             </button>
           </div>
           <p className="mt-1 text-xs text-slate-500">
