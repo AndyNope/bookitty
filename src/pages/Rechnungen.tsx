@@ -369,6 +369,95 @@ const DeleteDialog = ({ number, onConfirm, onClose }: { number: string; onConfir
   </div>
 );
 
+// ─── Mahnung modal ──────────────────────────────────────────────────────────────
+const MAHNUNG_LEVELS = [1, 2, 3] as const;
+type MahnungLevel = typeof MAHNUNG_LEVELS[number];
+
+const LEVEL_DEFAULTS: Record<MahnungLevel, string> = {
+  1: 'Bitte überprüfen Sie, ob die Zahlung bereits unterwegs ist.',
+  2: 'Bitte begleichen Sie den ausstehenden Betrag umgehend, um weitere Mahngebühren zu vermeiden.',
+  3: 'Falls keine Zahlung bis zum angegebenen Datum eingeht, behalten wir uns vor, rechtliche Schritte einzuleiten.',
+};
+
+const MahnungDialog = ({
+  invoice, onConfirm, onClose, sending,
+}: {
+  invoice: Invoice;
+  onConfirm: (level: MahnungLevel, message: string) => void;
+  onClose: () => void;
+  sending: boolean;
+}) => {
+  const nextLevel = Math.min(3, (invoice.mahnungLevel ?? 0) + 1) as MahnungLevel;
+  const [level, setLevel] = useState<MahnungLevel>(nextLevel);
+  const [message, setMessage] = useState(LEVEL_DEFAULTS[nextLevel]);
+
+  const hasEmail = !!invoice.contactEmail?.trim();
+  const labelMap: Record<MahnungLevel, string> = { 1: '1. Mahnung', 2: '2. Mahnung', 3: '3. Mahnung (letzte)' };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+            <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-slate-800">Mahnung versenden</h3>
+        </div>
+
+        {!hasEmail && (
+          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            Keine E-Mail-Adresse beim Empfänger hinterlegt. Bitte in der Rechnung ergänzen.
+          </div>
+        )}
+
+        <div className="mb-3">
+          <label className="mb-1 block text-xs font-medium text-slate-600">Mahnstufe</label>
+          <div className="flex gap-2">
+            {MAHNUNG_LEVELS.map(l => (
+              <button key={l} type="button" onClick={() => { setLevel(l); setMessage(LEVEL_DEFAULTS[l]); }}
+                className={`flex-1 rounded-lg border py-2 text-xs font-medium transition-colors ${
+                  level === l ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}>
+                {labelMap[l]}
+              </button>
+            ))}
+          </div>
+          {invoice.mahnungLevel && (
+            <p className="mt-1.5 text-[11px] text-slate-400">Zuletzt versandt: {invoice.mahnungLevel}. Mahnung am {fmtDate(invoice.mahnungDate ?? '')}</p>
+          )}
+        </div>
+
+        <div className="mb-3">
+          <label className="mb-1 block text-xs font-medium text-slate-600">An</label>
+          <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            {invoice.contactName}{invoice.contactEmail ? <> · <span className="text-slate-400">{invoice.contactEmail}</span></> : ' — keine E-Mail'}
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-1 block text-xs font-medium text-slate-600">Mahntext</label>
+          <textarea rows={3} value={message} onChange={e => setMessage(e.target.value)}
+            className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} disabled={sending}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40">
+            Abbrechen
+          </button>
+          <button disabled={!hasEmail || sending} onClick={() => onConfirm(level, message)}
+            className="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-40">
+            {sending && <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>}
+            Mahnung senden
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Rechnungen() {
   const location = useLocation();
@@ -379,6 +468,8 @@ export default function Rechnungen() {
   const [modal,     setModal]     = useState<'add' | 'edit' | null>(null);
   const [editing,   setEditing]   = useState<Invoice | null>(null);
   const [deleting,  setDeleting]  = useState<Invoice | null>(null);
+  const [mahnungFor, setMahnungFor] = useState<Invoice | null>(null);
+  const [sendingMahnung, setSendingMahnung] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<InvoiceStatus | 'Alle'>('Alle');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message: string } | null>(null);
@@ -459,6 +550,36 @@ export default function Rechnungen() {
       if (!isDemo) api.invoices.update(updated).catch(console.error);
       return updated;
     }));
+  };
+
+  const handleSendMahnung = async (level: MahnungLevel, message: string) => {
+    if (!mahnungFor) return;
+    setSendingMahnung(true);
+    if (isDemo) {
+      // Demo: simulate send, persist level/date to localStorage
+      await new Promise(r => setTimeout(r, 600));
+      const today = new Date().toISOString().split('T')[0];
+      setInvoices(prev => prev.map(i =>
+        i.id === mahnungFor.id ? { ...i, mahnungLevel: level, mahnungDate: today } : i
+      ));
+      setSendingMahnung(false);
+      setMahnungFor(null);
+      setNotification({ type: 'success', title: 'Demo: Mahnung simuliert', message: `${level}. Mahnung für ${mahnungFor.number} (kein echter E-Mail-Versand im Demo-Modus).` });
+      return;
+    }
+    try {
+      await api.mahnung.send(mahnungFor.id, level, message);
+      const today = new Date().toISOString().split('T')[0];
+      setInvoices(prev => prev.map(i =>
+        i.id === mahnungFor.id ? { ...i, mahnungLevel: level, mahnungDate: today } : i
+      ));
+      setNotification({ type: 'success', title: 'Mahnung versendet', message: `${level}. Mahnung für ${mahnungFor.number} an ${mahnungFor.contactEmail} gesendet.` });
+    } catch {
+      setNotification({ type: 'error', title: 'Fehler', message: 'E-Mail konnte nicht versendet werden.' });
+    } finally {
+      setSendingMahnung(false);
+      setMahnungFor(null);
+    }
   };
 
   const handleExportPDF = async (inv: Invoice) => {
@@ -585,6 +706,16 @@ export default function Rechnungen() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        {/* Mahnung */}
+                        {(inv.status === 'Überfällig' || inv.status === 'Versendet') && (
+                          <button title="Mahnung senden"
+                            onClick={() => setMahnungFor(inv)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </button>
+                        )}
                         {/* PDF export */}
                         <button title="PDF / QR-Rechnung exportieren"
                           onClick={() => handleExportPDF(inv)}
@@ -643,6 +774,15 @@ export default function Rechnungen() {
           number={deleting.number}
           onConfirm={handleDelete}
           onClose={() => setDeleting(null)}
+        />
+      )}
+
+      {mahnungFor && (
+        <MahnungDialog
+          invoice={mahnungFor}
+          onConfirm={handleSendMahnung}
+          onClose={() => setMahnungFor(null)}
+          sending={sendingMahnung}
         />
       )}
 

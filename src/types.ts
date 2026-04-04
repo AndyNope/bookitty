@@ -32,6 +32,9 @@ export type Invoice = {
   items: InvoiceLineItem[];
   currency: string;
   notes?: string;
+  // Mahnung
+  mahnungLevel?: 1 | 2 | 3;   // zuletzt versandte Mahnstufe
+  mahnungDate?: string;         // Datum der letzten Mahnung (ISO)
   // Berechnete Felder (client-side)
   subtotal?: number;
   vatTotal?: number;

@@ -122,4 +122,12 @@ export const api = {
     update: (o: Offer)            => apiFetch<{ ok: boolean }>('/offers.php', { method: 'PUT',    body: JSON.stringify(o) }),
     remove: (id: string)          => apiFetch<{ ok: boolean }>('/offers.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
   },
+
+  mahnung: {
+    send: (invoiceId: string, level: 1 | 2 | 3, message?: string) =>
+      apiFetch<{ ok: boolean; level: number; sent_to: string }>('/mahnung.php', {
+        method: 'POST',
+        body: JSON.stringify({ invoice_id: invoiceId, level, message: message ?? '' }),
+      }),
+  },
 };

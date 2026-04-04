@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     items_json       TEXT           NOT NULL DEFAULT '[]',
     currency         VARCHAR(10)    NOT NULL DEFAULT 'CHF',
     notes            TEXT           DEFAULT NULL,
+    mahnung_level    TINYINT UNSIGNED DEFAULT NULL,
+    mahnung_date     VARCHAR(20)    DEFAULT NULL,
     created_at       TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_invoices_user   (user_id),
