@@ -73,7 +73,7 @@
   Optional: verschlüsselte Cloud-Ablage (S3 o. ä.).
   Gesetzliche Pflicht – muss vor erstem echten Kundeneinsatz gelöst sein.
 
-- [ ] **15. Mobile App / PWA**
+- [x] **15. Mobile App / PWA**
   Progressive Web App: Belegscan mit Kamera, Offline-Fähigkeit.
   Oder: React Native App für iOS/Android.
 
