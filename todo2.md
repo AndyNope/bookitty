@@ -52,11 +52,11 @@
   Mitarbeiter erfasst Spesen (Betrag, Kategorie, Beleg-Foto).
   Vorgesetzter genehmigt oder lehnt ab → automatische Lohnbuchung.
 
-- [ ] **11. Mehrwährung (CHF / EUR / USD)**
+- [x] **11. Mehrwährung (CHF / EUR / USD)**
   Tagesaktueller Wechselkurs (z. B. via SNB-API).
   Kursdifferenz-Buchung automatisch beim Ausgleich offener Fremdwährungsposten.
 
-- [ ] **12. ELM-zertifizierter Lohnausweis (SWISSDEC)**
+- [x] **12. ELM-zertifizierter Lohnausweis (SWISSDEC)**
   Lohnausweis elektronisch via ELM Unified übermitteln.
   Aktuell: nur PDF-Export. Ziel: SWISSDEC-Schnittstelle.
 

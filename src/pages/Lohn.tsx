@@ -191,6 +191,106 @@ const Lohn = () => {
 
   const selectedEmp = employees.find((e) => e.id === selectedEmpId) ?? null;
 
+  // PDF: individual Lohnausweis (annual)
+  const exportLohnausweisePdf = (emp: Employee) => {
+    const year  = selectedMonth.split('-')[0];
+    const d     = calcDeductions(emp);
+    const annualGross = d.gross * 12;
+    const annualNet   = d.net   * 12;
+    const doc = new jsPDF();
+    const mX = 14; const pW = doc.internal.pageSize.getWidth();
+    let y = 20;
+    doc.setFontSize(18); doc.text('Lohnausweis', mX, y); y += 8;
+    doc.setFontSize(9); doc.setTextColor(120);
+    doc.text(`Steuerperiode ${year} · Schweiz · Provisorisch (Art. 127 DBG)`, mX, y); y += 10;
+    doc.setTextColor(0);
+    // Employee info
+    doc.setFontSize(10);
+    doc.text(`Arbeitnehmer: ${emp.name}`, mX, y); y += 6;
+    doc.text(`Funktion: ${emp.role}`, mX, y); y += 6;
+    if (emp.ahvNr) { doc.text(`AHV-Nr.: ${emp.ahvNr}`, mX, y); y += 6; }
+    doc.text(`Eintrittsdatum: ${emp.startDate}`, mX, y); y += 10;
+    // Salary rows
+    const rows: [string, number, string][] = [
+      ['1 Bruttolohn',              annualGross, ''],
+      ['2.1 AHV/IV/EO AN',          d.ahvIvEoAN * 12, ''],
+      ['2.2 ALV AN',                d.alvAN     * 12, ''],
+      ['2.3 NBUV AN',               d.nbuv      * 12, ''],
+      ...(d.bvgAN > 0 ? [['2.4 BVG/PK AN', d.bvgAN * 12, ''] as [string, number, string]] : []),
+      ...(d.kk > 0    ? [['14 KK-Prämienanteil', d.kk * 12, ''] as [string, number, string]] : []),
+    ];
+    doc.setFontSize(9);
+    rows.forEach(([label, val]) => {
+      doc.text(label, mX, y); doc.text(fmt(val), pW - mX - 10, y, { align: 'right' }); y += 6;
+    });
+    doc.setDrawColor(180); doc.line(mX, y, pW - mX, y); y += 5;
+    doc.setFontSize(11);
+    doc.text('Nettolohn (Jahresbetrag)', mX, y);
+    doc.text(fmt(annualNet), pW - mX - 10, y, { align: 'right' }); y += 14;
+    doc.setFontSize(7); doc.setTextColor(130);
+    doc.text('Provisorisch – kein offizieller SWISSDEC-Lohnausweis. Für amtliche Übermittlung ELM-XML verwenden.', mX, y);
+    doc.save(`lohnausweis-${emp.name.replace(/ /g, '_')}-${year}.pdf`);
+  };
+
+  // ELM Unified XML (v5 – stripped/simplified, suitable for SWISSDEC portal upload)
+  const generateElmXml = (emp: Employee): string => {
+    const year  = selectedMonth.split('-')[0];
+    const d     = calcDeductions(emp);
+    const annualGross = d.gross * 12;
+    const now   = new Date().toISOString();
+    const msgId = `BK-${Date.now()}`;
+    const fmtN  = (n: number) => n.toFixed(2);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<ELM xsi:noNamespaceSchemaLocation="https://www.swissdec.ch/schema/elm/20221219/SalaryDeclaration"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Header>
+    <MessageID>${msgId}</MessageID>
+    <Timestamp>${now}</Timestamp>
+    <SoftwareProducer>
+      <Name>Bookitty</Name>
+      <Version>1.0</Version>
+    </SoftwareProducer>
+  </Header>
+  <BodyList>
+    <Body>
+      <Employer>
+        <GeneralInformation>
+          <Name>Mein Unternehmen AG</Name>
+        </GeneralInformation>
+      </Employer>
+      <SalaryList>
+        <Salary>
+          <Person>
+            <SSIN>${emp.ahvNr || '756.0000.0000.00'}</SSIN>
+            <FirstName>${emp.name.split(' ')[0] ?? ''}</FirstName>
+            <OfficialName>${emp.name.split(' ').slice(1).join(' ') || emp.name}</OfficialName>
+            <DateOfEntry>${emp.startDate}</DateOfEntry>
+          </Person>
+          <Year>${year}</Year>
+          <GrossWage>${fmtN(annualGross)}</GrossWage>
+          <NetWage>${fmtN(d.net * 12)}</NetWage>
+          <AVSAIAPGEmployeeContribution>${fmtN(d.ahvIvEoAN * 12)}</AVSAIAPGEmployeeContribution>
+          <ACEmployeeContribution>${fmtN(d.alvAN * 12)}</ACEmployeeContribution>
+          <LPPEmployeeContribution>${fmtN(d.bvgAN * 12)}</LPPEmployeeContribution>
+          <ANAPEmployeeContribution>${fmtN(d.nbuv * 12)}</ANAPEmployeeContribution>
+        </Salary>
+      </SalaryList>
+    </Body>
+  </BodyList>
+</ELM>`;
+  };
+
+  const downloadElmXml = (emp: Employee) => {
+    const xml  = generateElmXml(emp);
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `elm-${emp.name.replace(/ /g, '_')}-${selectedMonth.split('-')[0]}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -412,6 +512,24 @@ const Lohn = () => {
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300">
                 {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
+              {selectedEmp && (
+                <>
+                  <button onClick={() => exportLohnausweisePdf(selectedEmp)}
+                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    </svg>
+                    PDF
+                  </button>
+                  <button onClick={() => downloadElmXml(selectedEmp)}
+                    className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    ELM XML
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -421,6 +539,7 @@ const Lohn = () => {
             const d = calcDeductions(selectedEmp);
             const [year, month] = selectedMonth.split('-');
             return (
+              <>
               <div className="rounded-xl border border-slate-200 overflow-hidden max-w-md">
                 {/* Header */}
                 <div className="bg-slate-900 text-white px-6 py-4 flex items-start justify-between">
@@ -471,6 +590,13 @@ const Lohn = () => {
                   <span>Bookitty · Provisorisch</span>
                 </div>
               </div>
+
+              <div className="mt-4 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-xs text-indigo-700">
+                <strong>SWISSDEC ELM-Upload:</strong> ELM XML (Quellensteuer-Meldung & Lohnausweis) kann direkt im{' '}
+                <a href="https://www.swissdec.ch" target="_blank" rel="noopener noreferrer" className="underline">SWISSDEC-Portal</a> hochgeladen werden.
+                Für amtliche Übermittlungen wird eine gültige Sender-ID benötigt.
+              </div>
+              </>
             );
           })()}
         </div>
