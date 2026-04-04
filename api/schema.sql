@@ -71,6 +71,29 @@ CREATE TABLE IF NOT EXISTS templates (
     CONSTRAINT fk_templates_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── contacts ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS contacts (
+    id          VARCHAR(36)    NOT NULL,
+    user_id     INT            NOT NULL,
+    type        VARCHAR(20)    NOT NULL DEFAULT 'Lieferant',
+    name        VARCHAR(255)   NOT NULL DEFAULT '',
+    company     VARCHAR(255)   DEFAULT NULL,
+    email       VARCHAR(255)   DEFAULT NULL,
+    phone       VARCHAR(100)   DEFAULT NULL,
+    street      VARCHAR(255)   DEFAULT NULL,
+    zip         VARCHAR(20)    DEFAULT NULL,
+    city        VARCHAR(100)   DEFAULT NULL,
+    country     VARCHAR(10)    NOT NULL DEFAULT 'CH',
+    uid         VARCHAR(100)   DEFAULT NULL,
+    iban        VARCHAR(50)    DEFAULT NULL,
+    notes       TEXT           DEFAULT NULL,
+    created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_contacts_user (user_id),
+    KEY idx_contacts_name (name),
+    CONSTRAINT fk_contacts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ─── company_profiles ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS company_profiles (
     user_id     INT            NOT NULL,

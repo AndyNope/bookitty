@@ -1,6 +1,24 @@
 export type BookingType = 'Einnahme' | 'Ausgabe';
 export type PaymentStatus = 'Offen' | 'Bezahlt';
 
+export type ContactType = 'Kunde' | 'Lieferant' | 'Beides';
+
+export type Contact = {
+  id: string;
+  type: ContactType;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  street?: string;
+  zip?: string;
+  city?: string;
+  country: string;
+  uid?: string;
+  iban?: string;
+  notes?: string;
+};
+
 export type Booking = {
   id: string;
   date: string;
