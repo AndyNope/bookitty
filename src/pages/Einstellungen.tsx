@@ -62,11 +62,17 @@ const Einstellungen = () => {
   const [acctError, setAcctError] = useState('');
 
   // Team management
-  const [team,          setTeam]          = useState<TeamMember[]>([]);
-  const [inviteEmail,   setInviteEmail]   = useState('');
-  const [inviteRole,    setInviteRole]    = useState<UserRole>('buchhalter');
-  const [teamLoading,   setTeamLoading]   = useState(false);
-  const [teamError,     setTeamError]     = useState('');
+  const [team,           setTeam]          = useState<TeamMember[]>([]);
+  const [inviteEmail,    setInviteEmail]   = useState('');
+  const [inviteRole,     setInviteRole]    = useState<UserRole>('buchhalter');
+  const [teamLoading,    setTeamLoading]   = useState(false);
+  const [teamError,      setTeamError]     = useState('');
+
+  // Treuhänder management
+  const [treuEmail,      setTreuEmail]     = useState('');
+  const [treuDays,       setTreuDays]      = useState(30);
+  const [treuLoading,    setTreuLoading]   = useState(false);
+  const [treuError,      setTreuError]     = useState('');
 
   const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'success', title: '', message: '',
@@ -106,6 +112,22 @@ const Einstellungen = () => {
     await api.team.remove(id).catch(() => {});
     setTeam(prev => prev.filter(m => m.id !== id));
     showNotify('success', 'Entfernt', `${name} wurde aus dem Team entfernt.`);
+  };
+
+  const handleTreuInvite = async () => {
+    setTreuError('');
+    if (!treuEmail.trim()) { setTreuError('E-Mail-Adresse erforderlich'); return; }
+    setTreuLoading(true);
+    try {
+      await api.team.invite(treuEmail.trim(), 'readonly', treuDays);
+      setTreuEmail('');
+      showNotify('success', 'Treuhänder eingeladen', `Zeitlich begrenzter Zugang (${treuDays} Tage) wurde an ${treuEmail} gesendet.`);
+      api.team.list().then(setTeam).catch(() => {});
+    } catch (e: unknown) {
+      setTreuError((e as Error).message ?? 'Fehler beim Einladen');
+    } finally {
+      setTreuLoading(false);
+    }
   };
 
   // Load IMAP config from API when logged in
@@ -470,9 +492,83 @@ const Einstellungen = () => {
         </div>
       )}
 
+      {/* ── Treuhänder-Zugang (nur Admin, kein Demo) ───────────────── */}
+      {isAdmin && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 0 1 21.75 8.25Z" />
+            </svg>
+            <h3 className="text-base font-semibold text-amber-900">Treuhänder-Zugang</h3>
+          </div>
+          <p className="mb-4 text-sm text-amber-700">
+            Erteile externen Steuerberatern oder Treuhändern zeitlich begrenzten Nur-Lesen-Zugriff auf Ihre Buchhaltungsdaten.
+          </p>
+
+          {/* Trustee list */}
+          {team.filter(m => !m.is_owner && m.access_expires_at).length > 0 && (
+            <div className="mb-5 divide-y divide-amber-100 rounded-xl border border-amber-200 bg-white overflow-hidden">
+              {team.filter(m => !m.is_owner && m.access_expires_at).map(member => {
+                const expired = member.access_expires_at ? new Date(member.access_expires_at) < new Date() : false;
+                return (
+                  <div key={member.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+                      {member.name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-slate-800 truncate">{member.name}</div>
+                      <div className="text-xs text-slate-400 truncate">{member.email}</div>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${expired ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {expired ? 'Abgelaufen' : `bis ${new Date(member.access_expires_at!).toLocaleDateString('de-CH')}`}
+                    </span>
+                    <button onClick={() => handleRemoveMember(member.id, member.name)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                      title="Zugang entziehen">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Invite trustee */}
+          <div>
+            <p className="mb-3 text-sm font-medium text-amber-800">Treuhänder einladen</p>
+            <div className="flex flex-wrap gap-3 items-end">
+              <input value={treuEmail} onChange={e => setTreuEmail(e.target.value)}
+                placeholder="treuhänder@kanzlei.ch" type="email"
+                className="flex-1 min-w-48 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
+              <div className="flex gap-1.5">
+                {[30, 60, 90].map(d => (
+                  <button key={d} onClick={() => setTreuDays(d)}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${treuDays === d ? 'bg-amber-600 text-white' : 'bg-white border border-amber-200 text-amber-700 hover:bg-amber-50'}`}>
+                    {d}&nbsp;Tage
+                  </button>
+                ))}
+              </div>
+              <button onClick={handleTreuInvite} disabled={treuLoading}
+                className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-40">
+                {treuLoading
+                  ? <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  : <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                }
+                Zugang gewähren
+              </button>
+            </div>
+            {treuError && <p className="mt-2 text-xs text-red-600">{treuError}</p>}
+            <p className="mt-2 text-xs text-amber-700">
+              Der Treuhänder erhält Nur-Lesen-Zugriff. Nach Ablauf der Frist wird der Zugang automatisch gesperrt.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-2 text-base font-semibold text-slate-900">Über Bookitty</h3>
-        <p className="text-sm text-slate-500">
+        <h3 className="mb-2 text-base font-semibold text-slate-900">Über Bookitty</h3>        <p className="text-sm text-slate-500">
           Einfach, kostengünstig und dennoch von höchster Qualität — entwickelt für Schweizer KMUs.
           Alle Daten werden lokal in Ihrem Browser gespeichert.
         </p>

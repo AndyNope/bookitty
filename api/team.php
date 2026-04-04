@@ -27,7 +27,7 @@ $pdo        = get_pdo();
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Members are users whose company_id = $companyId, PLUS the owner (company_id IS NULL, id = $companyId)
     $stmt = $pdo->prepare(
-        'SELECT id, name, email, role, company_id, created_at
+        'SELECT id, name, email, role, company_id, created_at, access_expires_at
          FROM users
          WHERE id = :owner OR company_id = :co
          ORDER BY id ASC'
@@ -35,12 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->execute([':owner' => $companyId, ':co' => $companyId]);
     $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(array_map(fn($m) => [
-        'id'         => (int) $m['id'],
-        'name'       => $m['name'],
-        'email'      => $m['email'],
-        'role'       => $m['company_id'] ? ($m['role'] ?? 'buchhalter') : 'admin',
-        'joined_at'  => $m['created_at'],
-        'is_owner'   => $m['company_id'] === null,
+        'id'                => (int) $m['id'],
+        'name'              => $m['name'],
+        'email'             => $m['email'],
+        'role'              => $m['company_id'] ? ($m['role'] ?? 'buchhalter') : 'admin',
+        'joined_at'         => $m['created_at'],
+        'is_owner'          => $m['company_id'] === null,
+        'access_expires_at' => $m['access_expires_at'],
     ], $members));
     exit;
 }
@@ -58,6 +59,7 @@ $body = json_decode(file_get_contents('php://input'), true) ?? [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email      = strtolower(trim($body['email'] ?? ''));
     $inviteRole = trim($body['role'] ?? 'buchhalter');
+    $accessDays = (int) ($body['access_days'] ?? 0); // 0 = unlimited
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         http_response_code(400); echo json_encode(['error' => 'Ungültige E-Mail-Adresse']); exit;
@@ -73,23 +75,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         http_response_code(409); echo json_encode(['error' => 'Benutzer ist bereits im Team']); exit;
     }
 
-    // Invalidate old pending invites for same email+company
     $pdo->prepare('DELETE FROM invitations WHERE email = ? AND company_id = ? AND used = 0')
         ->execute([$email, $companyId]);
 
-    $token   = bin2hex(random_bytes(32));
-    $expires = date('Y-m-d H:i:s', strtotime('+7 days'));
+    $token             = bin2hex(random_bytes(32));
+    $expires           = date('Y-m-d H:i:s', strtotime('+7 days'));
+    $accessExpiresAt   = $accessDays > 0 ? date('Y-m-d H:i:s', strtotime("+{$accessDays} days")) : null;
 
     $pdo->prepare(
-        'INSERT INTO invitations (token, email, role, invited_by, company_id, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?)'
-    )->execute([$token, $email, $inviteRole, $ownId, $companyId, $expires]);
+        'INSERT INTO invitations (token, email, role, invited_by, company_id, access_expires_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
+    )->execute([$token, $email, $inviteRole, $ownId, $companyId, $accessExpiresAt, $expires]);
 
     // Send invite email
     $appName   = defined('APP_NAME') ? APP_NAME : 'Bookitty';
     $appUrl    = defined('APP_URL')  ? APP_URL  : 'https://bookitty.app';
     $inviteUrl = $appUrl . '/invite?token=' . urlencode($token);
-    $roleLabel = $inviteRole === 'readonly' ? 'Nur-Lesen' : 'Buchhalter';
+    $roleLabel = $inviteRole === 'readonly' ? 'Nur-Lesen (Treuhänder)' : 'Buchhalter';
+    $expLine   = $accessExpiresAt ? "<p style=\"color:#b45309;font-size:13px;margin-top:8px\">⏰ Zugang gültig bis: <strong>{$accessExpiresAt}</strong></p>" : '';
 
     $subject = "Einladung zu {$appName}";
     $html = <<<HTML
@@ -97,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div style="background:#fff;border-radius:16px;padding:40px 32px;border:1px solid #e2e8f0">
   <h1 style="font-size:22px;margin:0 0 16px">{$appName} – Teameinladung</h1>
   <p style="color:#64748b;margin:0 0 20px">Du wurdest eingeladen, als <strong>{$roleLabel}</strong> dem Team beizutreten.</p>
+  {$expLine}
   <a href="{$inviteUrl}" style="display:inline-block;padding:14px 28px;background:#0f172a;color:#fff;border-radius:10px;text-decoration:none;font-weight:600">
     Einladung annehmen
   </a>

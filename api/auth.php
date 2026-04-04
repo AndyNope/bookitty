@@ -66,6 +66,14 @@ function effective_uid(): int {
             exit;
         }
     }
+    // Check time-limited trustee access
+    if (!empty($payload['access_expires_at'])) {
+        if (strtotime($payload['access_expires_at']) < time()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Treuhänder-Zugang abgelaufen. Bitte erneut einladen.']);
+            exit;
+        }
+    }
     return isset($payload['company_id']) ? (int) $payload['company_id'] : (int) $payload['sub'];
 }
 

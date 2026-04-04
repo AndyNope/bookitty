@@ -9,6 +9,7 @@ export type TeamMember = {
   role: UserRole;
   joined_at: string;
   is_owner: boolean;
+  access_expires_at?: string | null;
 };
 
 export type Invitation = {

@@ -24,7 +24,7 @@ if (!$email || !$pass) {
 
 $pdo  = get_db();
 $stmt = $pdo->prepare(
-    'SELECT id, name, email, password_hash, email_confirmed, role, company_id FROM users WHERE email = ?'
+    'SELECT id, name, email, password_hash, email_confirmed, role, company_id, access_expires_at FROM users WHERE email = ?'
 );
 $stmt->execute([$email]);
 $user = $stmt->fetch();
@@ -47,27 +47,42 @@ if (password_needs_rehash($user['password_hash'], PASSWORD_BCRYPT, ['cost' => 12
         ->execute([password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]), $user['id']]);
 }
 
-$role      = $user['role'] ?? 'admin';
-$companyId = $user['company_id'] ? (int) $user['company_id'] : null;
+$role             = $user['role'] ?? 'admin';
+$companyId        = $user['company_id'] ? (int) $user['company_id'] : null;
+$accessExpiresAt  = $user['access_expires_at'] ?? null;
+
+// For trustees with time-limited access, clamp JWT expiry
+$jwtExp = time() + JWT_EXPIRY;
+if ($accessExpiresAt) {
+    $accessTs = strtotime($accessExpiresAt);
+    if ($accessTs && $accessTs < $jwtExp) $jwtExp = $accessTs;
+    if ($accessTs && $accessTs < time()) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Ihr Treuhänder-Zugang ist abgelaufen. Bitte fordern Sie eine neue Einladung an.']);
+        exit;
+    }
+}
 
 $jwtPayload = [
     'sub'   => $user['id'],
     'email' => $user['email'],
     'role'  => $role,
     'iat'   => time(),
-    'exp'   => time() + JWT_EXPIRY,
+    'exp'   => $jwtExp,
 ];
-if ($companyId !== null) $jwtPayload['company_id'] = $companyId;
+if ($companyId !== null)   $jwtPayload['company_id']        = $companyId;
+if ($accessExpiresAt)      $jwtPayload['access_expires_at'] = $accessExpiresAt;
 
 $token = jwt_encode($jwtPayload, JWT_SECRET);
 
 echo json_encode([
     'token' => $token,
     'user'  => [
-        'id'         => (int) $user['id'],
-        'email'      => $user['email'],
-        'name'       => $user['name'],
-        'role'       => $role,
-        'company_id' => $companyId,
+        'id'               => (int) $user['id'],
+        'email'            => $user['email'],
+        'name'             => $user['name'],
+        'role'             => $role,
+        'company_id'       => $companyId,
+        'access_expires_at'=> $accessExpiresAt,
     ],
 ]);

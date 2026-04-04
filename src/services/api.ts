@@ -133,8 +133,8 @@ export const api = {
 
   team: {
     list:   ()                          => apiFetch<TeamMember[]>('/team.php'),
-    invite: (email: string, role: UserRole) =>
-      apiFetch<{ ok: boolean; token: string }>('/team.php', { method: 'POST', body: JSON.stringify({ email, role }) }),
+    invite: (email: string, role: UserRole, accessDays = 0) =>
+      apiFetch<{ ok: boolean; token: string }>('/team.php', { method: 'POST', body: JSON.stringify({ email, role, access_days: accessDays }) }),
     updateRole: (id: number, role: UserRole) =>
       apiFetch<{ ok: boolean }>('/team.php', { method: 'PUT', body: JSON.stringify({ id, role }) }),
     remove: (id: number) =>
