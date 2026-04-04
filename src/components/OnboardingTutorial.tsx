@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 
 const SEEN_KEY = 'bookitty.tutorial.seen';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const hasTutorialBeenSeen = () =>
   typeof localStorage !== 'undefined' && localStorage.getItem(SEEN_KEY) === 'true';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const markTutorialSeen = () => {
   if (typeof localStorage !== 'undefined') localStorage.setItem(SEEN_KEY, 'true');
 };

@@ -68,6 +68,7 @@ const Buchungen = () => {
       if (searchParams.get('kitty_amount')) partial.amount        = parseFloat(searchParams.get('kitty_amount')!);
       if (searchParams.get('kitty_type'))   partial.type          = searchParams.get('kitty_type') as BookingType;
       if (searchParams.get('kitty_status')) partial.paymentStatus = searchParams.get('kitty_status') as PaymentStatus;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPrefilledDraft(partial);
       setIsModalOpen(true);
       setSearchParams({}, { replace: true }); // URL bereinigen

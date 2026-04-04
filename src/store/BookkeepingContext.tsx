@@ -269,6 +269,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
       removeBooking,
       updateBooking,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [bookings, documents],
   );
 
@@ -279,6 +280,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useBookkeeping = () => {
   const ctx = useContext(BookkeepingContext);
   if (!ctx) {

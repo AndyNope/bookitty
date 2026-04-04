@@ -19,6 +19,7 @@ export default function Invite() {
   const ROLE_LABELS: Record<string, string> = { buchhalter: 'Buchhalter', readonly: 'Nur-Lesen', admin: 'Admin' };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!token) { setError('Kein Einladungstoken gefunden.'); setLoading(false); return; }
     api.invite.check(token)
       .then(data => { setInvite(data); setLoading(false); })

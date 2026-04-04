@@ -47,6 +47,7 @@ export default function Portal() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!token) { setError('Kein Token angegeben.'); setLoading(false); return; }
 
     /* Try demo-mode: base64-encoded invoice data embedded in token */

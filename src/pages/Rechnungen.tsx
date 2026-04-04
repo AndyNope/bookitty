@@ -538,7 +538,6 @@ export default function Rechnungen() {
     setInvoices(prev => prev.map(inv =>
       isOverdue(inv) ? { ...inv, status: 'Überfällig' } : inv
     ));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Stats ─────────────────────────────────────────────────────────────────

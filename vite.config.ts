@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -79,5 +80,17 @@ export default defineConfig(({ mode }) => {
           },
         }
       : {},
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react':  ['react', 'react-dom', 'react-router-dom'],
+            'vendor-i18n':   ['i18next', 'react-i18next'],
+            'vendor-pdf':    ['jspdf'],
+            'vendor-zip':    ['jszip'],
+          },
+        },
+      },
+    },
   }
 })

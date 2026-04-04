@@ -442,7 +442,6 @@ export default function Offerten() {
   // Auto-mark expired
   useEffect(() => {
     setOffers(prev => prev.map(o => isExpired(o) ? { ...o, status: 'Abgelaufen' } : o));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Stats ─────────────────────────────────────────────────────────────────

@@ -198,6 +198,7 @@ export default function Kontakte() {
   // ── Load data ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isDemo) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setContacts(loadContacts());
     } else {
       api.contacts.list().then(setContacts).catch(() =>

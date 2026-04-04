@@ -285,7 +285,7 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
   };
 
   const toggle = (code: string) =>
-    setSelected((p) => { const n = new Set(p); n.has(code) ? n.delete(code) : n.add(code); return n; });
+    setSelected((p) => { const n = new Set(p); if (n.has(code)) n.delete(code); else n.add(code); return n; });
 
   const handleImport = () => {
     const toImport = rows.filter((r) => selected.has(r.code));

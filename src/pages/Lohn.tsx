@@ -88,6 +88,7 @@ const Lohn = () => {
 
   // Keep selected employee in sync
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!selectedEmpId && employees.length > 0) setSelectedEmpId(employees[0].id);
   }, [employees, selectedEmpId]);
 

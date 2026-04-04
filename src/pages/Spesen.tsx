@@ -51,6 +51,7 @@ export default function Spesen() {
 
   /* ── load ──────────────────────────────────────────────────────────── */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isDemo) { setItems(loadMock()); return; }
     setLoading(true);
     api.expenses.list()

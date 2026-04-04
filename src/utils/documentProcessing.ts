@@ -64,7 +64,7 @@ const decodeQrFromImage = async (imageUrl: string) => {
   try {
     const result = await reader.decodeFromImageUrl(imageUrl);
     return result.getText();
-  } catch (error) {
+  } catch {
     return undefined;
   }
 };

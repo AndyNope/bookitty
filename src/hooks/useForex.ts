@@ -38,6 +38,7 @@ export function useForex() {
       if (cached) {
         const parsed = JSON.parse(cached) as { rates: ForexRates; date: string; ts: number };
         if (Date.now() - parsed.ts < CACHE_TTL) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setRates(parsed.rates);
           setDate(parsed.date);
           return;

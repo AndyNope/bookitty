@@ -145,6 +145,7 @@ const Einstellungen = () => {
         });
       }
     }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const handleImapSave = () => {
@@ -171,6 +172,7 @@ const Einstellungen = () => {
         saveCompany(profile); // keep localStorage in sync
       }
     }).catch(() => {/* ignore */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   useEffect(() => {
