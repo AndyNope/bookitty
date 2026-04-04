@@ -332,6 +332,14 @@ const InvoiceForm = ({
             </div>
           </div>
 
+          {/* ── Zahlungslink (TWINT / Stripe) ── */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Zahlungslink (optional)</label>
+            <input value={form.paymentLink ?? ''} onChange={e => set('paymentLink')(e.target.value)}
+              placeholder="https://buy.stripe.com/xyz  oder  079 123 45 67 (TWINT)" className={inputCls} />
+            <p className="mt-1 text-[10px] text-slate-400">Stripe-/PayPal-URL oder TWINT-Nummer – erscheint auf dem Kundenkonto-Portal</p>
+          </div>
+
           {/* ── Notizen ── */}
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Notizen / Zahlungskonditionen</label>
@@ -493,6 +501,7 @@ export default function Rechnungen() {
           status: inv.status, contactName: inv.contactName ?? '',
           items: inv.items, currency: inv.currency ?? 'CHF',
           notes: inv.notes, iban: inv.iban, reference: inv.reference,
+          paymentLink: inv.paymentLink,
           issuerCompany: 'Bookitty Demo',
         };
         const token = 'demo_' + btoa(JSON.stringify(payload));

@@ -92,7 +92,7 @@
 - [x] **19. Kundenkonto-Portal**
   Kunde erhält Link, um eigene Rechnungen online einzusehen und Zahlungsstatus zu prüfen.
 
-- [ ] **20. Integriertes Zahlungssystem**
+- [x] **20. Integriertes Zahlungssystem**
   TWINT / Stripe / Kreditkarte als Zahlungslink direkt in Ausgangsrechnung einbetten.
 
 ---

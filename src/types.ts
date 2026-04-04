@@ -66,6 +66,7 @@ export type Invoice = {
   contactEmail?: string;
   iban?: string;            // eigenes IBAN für QR-Rechnung
   reference?: string;       // QR-Referenz (optional)
+  paymentLink?: string;     // TWINT-Nummer oder Stripe-/PayPal-URL
   items: InvoiceLineItem[];
   currency: string;
   notes?: string;

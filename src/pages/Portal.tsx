@@ -14,6 +14,7 @@ interface PortalInvoice {
   notes?: string;
   iban?: string;
   reference?: string;
+  paymentLink?: string;
   issuerCompany: string;
 }
 
@@ -172,7 +173,7 @@ export default function Portal() {
           </div>
 
           {/* Payment details */}
-          {(invoice.iban || invoice.reference) && (
+          {(invoice.iban || invoice.reference || invoice.paymentLink) && (
             <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 space-y-1 text-sm text-slate-600">
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Zahlungsdetails</p>
               {invoice.iban && (
@@ -182,6 +183,25 @@ export default function Portal() {
                 <p><span className="text-slate-400">Referenz:</span> <span className="font-mono">{invoice.reference}</span></p>
               )}
               <p><span className="text-slate-400">Betrag:</span> <strong>{fmt(gross, invoice.currency)}</strong></p>
+              {invoice.paymentLink && (
+                <div className="pt-2">
+                  {/^https?:\/\//.test(invoice.paymentLink) ? (
+                    <a href={invoice.paymentLink} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      Jetzt online zahlen
+                    </a>
+                  ) : (
+                    <p className="flex items-center gap-1.5 text-sm">
+                      <span className="text-slate-400">TWINT:</span>
+                      <strong className="font-mono">{invoice.paymentLink}</strong>
+                      <span className="text-xs text-slate-400">– in der TWINT-App scannen oder Nummer eingeben</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
