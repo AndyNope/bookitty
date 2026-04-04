@@ -239,3 +239,60 @@ export const suggestForDraft = (draft: BookingDraft): KittySuggestion | null => 
 
   return null;
 };
+
+// ── Auto-categorize rule definition ───────────────────────────────────────
+type AutoRule = {
+  keywords: string[];
+  type?: 'Einnahme' | 'Ausgabe';
+  account: string;
+  contraAccount: string;
+  category: string;
+  vatRate: number;
+  label: string;
+};
+
+const AUTO_RULES: AutoRule[] = [
+  { keywords: ['miete', 'mietkosten', 'mietaufwand', 'büromiete'], type: 'Ausgabe', account: '6000 Mietaufwand', contraAccount: '1020 Postcheck', category: 'Raumkosten', vatRate: 0, label: 'Mietkosten' },
+  { keywords: ['büromaterial', 'bürobedarf', 'papier', 'drucker', 'toner'], type: 'Ausgabe', account: '6600 Büromaterial und Drucksachen', contraAccount: '1020 Postcheck', category: 'Büroaufwand', vatRate: 8.1, label: 'Büromaterial' },
+  { keywords: ['telefon', 'internet', 'handy', 'mobiltelefon', 'hosting'], type: 'Ausgabe', account: '6520 Telefon und Internet', contraAccount: '1020 Postcheck', category: 'Kommunikation', vatRate: 8.1, label: 'Telefon/Internet' },
+  { keywords: ['lohn', 'gehalt', 'salär', 'personalaufwand', 'ahv'], type: 'Ausgabe', account: '5000 Lohnaufwand', contraAccount: '1020 Postcheck', category: 'Personalaufwand', vatRate: 0, label: 'Lohn/Gehalt' },
+  { keywords: ['versicherung', 'versicherungspr', 'haftpflicht', 'kasko'], type: 'Ausgabe', account: '6300 Versicherungsaufwand', contraAccount: '1020 Postcheck', category: 'Versicherung', vatRate: 0, label: 'Versicherung' },
+  { keywords: ['steuern', 'steueramt', 'kantonalsteuer', 'bundessteuer'], type: 'Ausgabe', account: '8900 Steuern', contraAccount: '1020 Postcheck', category: 'Steuern', vatRate: 0, label: 'Steuern' },
+  { keywords: ['it', 'software', 'lizenz', 'abonnement', 'subscription', 'saas'], type: 'Ausgabe', account: '6570 IT-Aufwand', contraAccount: '1020 Postcheck', category: 'IT-Kosten', vatRate: 8.1, label: 'IT/Software' },
+  { keywords: ['reise', 'fahrkosten', 'spesen', 'hotel', 'sbb', 'bahn', 'flug'], type: 'Ausgabe', account: '6200 Reise und Repräsentation', contraAccount: '1020 Postcheck', category: 'Reisespesen', vatRate: 8.1, label: 'Reise/Spesen' },
+  { keywords: ['werbung', 'marketing', 'inserat', 'reklame', 'google ads'], type: 'Ausgabe', account: '6800 Werbeaufwand', contraAccount: '1020 Postcheck', category: 'Marketing', vatRate: 8.1, label: 'Werbung/Marketing' },
+  { keywords: ['honorar', 'beratung', 'konsulting', 'fremdleistung', 'rechtsberatung'], type: 'Ausgabe', account: '6400 Beratungs- und Honoraraufwand', contraAccount: '1020 Postcheck', category: 'Fremdleistungen', vatRate: 8.1, label: 'Honorar/Beratung' },
+  { keywords: ['wareneingang', 'materialaufwand', 'rohstoff', 'halbfabrikat', 'handelsware'], type: 'Ausgabe', account: '4000 Materialaufwand', contraAccount: '2000 Kreditoren', category: 'Wareneinkauf', vatRate: 8.1, label: 'Wareneinkauf' },
+  { keywords: ['umsatz', 'rechnung', 'faktura', 'dienstleistungsertrag', 'honorarertrag'], type: 'Einnahme', account: '1100 Debitoren', contraAccount: '3000 Betriebsertrag', category: 'Ertrag', vatRate: 8.1, label: 'Umsatzerlös' },
+  { keywords: ['zinsen erhalten', 'zinsertrag', 'bankzins'], type: 'Einnahme', account: '1020 Postcheck', contraAccount: '8000 Zinsertrag', category: 'Finanzertrag', vatRate: 0, label: 'Zinsertrag' },
+];
+
+/**
+ * Auto-categorize a booking from description + type.
+ * Returns a complete BookingDraft suggestion with high confidence, or null.
+ */
+export const autoCategorizeDraft = (
+  description: string,
+  amount: number,
+  type: 'Einnahme' | 'Ausgabe',
+  date: string,
+): import('../types').BookingDraft | null => {
+  const lower = description.toLowerCase();
+  for (const rule of AUTO_RULES) {
+    if (rule.type && rule.type !== type) continue;
+    if (!rule.keywords.some(kw => lower.includes(kw))) continue;
+    return {
+      date,
+      description,
+      amount,
+      account:        rule.account,
+      contraAccount:  rule.contraAccount,
+      category:       rule.category,
+      vatRate:        rule.vatRate,
+      currency:       'CHF',
+      type,
+      paymentStatus:  'Offen',
+    };
+  }
+  return null;
+};

@@ -103,7 +103,7 @@
   Kontoauszüge per API automatisch einlesen (PostFinance Connect, Raiffeisen API, ZAK).
   Vollautomatisches Matching ohne manuellen CSV-Import.
 
-- [ ] **22. Vollautomatische Belegkategorisierung**
+- [x] **22. Vollautomatische Belegkategorisierung**
   Belege ohne Klick kategorisieren – nur noch Einzel-Klick-Bestätigung nötig.
   Aufbau auf templateStore + kittySuggester mit höherer Konfidenz-Schwelle.
 
