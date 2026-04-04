@@ -20,6 +20,7 @@ import JahresabschlussAssistent from './pages/JahresabschlussAssistent';
 import Archiv from './pages/Archiv';
 import Anlagen from './pages/Anlagen';
 import Lager from './pages/Lager';
+import Zeiterfassung from './pages/Zeiterfassung';
 import Import from './pages/Import';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -75,6 +76,7 @@ const App = () => (
       <Route path="archiv"           element={<Archiv />} />
       <Route path="anlagen"          element={<Anlagen />} />
       <Route path="lager"            element={<Lager />} />
+      <Route path="zeiterfassung"     element={<Zeiterfassung />} />
       <Route path="import"         element={<Import />} />
       <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>
@@ -105,6 +107,7 @@ const App = () => (
       <Route path="archiv"           element={<Archiv />} />
       <Route path="anlagen"          element={<Anlagen />} />
       <Route path="lager"            element={<Lager />} />
+      <Route path="zeiterfassung"     element={<Zeiterfassung />} />
       <Route path="import"         element={<Import />} />
       <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>

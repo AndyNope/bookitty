@@ -186,6 +186,17 @@ const buildNavItems = (base: string) => [
     ),
   },
   {
+    to: `${base}/zeiterfassung`,
+    end: false,
+    label: 'Zeiterfassung',
+    kittyId: 'zeiterfassung',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
+  },
+  {
     to: `${base}/import`,
     end: false,
     label: 'Import',

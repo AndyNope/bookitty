@@ -107,7 +107,7 @@
   Belege ohne Klick kategorisieren – nur noch Einzel-Klick-Bestätigung nötig.
   Aufbau auf templateStore + kittySuggester mit höherer Konfidenz-Schwelle.
 
-- [ ] **23. Zeiterfassung**
+- [x] **23. Zeiterfassung**
   Stunden auf Projekte / Kunden buchen.
   Direktes Umrechnen Stunden × Stundensatz → Rechnungsposition.
 
