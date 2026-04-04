@@ -122,12 +122,12 @@ const Landing = () => (
 
     {/* ── Navigation ── */}
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.svg" alt="Bookitty" className="h-8 w-8" />
-          <span className="text-lg font-bold tracking-tight">Bookitty</span>
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <img src="/logo.svg" alt="Bookitty" className="h-8 w-8 shrink-0" />
+          <span className="text-base font-bold tracking-tight sm:text-lg truncate">Bookitty</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           <Link
             to="/login"
             className="hidden sm:block rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 transition"
@@ -136,15 +136,15 @@ const Landing = () => (
           </Link>
           <Link
             to="/demo"
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition sm:px-4 sm:py-2 sm:text-sm"
           >
             Demo
           </Link>
           <Link
             to="/register"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition sm:px-4 sm:py-2 sm:text-sm"
           >
-            Kostenlos starten
+            <span className="hidden xs:inline">Kostenlos </span>starten
           </Link>
         </div>
       </div>
