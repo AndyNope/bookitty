@@ -293,7 +293,7 @@ export default function Zeiterfassung() {
       {/* Modal */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-semibold text-slate-800">{editId ? 'Eintrag bearbeiten' : 'Neuer Zeiteintrag'}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>

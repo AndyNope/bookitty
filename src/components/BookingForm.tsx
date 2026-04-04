@@ -106,12 +106,15 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="flex max-h-[85dvh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
     >
-      <h3 className="text-lg font-semibold text-slate-900">
-        {editMode ? 'Buchung bearbeiten' : 'Neue Buchung erfassen'}
-      </h3>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <h3 className="text-lg font-semibold text-slate-900">
+          {editMode ? 'Buchung bearbeiten' : 'Neue Buchung erfassen'}
+        </h3>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm text-slate-600">
           Datum
           <input
@@ -448,7 +451,8 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
           )}
         </div>
       )}
-      <div className="mt-6 flex justify-end gap-3">
+      </div>{/* end overflow-y-auto */}
+      <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
         {onCancel ? (
           <button
             type="button"

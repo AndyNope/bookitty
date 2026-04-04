@@ -248,7 +248,7 @@ const Buchungen = () => {
 
       {detailBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+          <div className="w-full max-w-xl max-h-[90dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-base font-semibold text-slate-900">Buchungsdetails</h3>
