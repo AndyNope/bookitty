@@ -7,15 +7,15 @@
 
 ## 🔴 Kritisch – Kern-Workflow-Lücken gegenüber Bexio & Infinity
 
-- [ ] **1. Kontaktverwaltung (Mini-CRM)**
+- [x] **1. Kontaktverwaltung (Mini-CRM)**
   Kunden- und Lieferantenstamm: Name, Adresse, UID/MWST-Nr., IBAN, Kontaktperson.
   Basis für Auto-Fill in Rechnungen und Bankabgleich.
 
-- [ ] **2. Ausgangsrechnung erstellen**
+- [x] **2. Ausgangsrechnung erstellen**
   Professionelle Rechnungen mit Briefkopf, Logo, Artikelpositionen, Nummernkreis (z. B. RE-2026-001).
   PDF-Export mit Firmenlogo und Kontaktdaten.
 
-- [ ] **3. QR-Rechnung ausgeben (Swiss QR-Code)**
+- [x] **3. QR-Rechnung ausgeben (Swiss QR-Code)**
   Swiss QR-Code (SPC-Format) auf eigener Rechnung einbetten – nicht nur einlesen.
   IBAN + Referenznummer + Betrag kodiert, druckbar und digital versendbar.
 

@@ -71,6 +71,34 @@ CREATE TABLE IF NOT EXISTS templates (
     CONSTRAINT fk_templates_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── invoices ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS invoices (
+    id               VARCHAR(36)    NOT NULL,
+    user_id          INT            NOT NULL,
+    number           VARCHAR(50)    NOT NULL DEFAULT '',
+    date             VARCHAR(20)    NOT NULL DEFAULT '',
+    due_date         VARCHAR(20)    NOT NULL DEFAULT '',
+    status           VARCHAR(20)    NOT NULL DEFAULT 'Entwurf',
+    contact_id       VARCHAR(36)    DEFAULT NULL,
+    contact_name     VARCHAR(255)   NOT NULL DEFAULT '',
+    contact_company  VARCHAR(255)   DEFAULT NULL,
+    contact_street   VARCHAR(255)   DEFAULT NULL,
+    contact_zip      VARCHAR(20)    DEFAULT NULL,
+    contact_city     VARCHAR(100)   DEFAULT NULL,
+    contact_country  VARCHAR(10)    NOT NULL DEFAULT 'CH',
+    contact_email    VARCHAR(255)   DEFAULT NULL,
+    iban             VARCHAR(50)    DEFAULT NULL,
+    reference        VARCHAR(100)   DEFAULT NULL,
+    items_json       TEXT           NOT NULL DEFAULT '[]',
+    currency         VARCHAR(10)    NOT NULL DEFAULT 'CHF',
+    notes            TEXT           DEFAULT NULL,
+    created_at       TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_invoices_user   (user_id),
+    KEY idx_invoices_number (number),
+    CONSTRAINT fk_invoices_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ─── contacts ─────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS contacts (
     id          VARCHAR(36)    NOT NULL,

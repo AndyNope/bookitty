@@ -1,7 +1,41 @@
 export type BookingType = 'Einnahme' | 'Ausgabe';
 export type PaymentStatus = 'Offen' | 'Bezahlt';
 
+export type InvoiceStatus = 'Entwurf' | 'Versendet' | 'Bezahlt' | 'Überfällig' | 'Storniert';
 export type ContactType = 'Kunde' | 'Lieferant' | 'Beides';
+
+export type InvoiceLineItem = {
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  vatRate: number;
+};
+
+export type Invoice = {
+  id: string;
+  number: string;           // z. B. RE-2026-001
+  date: string;             // ISO-Datum
+  dueDate: string;          // ISO-Datum
+  status: InvoiceStatus;
+  contactId?: string;       // Referenz auf Contact
+  contactName: string;
+  contactCompany?: string;
+  contactStreet?: string;
+  contactZip?: string;
+  contactCity?: string;
+  contactCountry: string;
+  contactEmail?: string;
+  iban?: string;            // eigenes IBAN für QR-Rechnung
+  reference?: string;       // QR-Referenz (optional)
+  items: InvoiceLineItem[];
+  currency: string;
+  notes?: string;
+  // Berechnete Felder (client-side)
+  subtotal?: number;
+  vatTotal?: number;
+  total?: number;
+};
 
 export type Contact = {
   id: string;

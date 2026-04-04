@@ -10,6 +10,7 @@ import Bilanz from './pages/Bilanz';
 import Dokumente from './pages/Dokumente';
 import Einstellungen from './pages/Einstellungen';
 import Kontakte from './pages/Kontakte';
+import Rechnungen from './pages/Rechnungen';
 import Lohn from './pages/Lohn';
 import Import from './pages/Import';
 import Login from './pages/Login';
@@ -47,6 +48,7 @@ const App = () => (
     >
       <Route index element={<Dashboard />} />
       <Route path="buchungen"     element={<Buchungen />} />
+      <Route path="rechnungen"     element={<Rechnungen />} />
       <Route path="kontakte"      element={<Kontakte />} />
       <Route path="bilanz"        element={<Bilanz />} />
       <Route path="dokumente"     element={<Dokumente />} />
@@ -68,6 +70,7 @@ const App = () => (
     >
       <Route index element={<Dashboard />} />
       <Route path="buchungen"     element={<Buchungen />} />
+      <Route path="rechnungen"     element={<Rechnungen />} />
       <Route path="kontakte"      element={<Kontakte />} />
       <Route path="bilanz"        element={<Bilanz />} />
       <Route path="dokumente"     element={<Dokumente />} />
