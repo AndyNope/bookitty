@@ -111,7 +111,7 @@
   Stunden auf Projekte / Kunden buchen.
   Direktes Umrechnen Stunden × Stundensatz → Rechnungsposition.
 
-- [ ] **24. Swiss GAAP FER (mittlere/grosse Unternehmen)**
+- [x] **24. Swiss GAAP FER (mittlere/grosse Unternehmen)**
   Swiss GAAP FER-konformes Reporting als optionales Modul.
   Würde System auch für mittlere Unternehmen attraktiv machen.
 
