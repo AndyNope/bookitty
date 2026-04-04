@@ -2,6 +2,7 @@ export type BookingType = 'Einnahme' | 'Ausgabe';
 export type PaymentStatus = 'Offen' | 'Bezahlt';
 
 export type InvoiceStatus = 'Entwurf' | 'Versendet' | 'Bezahlt' | 'Überfällig' | 'Storniert';
+export type OfferStatus  = 'Entwurf' | 'Versendet' | 'Angenommen' | 'Abgelehnt' | 'Abgelaufen';
 export type ContactType = 'Kunde' | 'Lieferant' | 'Beides';
 
 export type InvoiceLineItem = {
@@ -35,6 +36,26 @@ export type Invoice = {
   subtotal?: number;
   vatTotal?: number;
   total?: number;
+};
+
+export type Offer = {
+  id: string;
+  number: string;           // z. B. AN-2026-001
+  date: string;             // ISO-Datum
+  validUntil: string;       // Gültig bis (ISO-Datum)
+  status: OfferStatus;
+  contactId?: string;
+  contactName: string;
+  contactCompany?: string;
+  contactStreet?: string;
+  contactZip?: string;
+  contactCity?: string;
+  contactCountry: string;
+  contactEmail?: string;
+  items: InvoiceLineItem[];
+  currency: string;
+  notes?: string;
+  convertedToInvoiceId?: string; // wenn umgewandelt
 };
 
 export type Contact = {

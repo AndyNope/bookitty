@@ -99,6 +99,33 @@ CREATE TABLE IF NOT EXISTS invoices (
     CONSTRAINT fk_invoices_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── offers ───────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS offers (
+    id                      VARCHAR(36)    NOT NULL,
+    user_id                 INT            NOT NULL,
+    number                  VARCHAR(50)    NOT NULL,
+    date                    DATE           NOT NULL,
+    valid_until             DATE           NOT NULL,
+    status                  VARCHAR(20)    NOT NULL DEFAULT 'Entwurf',
+    contact_id              VARCHAR(36)    DEFAULT NULL,
+    contact_name            VARCHAR(255)   NOT NULL DEFAULT '',
+    contact_company         VARCHAR(255)   DEFAULT NULL,
+    contact_street          VARCHAR(255)   DEFAULT NULL,
+    contact_zip             VARCHAR(20)    DEFAULT NULL,
+    contact_city            VARCHAR(100)   DEFAULT NULL,
+    contact_country         VARCHAR(10)    NOT NULL DEFAULT 'CH',
+    contact_email           VARCHAR(255)   DEFAULT NULL,
+    items_json              JSON           DEFAULT NULL,
+    currency                VARCHAR(10)    NOT NULL DEFAULT 'CHF',
+    notes                   TEXT           DEFAULT NULL,
+    converted_to_invoice_id VARCHAR(36)    DEFAULT NULL,
+    created_at              TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_offers_user   (user_id),
+    KEY idx_offers_number (number),
+    CONSTRAINT fk_offers_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ─── contacts ─────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS contacts (
     id          VARCHAR(36)    NOT NULL,

@@ -1,4 +1,4 @@
-import type { Booking, Contact, DocumentImport, Invoice } from '../types';
+import type { Booking, Contact, DocumentImport, Invoice, Offer } from '../types';
 import type { Account } from '../data/chAccounts';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -114,5 +114,12 @@ export const api = {
     create: (inv: Invoice)        => apiFetch<{ ok: boolean; id: string }>('/invoices.php', { method: 'POST',   body: JSON.stringify(inv) }),
     update: (inv: Invoice)        => apiFetch<{ ok: boolean }>('/invoices.php', { method: 'PUT',    body: JSON.stringify(inv) }),
     remove: (id: string)          => apiFetch<{ ok: boolean }>('/invoices.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
+  },
+
+  offers: {
+    list:   ()                    => apiFetch<Offer[]>('/offers.php'),
+    create: (o: Offer)            => apiFetch<{ ok: boolean; id: string }>('/offers.php', { method: 'POST',   body: JSON.stringify(o) }),
+    update: (o: Offer)            => apiFetch<{ ok: boolean }>('/offers.php', { method: 'PUT',    body: JSON.stringify(o) }),
+    remove: (id: string)          => apiFetch<{ ok: boolean }>('/offers.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
   },
 };
