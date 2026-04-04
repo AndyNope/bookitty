@@ -119,7 +119,7 @@
   Förderantrag oder Kooperation prüfen (erst relevant nach MVP + Team).
   HSG-Startup-Programm: Mentoring, Infrastruktur, Netzwerk.
 
-- [ ] **26. Navigation-Profile & manuelle Seiten-Sichtbarkeit**
+- [x] **26. Navigation-Profile & manuelle Seiten-Sichtbarkeit**
   Nutzer kann bereits bei der **Registrierung ein Profil wählen**, das nur die relevanten Seiten einblendet.
   In den **Einstellungen** lässt sich jede Seite danach manuell ein- oder ausblenden – oder ein anderes Profil wählen.
   Profil-Wechsel überschreibt immer alle manuellen Einstellungen.
