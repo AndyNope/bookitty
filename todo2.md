@@ -60,7 +60,7 @@
   Lohnausweis elektronisch via ELM Unified übermitteln.
   Aktuell: nur PDF-Export. Ziel: SWISSDEC-Schnittstelle.
 
-- [ ] **13. Jahresabschluss-Assistent**
+- [x] **13. Jahresabschluss-Assistent**
   Geführter Assistent für Abschlussbuchungen:
   Rückstellungen, Abschreibungen (linear/degressiv), transitorische Posten, Gewinnverwendung.
 
