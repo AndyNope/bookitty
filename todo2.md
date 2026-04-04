@@ -81,7 +81,7 @@
   Sachanlagen erfassen: Kaufdatum, Nutzungsdauer, Abschreibungssatz.
   Automatische Abschreibungsbuchungen (monatlich/jährlich), Anlagenspiegel-Export.
 
-- [ ] **17. Lagerverwaltung (minimal)**
+- [x] **17. Lagerverwaltung (minimal)**
   Produkte / Artikel-Stamm für Rechnungspositionen.
   Lagerbestand bei Ausgangsrechnung reduzieren, Wareneinkauf erhöhen.
 
