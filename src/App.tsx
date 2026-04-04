@@ -11,6 +11,7 @@ import Dokumente from './pages/Dokumente';
 import Einstellungen from './pages/Einstellungen';
 import Kontakte from './pages/Kontakte';
 import Rechnungen from './pages/Rechnungen';
+import Bankabgleich from './pages/Bankabgleich';
 import Lohn from './pages/Lohn';
 import Import from './pages/Import';
 import Login from './pages/Login';
@@ -48,13 +49,14 @@ const App = () => (
     >
       <Route index element={<Dashboard />} />
       <Route path="buchungen"     element={<Buchungen />} />
-      <Route path="rechnungen"     element={<Rechnungen />} />
-      <Route path="kontakte"      element={<Kontakte />} />
-      <Route path="bilanz"        element={<Bilanz />} />
-      <Route path="dokumente"     element={<Dokumente />} />
-      <Route path="lohn"          element={<Lohn />} />
+      <Route path="rechnungen"    element={<Rechnungen />} />
+      <Route path="bankabgleich"   element={<Bankabgleich />} />
+      <Route path="kontakte"       element={<Kontakte />} />
+      <Route path="bilanz"         element={<Bilanz />} />
+      <Route path="dokumente"      element={<Dokumente />} />
+      <Route path="lohn"           element={<Lohn />} />
       <Route path="import"         element={<Import />} />
-      <Route path="einstellungen" element={<Einstellungen />} />
+      <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>
 
     {/* ── App mode – API, requires authentication ───────────────────────── */}
@@ -70,13 +72,14 @@ const App = () => (
     >
       <Route index element={<Dashboard />} />
       <Route path="buchungen"     element={<Buchungen />} />
-      <Route path="rechnungen"     element={<Rechnungen />} />
-      <Route path="kontakte"      element={<Kontakte />} />
-      <Route path="bilanz"        element={<Bilanz />} />
-      <Route path="dokumente"     element={<Dokumente />} />
-      <Route path="lohn"          element={<Lohn />} />
+      <Route path="rechnungen"    element={<Rechnungen />} />
+      <Route path="bankabgleich"   element={<Bankabgleich />} />
+      <Route path="kontakte"       element={<Kontakte />} />
+      <Route path="bilanz"         element={<Bilanz />} />
+      <Route path="dokumente"      element={<Dokumente />} />
+      <Route path="lohn"           element={<Lohn />} />
       <Route path="import"         element={<Import />} />
-      <Route path="einstellungen" element={<Einstellungen />} />
+      <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>
 
     <Route path="*" element={<NotFound />} />

@@ -19,7 +19,7 @@
   Swiss QR-Code (SPC-Format) auf eigener Rechnung einbetten – nicht nur einlesen.
   IBAN + Referenznummer + Betrag kodiert, druckbar und digital versendbar.
 
-- [ ] **4. Bankabgleich – CSV/MT940/camt.054 Import**
+- [x] **4. Bankabgleich – CSV/MT940/camt.054 Import**
   Kontoauszug-Datei hochladen (PostFinance, Raiffeisen, ZAK, etc.).
   Zeilen automatisch auf offene Buchungen matchen (Betrag + Datum + Referenz).
   Manuelles Zuordnen für ungematchte Positionen.
