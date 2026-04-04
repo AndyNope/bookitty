@@ -77,7 +77,7 @@
   Progressive Web App: Belegscan mit Kamera, Offline-Fähigkeit.
   Oder: React Native App für iOS/Android.
 
-- [ ] **16. Anlagenbuchhaltung**
+- [x] **16. Anlagenbuchhaltung**
   Sachanlagen erfassen: Kaufdatum, Nutzungsdauer, Abschreibungssatz.
   Automatische Abschreibungsbuchungen (monatlich/jährlich), Anlagenspiegel-Export.
 
