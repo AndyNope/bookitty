@@ -49,17 +49,29 @@ function run(PDO $pdo, string $sql, string $desc, array &$done, array &$skipped)
 }
 
 // ── 1. Add missing columns to users ──────────────────────────────────────────
+if (!columnExists($pdo, 'users', 'company_id')) {
+    run($pdo,
+        "ALTER TABLE users ADD COLUMN company_id INT DEFAULT NULL",
+        'users.company_id added', $done, $skipped);
+} else { $skipped[] = 'users.company_id already exists'; }
+
 if (!columnExists($pdo, 'users', 'access_expires_at')) {
     run($pdo,
-        "ALTER TABLE users ADD COLUMN access_expires_at TIMESTAMP NULL DEFAULT NULL AFTER company_id",
+        "ALTER TABLE users ADD COLUMN access_expires_at TIMESTAMP NULL DEFAULT NULL",
         'users.access_expires_at added', $done, $skipped);
 } else { $skipped[] = 'users.access_expires_at already exists'; }
 
 if (!columnExists($pdo, 'users', 'confirmation_token')) {
     run($pdo,
-        "ALTER TABLE users ADD COLUMN confirmation_token VARCHAR(64) DEFAULT NULL AFTER email_confirmed",
+        "ALTER TABLE users ADD COLUMN confirmation_token VARCHAR(64) DEFAULT NULL",
         'users.confirmation_token added', $done, $skipped);
 } else { $skipped[] = 'users.confirmation_token already exists'; }
+
+if (!columnExists($pdo, 'users', 'role')) {
+    run($pdo,
+        "ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'admin'",
+        'users.role added', $done, $skipped);
+} else { $skipped[] = 'users.role already exists'; }
 
 // ── 2. invitations ────────────────────────────────────────────────────────────
 if (!tableExists($pdo, 'invitations')) {
