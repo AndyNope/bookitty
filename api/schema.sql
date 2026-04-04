@@ -188,3 +188,24 @@ CREATE TABLE IF NOT EXISTS company_profiles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ─── expenses ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS expenses (
+    id          VARCHAR(36)    NOT NULL,
+    user_id     INT            NOT NULL,
+    date        VARCHAR(20)    NOT NULL DEFAULT '',
+    amount      DECIMAL(15,2)  NOT NULL DEFAULT 0.00,
+    currency    VARCHAR(10)    NOT NULL DEFAULT 'CHF',
+    category    VARCHAR(100)   NOT NULL DEFAULT 'Diverses',
+    description VARCHAR(500)   NOT NULL DEFAULT '',
+    status      VARCHAR(20)    NOT NULL DEFAULT 'Ausstehend',
+    receipt_url VARCHAR(500)   DEFAULT NULL,
+    approved_by INT            DEFAULT NULL,
+    approved_at TIMESTAMP      NULL DEFAULT NULL,
+    booking_id  VARCHAR(36)    DEFAULT NULL,
+    created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_expenses_user   (user_id),
+    KEY idx_expenses_status (status),
+    CONSTRAINT fk_expenses_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

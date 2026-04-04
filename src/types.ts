@@ -1,6 +1,25 @@
 export type BookingType = 'Einnahme' | 'Ausgabe';
 export type PaymentStatus = 'Offen' | 'Bezahlt';
 export type UserRole = 'admin' | 'buchhalter' | 'readonly';
+export type ExpenseStatus = 'Ausstehend' | 'Genehmigt' | 'Abgelehnt';
+export type ExpenseCategory = 'Reise' | 'Verpflegung' | 'Unterkunft' | 'Kommunikation' | 'Material' | 'Fahrzeug' | 'Diverses';
+
+export type Expense = {
+  id: string;
+  user_id: number;
+  date: string;
+  amount: number;
+  currency: string;
+  category: ExpenseCategory;
+  description: string;
+  status: ExpenseStatus;
+  receipt_url?: string | null;
+  approved_by?: number | null;
+  approved_at?: string | null;
+  booking_id?: string | null;
+  created_at: string;
+  submitter_name?: string;
+};
 
 export type TeamMember = {
   id: number;

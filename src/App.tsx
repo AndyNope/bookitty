@@ -15,6 +15,7 @@ import Offerten from './pages/Offerten';
 import Bankabgleich from './pages/Bankabgleich';
 import Mwst from './pages/Mwst';
 import Lohn from './pages/Lohn';
+import Spesen from './pages/Spesen';
 import Import from './pages/Import';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -61,6 +62,7 @@ const App = () => (
       <Route path="bilanz"         element={<Bilanz />} />
       <Route path="dokumente"      element={<Dokumente />} />
       <Route path="lohn"           element={<Lohn />} />
+      <Route path="spesen"         element={<Spesen />} />
       <Route path="import"         element={<Import />} />
       <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>
@@ -86,6 +88,7 @@ const App = () => (
       <Route path="bilanz"         element={<Bilanz />} />
       <Route path="dokumente"      element={<Dokumente />} />
       <Route path="lohn"           element={<Lohn />} />
+      <Route path="spesen"         element={<Spesen />} />
       <Route path="import"         element={<Import />} />
       <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>

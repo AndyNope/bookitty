@@ -1,4 +1,4 @@
-import type { Booking, Contact, DocumentImport, Invoice, Offer, TeamMember, Invitation, UserRole } from '../types';
+import type { Booking, Contact, DocumentImport, Expense, Invoice, Offer, TeamMember, Invitation, UserRole } from '../types';
 import type { Account } from '../data/chAccounts';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -148,5 +148,14 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ token, name, password }),
       }),
+  },
+
+  expenses: {
+    list:    ()                                  => apiFetch<Expense[]>('/expenses.php'),
+    create:  (data: Partial<Expense>)           => apiFetch<{ id: string }>('/expenses.php', { method: 'POST', body: JSON.stringify(data) }),
+    update:  (id: string, data: Partial<Expense>) => apiFetch<{ ok: boolean }>('/expenses.php', { method: 'PUT', body: JSON.stringify({ id, ...data }) }),
+    approve: (id: string)                        => apiFetch<{ ok: boolean; status: string }>('/expenses.php', { method: 'PUT', body: JSON.stringify({ id, action: 'approve' }) }),
+    reject:  (id: string)                        => apiFetch<{ ok: boolean; status: string }>('/expenses.php', { method: 'PUT', body: JSON.stringify({ id, action: 'reject' }) }),
+    remove:  (id: string)                        => apiFetch<{ ok: boolean }>('/expenses.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
   },
 };

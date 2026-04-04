@@ -45,7 +45,7 @@
   Admin / Buchhalter / Mitarbeiter (Read-only) pro Firma.
   JWT-basiertes Rollen-System im Backend (api/auth.php erweitern).
 
-- [ ] **9. Treuhänder-Zugang**
+- [x] **9. Treuhänder-Zugang**
   Externer Steuerberater erhält zeitlich begrenzten Read-only-Zugriff per Einladungslink.
 
 - [ ] **10. Spesenabrechnungen**
