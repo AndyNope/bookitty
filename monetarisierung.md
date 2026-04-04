@@ -104,12 +104,12 @@ Jedes KMU das von Bexio oder Banana wechselt, hat historische Daten die importie
 
 | Priorität | Kanal | Aufwand | Potenzial |
 |---|---|---|---|
-| 🔴 Sofort | Freemium → Pro | Gering (Stripe einbinden) | Mittel, linear skalierend |
-| 🟠 Kurzfristig | Treuhänder-Flatrate | Mittel (Portal + Dashboard) | Hoch, B2B-Recurring |
-| 🟡 Mittelfristig | Treuhänder-Marktplatz | Hoch (Vermittlungslogik, Verträge) | Sehr hoch, Netzwerkeffekt |
-| 🟡 Mittelfristig | Migrations-Paket | Gering | Gering, einmalig |
-| 🔵 Langfristig | Banken-Partnership | Sehr hoch (Sales-Zyklus) | Sehr hoch, Massenmarkt |
-| 🔵 Langfristig | White-Label | Mittel (Mandanten-Architektur) | Hoch, stabil |
+| Sofort | Freemium → Pro | Gering (Stripe einbinden) | Mittel, linear skalierend |
+| Kurzfristig | Treuhänder-Flatrate | Mittel (Portal + Dashboard) | Hoch, B2B-Recurring |
+| Mittelfristig | Treuhänder-Marktplatz | Hoch (Vermittlungslogik, Verträge) | Sehr hoch, Netzwerkeffekt |
+| Mittelfristig | Migrations-Paket | Gering | Gering, einmalig |
+| Langfristig | Banken-Partnership | Sehr hoch (Sales-Zyklus) | Sehr hoch, Massenmarkt |
+| Langfristig | White-Label | Mittel (Mandanten-Architektur) | Hoch, stabil |
 
 ---
 

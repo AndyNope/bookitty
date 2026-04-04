@@ -5,7 +5,7 @@
 
 ---
 
-## 🔴 Kritisch – Kern-Workflow-Lücken gegenüber Bexio & Infinity
+## Kritisch – Kern-Workflow-Lücken gegenüber Bexio & Infinity
 
 - [x] **1. Kontaktverwaltung (Mini-CRM)**
   Kunden- und Lieferantenstamm: Name, Adresse, UID/MWST-Nr., IBAN, Kontaktperson.
@@ -31,7 +31,7 @@
 
 ---
 
-## 🟠 Wichtig – oft nachgefragt, klarer Mehrwert
+## Wichtig – oft nachgefragt, klarer Mehrwert
 
 - [x] **6. Offerten / Angebote**
   Angebotsstellung mit eigenem Nummernkreis (AN-2026-001).
@@ -66,7 +66,7 @@
 
 ---
 
-## 🟡 Nice-to-have – mittelfristig
+## Nice-to-have – mittelfristig
 
 - [x] **14. 10-Jahres-Archivierung (GeBüV-konform)**
   ZIP-Download aller Belege + JSON-Export aller Buchungen.
@@ -97,7 +97,7 @@
 
 ---
 
-## 🔵 Strategisch – Wachstum & Differenzierung
+## Strategisch – Wachstum & Differenzierung
 
 - [x] **21. Direkte Bankverbindung (Open Banking)**
   Kontoauszüge per API automatisch einlesen (PostFinance Connect, Raiffeisen API, ZAK).
@@ -127,11 +127,11 @@
   **Profile:**
   | Profil | Enthaltene Seiten | Zielgruppe |
   |---|---|---|
-  | 🗂 **Starter** | Dashboard, Buchungen, Dokumente | Freelancer / Einzel­unternehmer ohne Mitarbeiter |
-  | 📄 **Rechnungssteller** | + Rechnungen, Offerten, Kontakte | Selbstständige mit regelmässiger Rechnungsstellung |
-  | 🏪 **Händler** | + Lager, Import, Bilanz | KMU mit Warenhandel |
-  | 👥 **Arbeitgeber** | + Lohn, Spesen, Zeiterfassung | Unternehmen mit Angestellten |
-  | 🏢 **Volle Übersicht** | Alle Seiten | Buchhalter / Admin – nichts ist ausgeblendet |
+  | **Starter** | Dashboard, Buchungen, Dokumente | Freelancer / Einzel­unternehmer ohne Mitarbeiter |
+  | **Rechnungssteller** | + Rechnungen, Offerten, Kontakte | Selbstständige mit regelmässiger Rechnungsstellung |
+  | **Händler** | + Lager, Import, Bilanz | KMU mit Warenhandel |
+  | **Arbeitgeber** | + Lohn, Spesen, Zeiterfassung | Unternehmen mit Angestellten |
+  | **Volle Übersicht** | Alle Seiten | Buchhalter / Admin – nichts ist ausgeblendet |
 
   **Umsetzung:**
   - Profil + manuelle Overrides in `localStorage` (`navProfile`, `hiddenPages[]`) speichern → kein Backend nötig.

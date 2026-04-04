@@ -4,30 +4,30 @@
 
 ---
 
-## 1. Bexio – Was wir bereits decken ✅
+## 1. Bexio – Was wir bereits decken
 
 | Feature | Bexio | Bookitty |
 |---|---|---|
-| Doppelte Buchführung | ✅ | ✅ |
-| Bilanz & Erfolgsrechnung | ✅ | ✅ |
-| MwSt-Übersicht (Vorsteuer/Zahllast) | ✅ | ✅ |
-| Buchungen bearbeiten / löschen | ✅ | ✅ |
-| Eigene Kontenbezeichnungen | ✅ | ✅ |
-| Dokument-Upload mit OCR | ✅ (Premium) | ✅ |
-| CSV-Import aus Altsystemen | ✅ | ✅ |
-| Lohnbuchhaltung (Grundmodul) | ✅ | ✅ |
-| Zahlungsstatus / Offene Posten | ✅ | ✅ |
-| Überfällige-Zahlungen-Badges | ✅ | ✅ |
-| PDF-Export (Bilanz, Lohn) | ✅ | ✅ |
-| E-Mail-Rechnungsimport (IMAP) | ✅ | ✅ |
-| Onboarding / Tutorial | ✅ | ✅ |
-| Swiss KMU Kontenrahmen | ✅ | ✅ |
+| Doppelte Buchführung | | |
+| Bilanz & Erfolgsrechnung | | |
+| MwSt-Übersicht (Vorsteuer/Zahllast) | | |
+| Buchungen bearbeiten / löschen | | |
+| Eigene Kontenbezeichnungen | | |
+| Dokument-Upload mit OCR | (Premium) | |
+| CSV-Import aus Altsystemen | | |
+| Lohnbuchhaltung (Grundmodul) | | |
+| Zahlungsstatus / Offene Posten | | |
+| Überfällige-Zahlungen-Badges | | |
+| PDF-Export (Bilanz, Lohn) | | |
+| E-Mail-Rechnungsimport (IMAP) | | |
+| Onboarding / Tutorial | | |
+| Swiss KMU Kontenrahmen | | |
 
 ---
 
-## 2. Bexio – Was uns noch fehlt ❌
+## 2. Bexio – Was uns noch fehlt
 
-### 🔴 Kritisch (fehlt im Kern-Workflow)
+### Kritisch (fehlt im Kern-Workflow)
 
 | Feature | Beschreibung |
 |---|---|
@@ -38,7 +38,7 @@
 | **ISO 20022 / pain.001 Export** | Zahlungsdatei für EBICS/E-Banking direkt exportieren |
 | **Offizielle MwSt-Abrechnung (ESTV)** | Formular 533 / 583 ausfüllen und einreichen (nicht nur Übersicht) |
 
-### 🟠 Wichtig (oft nachgefragt)
+### Wichtig (oft nachgefragt)
 
 | Feature | Beschreibung |
 |---|---|
@@ -51,7 +51,7 @@
 | **ELM-zertifizierter Lohnausweis** | SWISSDEC-konformer Lohnausweis, elektronisch übermittelbar (aktuell nur PDF-Export) |
 | **Jahresabschluss-Assistent** | Geführte Abschlussbuchungen (Rückstellungen, Abschreibungen, Gewinnverwendung) |
 
-### 🟡 Nice-to-have (mittelfristig)
+### Nice-to-have (mittelfristig)
 
 | Feature | Beschreibung |
 |---|---|
@@ -65,24 +65,24 @@
 
 ---
 
-## 3. Infinity.swiss – Was wir bereits decken ✅
+## 3. Infinity.swiss – Was wir bereits decken
 
 Infinity positioniert sich als **AI-first Swiss Accounting Tool** – sehr ähnlich zu unserer Kernidee:
 
 | Feature | Infinity | Bookitty |
 |---|---|---|
-| AI-gestützte Buchungsvorschläge | ✅ | ✅ (kittySuggester, 18+ Regeln) |
-| Belegerkennung / OCR | ✅ | ✅ (Tesseract + QR-SPC) |
-| Swiss Kontenrahmen KMU | ✅ | ✅ |
-| Doppelte Buchführung | ✅ | ✅ |
-| Modernes UI | ✅ | ✅ |
-| Automatischer Beleg-Import | ✅ | ✅ (IMAP + Upload) |
-| Buchungsvorschlag aus Dokument | ✅ | ✅ (documentParser + templateStore) |
-| Swiss MwSt-Sätze (8.1 / 3.8 / 2.6%) | ✅ | ✅ |
+| AI-gestützte Buchungsvorschläge | | (kittySuggester, 18+ Regeln) |
+| Belegerkennung / OCR | | (Tesseract + QR-SPC) |
+| Swiss Kontenrahmen KMU | | |
+| Doppelte Buchführung | | |
+| Modernes UI | | |
+| Automatischer Beleg-Import | | (IMAP + Upload) |
+| Buchungsvorschlag aus Dokument | | (documentParser + templateStore) |
+| Swiss MwSt-Sätze (8.1 / 3.8 / 2.6%) | | |
 
 ---
 
-## 4. Infinity.swiss – Was uns noch fehlt ❌
+## 4. Infinity.swiss – Was uns noch fehlt
 
 | Feature | Beschreibung |
 |---|---|
