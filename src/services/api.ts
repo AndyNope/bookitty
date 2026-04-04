@@ -158,4 +158,8 @@ export const api = {
     reject:  (id: string)                        => apiFetch<{ ok: boolean; status: string }>('/expenses.php', { method: 'PUT', body: JSON.stringify({ id, action: 'reject' }) }),
     remove:  (id: string)                        => apiFetch<{ ok: boolean }>('/expenses.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
   },
+
+  forex: {
+    rates: () => apiFetch<{ base: string; date: string; rates: Record<string, number>; source: string }>('/forex.php'),
+  },
 };

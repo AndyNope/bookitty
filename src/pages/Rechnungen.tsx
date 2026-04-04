@@ -6,6 +6,8 @@ import NotificationModal from '../components/NotificationModal';
 import { api } from '../services/api';
 import type { Contact, Invoice, InvoiceLineItem, InvoiceStatus } from '../types';
 import { calcInvoiceTotals, exportInvoicePDF } from '../utils/invoicePdf';
+import { useForex, toCHF } from '../hooks/useForex';
+import { useBookkeeping } from '../store/BookkeepingContext';
 
 // ─── Demo localStorage ────────────────────────────────────────────────────────
 const STORAGE_KEY = 'bookitty.invoices';
@@ -464,6 +466,8 @@ export default function Rechnungen() {
   const location = useLocation();
   const isDemo   = location.pathname.startsWith('/demo');
   const { isReadonly } = useAuth();
+  const { rates } = useForex();
+  const { addBooking } = useBookkeeping();
 
   const [invoices,  setInvoices]  = useState<Invoice[]>([]);
   const [contacts,  setContacts]  = useState<Contact[]>([]);
@@ -475,6 +479,9 @@ export default function Rechnungen() {
   const [exporting, setExporting] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<InvoiceStatus | 'Alle'>('Alle');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message: string } | null>(null);
+  // Kursdifferenz dialog
+  const [kursDiffFor, setKursDiffFor] = useState<Invoice | null>(null);
+  const [kursActualCHF, setKursActualCHF] = useState('');
 
   // ── Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -552,6 +559,41 @@ export default function Rechnungen() {
       if (!isDemo) api.invoices.update(updated).catch(console.error);
       return updated;
     }));
+    // Kursdifferenz prompt when paying a foreign-currency invoice
+    if (status === 'Bezahlt') {
+      const inv = invoices.find(i => i.id === id);
+      if (inv && inv.currency && inv.currency !== 'CHF') {
+        const { total } = calcInvoiceTotals(inv.items);
+        const chfEquiv = toCHF(total, inv.currency, rates).toFixed(2);
+        setKursActualCHF(chfEquiv);
+        setKursDiffFor(inv);
+      }
+    }
+  };
+
+  const handleKursDiff = () => {
+    if (!kursDiffFor) return;
+    const { total } = calcInvoiceTotals(kursDiffFor.items);
+    const expectedCHF = toCHF(total, kursDiffFor.currency, rates);
+    const actualCHF   = parseFloat(kursActualCHF) || expectedCHF;
+    const diff        = actualCHF - expectedCHF;
+    if (Math.abs(diff) > 0.01) {
+      const isGain = diff > 0;
+      addBooking({
+        date:          new Date().toISOString().split('T')[0],
+        description:   `Kursdifferenz ${kursDiffFor.number} (${kursDiffFor.currency})`,
+        account:       isGain ? '1020 Bankguthaben'      : '3901 Kursdifferenzen',
+        contraAccount: isGain ? '3901 Kursdifferenzen'   : '1020 Bankguthaben',
+        category:      isGain ? 'Ertrag'                 : 'Aufwand',
+        amount:        Math.abs(diff),
+        vatRate:       0,
+        currency:      'CHF',
+        paymentStatus: 'Bezahlt',
+        type:          isGain ? 'Einnahme'               : 'Ausgabe',
+      });
+      setNotification({ type: 'success', title: 'Kursdifferenz gebucht', message: `${isGain ? 'Kursgewinn' : 'Kursverlust'} CHF ${Math.abs(diff).toFixed(2)} wurde automatisch gebucht.` });
+    }
+    setKursDiffFor(null);
   };
 
   const handleSendMahnung = async (level: MahnungLevel, message: string) => {
@@ -789,6 +831,62 @@ export default function Rechnungen() {
           sending={sendingMahnung}
         />
       )}
+
+      {/* ── Kursdifferenz Dialog ──────────────────────────────────── */}
+      {kursDiffFor && (() => {
+        const { total } = calcInvoiceTotals(kursDiffFor.items);
+        const expectedCHF = toCHF(total, kursDiffFor.currency, rates);
+        const actualVal   = parseFloat(kursActualCHF) || expectedCHF;
+        const diff        = actualVal - expectedCHF;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
+                <svg className="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h2 className="text-base font-semibold text-slate-900">Kursdifferenz prüfen</h2>
+              </div>
+              <div className="space-y-3 px-6 py-5">
+                <p className="text-sm text-slate-600">
+                  Rechnung {kursDiffFor.number} lautet auf <strong>{kursDiffFor.currency}</strong>. Bitte den tatsächlich erhaltenen CHF-Betrag eintragen.
+                </p>
+                <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Rechnungsbetrag</span>
+                    <span className="font-medium">{kursDiffFor.currency} {total.toLocaleString('de-CH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-slate-500">Kurs (heute)</span>
+                    <span className="font-medium">≈ CHF {expectedCHF.toLocaleString('de-CH', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Tatsächlicher Eingang (CHF)</label>
+                  <input type="number" step="0.01" value={kursActualCHF}
+                    onChange={e => setKursActualCHF(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
+                </div>
+                {Math.abs(diff) > 0.01 && (
+                  <p className={`text-xs font-medium ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {diff > 0 ? '📈 Kursgewinn' : '📉 Kursverlust'}: CHF {Math.abs(diff).toFixed(2)} → wird automatisch auf Konto 3901 gebucht.
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                <button onClick={() => setKursDiffFor(null)}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                  Überspringen
+                </button>
+                <button onClick={handleKursDiff}
+                  className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                  Buchen
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {notification && (
         <NotificationModal

@@ -9,6 +9,7 @@ import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import { useAccounts } from '../hooks/useAccounts';
 import { suggestForDraft, type KittySuggestion } from '../utils/kittySuggester';
+import { useForex, toCHF } from '../hooks/useForex';
 
 const initialDraft: BookingDraft = {
   date: new Date().toISOString().split('T')[0],
@@ -49,6 +50,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
   const { accounts } = useAccounts();
   const [kittySuggestion, setKittySuggestion] = useState<KittySuggestion | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { rates } = useForex();
 
   // Proactive Kitty feedback – debounced 700 ms after user stops typing
   useEffect(() => {
@@ -282,6 +284,11 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
             placeholder="0.00"
             required
           />
+          {draft.currency !== 'CHF' && draft.amount > 0 && (
+            <span className="mt-1 block text-xs text-slate-400">
+              ≈ CHF {toCHF(draft.amount, draft.currency, rates).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          )}
         </label>
         <label className="text-sm text-slate-600">
           {vatLabel} (%)

@@ -48,7 +48,7 @@
 - [x] **9. Treuhänder-Zugang**
   Externer Steuerberater erhält zeitlich begrenzten Read-only-Zugriff per Einladungslink.
 
-- [ ] **10. Spesenabrechnungen**
+- [x] **10. Spesenabrechnungen**
   Mitarbeiter erfasst Spesen (Betrag, Kategorie, Beleg-Foto).
   Vorgesetzter genehmigt oder lehnt ab → automatische Lohnbuchung.
 
