@@ -363,7 +363,7 @@ export default function Kontakte() {
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50 text-xs font-medium text-slate-500">
               <tr>

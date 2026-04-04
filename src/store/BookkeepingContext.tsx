@@ -211,6 +211,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
 
     upsertTemplate(pattern, {
       account:       doc.draft.account,
+      contraAccount: doc.draft.contraAccount,
       category:      doc.draft.category,
       vatRate:       doc.draft.vatRate,
       currency:      doc.draft.currency,
@@ -227,7 +228,8 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     if (!isDemo) {
       api.documents.update(id, { status: 'Gebucht' }).catch(console.error);
       api.templates.upsert(pattern, {
-        account: doc.draft.account, category: doc.draft.category,
+        account: doc.draft.account, contraAccount: doc.draft.contraAccount,
+        category: doc.draft.category,
         vatRate: doc.draft.vatRate, currency: doc.draft.currency,
         type: doc.draft.type, paymentStatus: doc.draft.paymentStatus,
       }).catch(console.error);

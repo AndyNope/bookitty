@@ -180,7 +180,7 @@ export default function Subventionen() {
             <p className="font-semibold">Buchhaltungshinweis</p>
             <p className="mt-1">Staatliche Subventionen werden gemäss OR Art. 959c unter den sonstigen Erträgen ausgewiesen. Sie sind in der Regel MwSt-befreit. Rückzahlungsverpflichtungen müssen als Verbindlichkeit erfasst werden.</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-xs text-slate-400">
                 <tr>

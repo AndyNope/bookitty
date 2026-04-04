@@ -21,8 +21,6 @@ define('DB_PORT', 3306);
 define('DB_NAME', $isProd  ? 'bookitty'    : 'bookitty_local');
 define('DB_USER', $isProd  ? 'bookitty'    : 'bookitty');
 define('DB_PASS', $isProd  ? '<<PROD_DB_PASS_HIER>>' : 'local_secret');
-define('DB_USER', $isProd  ? 'bookitty'    : 'bookitty');
-define('DB_PASS', $isProd  ? '<<PROD_DB_PASS_HIER>>' : 'local_secret');
 
 // ─── JWT ──────────────────────────────────────────────────────────────────────
 // IMPORTANT: Replace with a strong random 64-char string before going live!
