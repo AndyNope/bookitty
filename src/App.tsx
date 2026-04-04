@@ -17,6 +17,7 @@ import Mwst from './pages/Mwst';
 import Lohn from './pages/Lohn';
 import Spesen from './pages/Spesen';
 import JahresabschlussAssistent from './pages/JahresabschlussAssistent';
+import Archiv from './pages/Archiv';
 import Import from './pages/Import';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -65,6 +66,7 @@ const App = () => (
       <Route path="lohn"           element={<Lohn />} />
       <Route path="spesen"         element={<Spesen />} />
       <Route path="jahresabschluss"  element={<JahresabschlussAssistent />} />
+      <Route path="archiv"           element={<Archiv />} />
       <Route path="import"         element={<Import />} />
       <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>
@@ -92,6 +94,7 @@ const App = () => (
       <Route path="lohn"           element={<Lohn />} />
       <Route path="spesen"         element={<Spesen />} />
       <Route path="jahresabschluss"  element={<JahresabschlussAssistent />} />
+      <Route path="archiv"           element={<Archiv />} />
       <Route path="import"         element={<Import />} />
       <Route path="einstellungen"  element={<Einstellungen />} />
     </Route>

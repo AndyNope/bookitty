@@ -68,7 +68,7 @@
 
 ## 🟡 Nice-to-have – mittelfristig
 
-- [ ] **14. 10-Jahres-Archivierung (GeBüV-konform)**
+- [x] **14. 10-Jahres-Archivierung (GeBüV-konform)**
   ZIP-Download aller Belege + JSON-Export aller Buchungen.
   Optional: verschlüsselte Cloud-Ablage (S3 o. ä.).
   Gesetzliche Pflicht – muss vor erstem echten Kundeneinsatz gelöst sein.
