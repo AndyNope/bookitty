@@ -115,6 +115,6 @@
   Swiss GAAP FER-konformes Reporting als optionales Modul.
   Würde System auch für mittlere Unternehmen attraktiv machen.
 
-- [ ] **25. Staatliche Subventionen / HSG-Startup-Programm**
+- [x] **25. Staatliche Subventionen / HSG-Startup-Programm**
   Förderantrag oder Kooperation prüfen (erst relevant nach MVP + Team).
   HSG-Startup-Programm: Mentoring, Infrastruktur, Netzwerk.
