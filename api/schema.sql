@@ -116,10 +116,12 @@ CREATE TABLE IF NOT EXISTS invoices (
     notes            TEXT           DEFAULT NULL,
     mahnung_level    TINYINT UNSIGNED DEFAULT NULL,
     mahnung_date     VARCHAR(20)    DEFAULT NULL,
+    portal_token     VARCHAR(64)    DEFAULT NULL,
     created_at       TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_invoices_user   (user_id),
     KEY idx_invoices_number (number),
+    KEY idx_invoices_token  (portal_token),
     CONSTRAINT fk_invoices_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

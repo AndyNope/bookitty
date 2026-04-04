@@ -25,6 +25,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Invite from './pages/Invite';
 import NotFound from './pages/NotFound';
+import Portal from './pages/Portal';
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -41,6 +42,9 @@ const App = () => (
   <Routes>
     {/* ── Landing page ─────────────────────────────────────────────────── */}
     <Route path="/" element={<Landing />} />
+
+    {/* ── Public portal (no auth) ────────────────────────────────────── */}
+    <Route path="portal/:token" element={<Portal />} />
 
     {/* ── Auth pages ───────────────────────────────────────────────────── */}
     <Route path="login"    element={<Login />} />

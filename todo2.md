@@ -89,7 +89,7 @@
   i18n-Framework (z. B. i18next) einbauen.
   Priorität: Französisch für Westschweizer KMU.
 
-- [ ] **19. Kundenkonto-Portal**
+- [x] **19. Kundenkonto-Portal**
   Kunde erhält Link, um eigene Rechnungen online einzusehen und Zahlungsstatus zu prüfen.
 
 - [ ] **20. Integriertes Zahlungssystem**

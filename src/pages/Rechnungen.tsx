@@ -482,6 +482,29 @@ export default function Rechnungen() {
   // Kursdifferenz dialog
   const [kursDiffFor, setKursDiffFor] = useState<Invoice | null>(null);
   const [kursActualCHF, setKursActualCHF] = useState('');
+  const [portalLink, setPortalLink] = useState<string | null>(null);
+
+  const handlePortalLink = async (inv: Invoice) => {
+    try {
+      if (isDemo) {
+        // Demo: encode invoice data as base64 in token
+        const payload = {
+          number: inv.number, date: inv.date, dueDate: inv.dueDate,
+          status: inv.status, contactName: inv.contactName ?? '',
+          items: inv.items, currency: inv.currency ?? 'CHF',
+          notes: inv.notes, iban: inv.iban, reference: inv.reference,
+          issuerCompany: 'Bookitty Demo',
+        };
+        const token = 'demo_' + btoa(JSON.stringify(payload));
+        setPortalLink(`${window.location.origin}/portal/${token}`);
+      } else {
+        const res = await api.portal.generate(String(inv.id));
+        setPortalLink(`${window.location.origin}/portal/${res.token}`);
+      }
+    } catch {
+      setPortalLink(null);
+    }
+  };
 
   // ── Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -786,6 +809,14 @@ export default function Rechnungen() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
+                        {/* Portal link */}
+                        <button title="Portal-Link generieren"
+                          onClick={() => handlePortalLink(inv)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                        </button>
                         {/* Delete */}
                         <button title="Löschen"
                           onClick={() => setDeleting(inv)}
@@ -830,6 +861,29 @@ export default function Rechnungen() {
           onClose={() => setMahnungFor(null)}
           sending={sendingMahnung}
         />
+      )}
+
+      {/* ── Portal-Link Modal ─────────────────────────────────────── */}
+      {portalLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-semibold text-slate-800">🔗 Portal-Link</h3>
+            <p className="text-sm text-slate-500">Teile diesen Link mit dem Kunden. Die Rechnung ist ohne Login einsehbar.</p>
+            <div className="flex items-center gap-2">
+              <input readOnly value={portalLink}
+                className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-700 focus:outline-none"
+              />
+              <button
+                onClick={() => { navigator.clipboard.writeText(portalLink); }}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700">
+                Kopieren
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => setPortalLink(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Schliessen</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Kursdifferenz Dialog ──────────────────────────────────── */}

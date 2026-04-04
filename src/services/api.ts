@@ -162,4 +162,8 @@ export const api = {
   forex: {
     rates: () => apiFetch<{ base: string; date: string; rates: Record<string, number>; source: string }>('/forex.php'),
   },
+
+  portal: {
+    generate: (id: string) => apiFetch<{ token: string; url: string }>('/portal.php', { method: 'POST', body: JSON.stringify({ id }) }),
+  },
 };
