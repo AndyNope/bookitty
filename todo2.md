@@ -99,7 +99,7 @@
 
 ## 🔵 Strategisch – Wachstum & Differenzierung
 
-- [ ] **21. Direkte Bankverbindung (Open Banking)**
+- [x] **21. Direkte Bankverbindung (Open Banking)**
   Kontoauszüge per API automatisch einlesen (PostFinance Connect, Raiffeisen API, ZAK).
   Vollautomatisches Matching ohne manuellen CSV-Import.
 

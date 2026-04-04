@@ -83,6 +83,8 @@ export default function Bankabgleich() {
   const [notification, setNotification]   = useState<{ type: 'success' | 'error'; title: string; message: string } | null>(null);
   const [filterMode,   setFilterMode]     = useState<'Alle' | 'Offen' | 'Bezahlt' | 'Ignoriert'>('Alle');
   const [fileName,     setFileName]       = useState('');
+  const [obSyncing,    setObSyncing]      = useState(false);
+  const [obDone,       setObDone]         = useState(false);
 
   // Derive matches whenever transactions or bookings change
   useEffect(() => {
@@ -212,6 +214,26 @@ export default function Bankabgleich() {
   };
 
   const canApply = Object.values(txState).some(s => s.decision === 'accept' || s.decision === 'new');
+
+  // ── Open Banking demo sync ────────────────────────────────────────────────
+  const handleObSync = () => {
+    setObSyncing(true);
+    setObDone(false);
+    setTimeout(() => {
+      const today = new Date().toISOString().slice(0, 10);
+      const mockTxs: BankTransaction[] = [
+        { id: `ob-${Date.now()}-1`, date: today, description: 'TWINT Zahlung Max Müller AG', amount: 2450.00, currency: 'CHF' },
+        { id: `ob-${Date.now()}-2`, date: today, description: 'Miete Juli 2025 UBS Hypothek', amount: -2800.00, currency: 'CHF' },
+        { id: `ob-${Date.now()}-3`, date: today, description: 'SBB Abonnement', amount: -399.00, currency: 'CHF' },
+      ];
+      mockTxs.sort((a, b) => b.date.localeCompare(a.date));
+      setTransactions(mockTxs);
+      setTxState({});
+      setFileName('PostFinance Connect (Demo)');
+      setObSyncing(false);
+      setObDone(true);
+    }, 1800);
+  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   const openBookings = useMemo(
@@ -518,6 +540,71 @@ export default function Bankabgleich() {
           onClose={() => setNotification(null)}
         />
       )}
+
+      {/* ── Open Banking / Direct Connect ──────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Open Banking – Direkte Verbindung</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Kontoauszüge automatisch einlesen ohne manuellen Export</p>
+          </div>
+          <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">Beta</span>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Supported banks */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {[
+              { name: 'PostFinance',     status: isDemo ? 'Verbunden (Demo)' : 'Konfigurieren', connected: isDemo },
+              { name: 'Raiffeisen',      status: 'Konfigurieren', connected: false },
+              { name: 'ZKB',             status: 'Konfigurieren', connected: false },
+              { name: 'UBS',             status: 'In Planung',    connected: false, planned: true },
+              { name: 'ZAK (Bank Cler)', status: 'Konfigurieren', connected: false },
+              { name: 'Neon',            status: 'In Planung',    connected: false, planned: true },
+            ].map(b => (
+              <div key={b.name} className={`rounded-xl border p-3 ${b.connected ? 'border-emerald-200 bg-emerald-50' : b.planned ? 'border-slate-100 bg-slate-50' : 'border-slate-200 bg-white'}`}>
+                <p className="text-sm font-medium text-slate-800">{b.name}</p>
+                <p className={`mt-0.5 text-xs ${b.connected ? 'text-emerald-600' : b.planned ? 'text-slate-400 italic' : 'text-slate-400'}`}>{b.status}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Sync button (demo) or info (app) */}
+          {isDemo ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleObSync}
+                disabled={obSyncing}
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                {obSyncing ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Verbinde…
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Jetzt synchronisieren
+                  </>
+                )}
+              </button>
+              {obDone && <span className="text-xs text-emerald-600 font-medium">✓ Synchronisierung abgeschlossen</span>}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Konfiguriere deine Bank-API-Verbindung in den <strong>Einstellungen → Integrationen</strong>, um die automatische Synchronisierung zu aktivieren.
+            </div>
+          )}
+
+          <p className="text-[11px] text-slate-400">
+            Open Banking nutzt die offiziellen Bank-APIs (ISO 20022 / PSD2-kompatibel). Deine Zugangsdaten werden verschlüsselt gespeichert und niemals an Dritte weitergegeben.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
