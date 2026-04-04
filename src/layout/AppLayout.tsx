@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { getNavProfile, getHiddenPages, isPageVisible, type NavProfile } from '../utils/navProfileStore';
 import { useAuth } from '../store/AuthContext';
 import KittyChat from '../components/KittyChat';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
@@ -255,6 +256,22 @@ const AppLayout = () => {
   const base   = isDemo ? '/demo' : '/app';
   const navItems = buildNavItems(base);
 
+  const [navProfile, setNavProfile] = useState<NavProfile>(getNavProfile);
+  const [hiddenPages, setHiddenPages] = useState<string[]>(getHiddenPages);
+
+  useEffect(() => {
+    const handler = () => {
+      setNavProfile(getNavProfile());
+      setHiddenPages(getHiddenPages());
+    };
+    window.addEventListener('bookitty:navprofile', handler);
+    return () => window.removeEventListener('bookitty:navprofile', handler);
+  }, []);
+
+  const visibleNavItems = navItems.filter(
+    (item) => item.kittyId === 'einstellungen' || isPageVisible(item.kittyId, navProfile, hiddenPages),
+  );
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -337,7 +354,7 @@ const AppLayout = () => {
           </div>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <div className="flex flex-col gap-1 text-sm">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -405,7 +422,7 @@ const AppLayout = () => {
           </div>
         </div>
         <nav className="flex flex-col gap-2 text-sm">
-          {navItems.filter((item) => item.kittyId !== 'einstellungen').map((item) => (
+          {visibleNavItems.filter((item) => item.kittyId !== 'einstellungen').map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -502,7 +519,7 @@ const AppLayout = () => {
     {/* ── Mobile bottom tab bar – 5 fixed tabs + Mehr ── */}
     <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white lg:hidden">
       <div className="flex">
-        {navItems.slice(0, 4).map((item) => {
+        {visibleNavItems.filter((item) => item.kittyId !== 'einstellungen').slice(0, 4).map((item) => {
           const isActive = item.end
             ? location.pathname === item.to
             : location.pathname.startsWith(item.to);

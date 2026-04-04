@@ -118,3 +118,24 @@
 - [x] **25. Staatliche Subventionen / HSG-Startup-Programm**
   Förderantrag oder Kooperation prüfen (erst relevant nach MVP + Team).
   HSG-Startup-Programm: Mentoring, Infrastruktur, Netzwerk.
+
+- [ ] **26. Navigation-Profile & manuelle Seiten-Sichtbarkeit**
+  Nutzer kann bereits bei der **Registrierung ein Profil wählen**, das nur die relevanten Seiten einblendet.
+  In den **Einstellungen** lässt sich jede Seite danach manuell ein- oder ausblenden – oder ein anderes Profil wählen.
+  Profil-Wechsel überschreibt immer alle manuellen Einstellungen.
+
+  **Profile:**
+  | Profil | Enthaltene Seiten | Zielgruppe |
+  |---|---|---|
+  | 🗂 **Starter** | Dashboard, Buchungen, Dokumente | Freelancer / Einzel­unternehmer ohne Mitarbeiter |
+  | 📄 **Rechnungssteller** | + Rechnungen, Offerten, Kontakte | Selbstständige mit regelmässiger Rechnungsstellung |
+  | 🏪 **Händler** | + Lager, Import, Bilanz | KMU mit Warenhandel |
+  | 👥 **Arbeitgeber** | + Lohn, Spesen, Zeiterfassung | Unternehmen mit Angestellten |
+  | 🏢 **Volle Übersicht** | Alle Seiten | Buchhalter / Admin – nichts ist ausgeblendet |
+
+  **Umsetzung:**
+  - Profil + manuelle Overrides in `localStorage` (`navProfile`, `hiddenPages[]`) speichern → kein Backend nötig.
+  - `AppLayout.tsx`: Nav-Links anhand Profil + Overrides filtern.
+  - `Einstellungen.tsx`: neuer Abschnitt "Navigation anpassen" – Profil-Karten + Toggle-Liste aller Seiten.
+  - `Register.tsx`: optionaler Schritt nach Firmenname – Profil-Auswahl mit "Überspringen".
+  - Profil-Wechsel zeigt Bestätigungs-Hinweis: „Manuelle Einstellungen werden überschrieben."

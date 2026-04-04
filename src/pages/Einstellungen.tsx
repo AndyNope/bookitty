@@ -8,6 +8,10 @@ import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../d
 import { useAccounts } from '../hooks/useAccounts';
 import NotificationModal from '../components/NotificationModal';
 import type { TeamMember, UserRole } from '../types';
+import {
+  getNavProfile, saveNavProfile, getHiddenPages, saveHiddenPages,
+  NAV_PROFILES, ALL_PAGES, PAGE_LABELS, isPageVisible, type NavProfile,
+} from '../utils/navProfileStore';
 
 type ImapConfig = {
   host: string;
@@ -73,6 +77,25 @@ const Einstellungen = () => {
   const [treuDays,       setTreuDays]      = useState(30);
   const [treuLoading,    setTreuLoading]   = useState(false);
   const [treuError,      setTreuError]     = useState('');
+
+  // Nav profile
+  const [navProfile, setNavProfile] = useState<NavProfile>(getNavProfile);
+  const [hiddenPages, setHiddenPages] = useState<string[]>(getHiddenPages);
+
+  const handleProfileChange = (profile: NavProfile) => {
+    if (hiddenPages.length > 0 && !confirm('Deine manuellen Seiteneinstellungen werden zurückgesetzt. Profil trotzdem wechseln?')) return;
+    saveNavProfile(profile);
+    setNavProfile(profile);
+    setHiddenPages([]);
+  };
+
+  const handleTogglePage = (kittyId: string, currentlyVisible: boolean) => {
+    const newHidden = currentlyVisible
+      ? [...hiddenPages, kittyId]
+      : hiddenPages.filter((id) => id !== kittyId);
+    setHiddenPages(newHidden);
+    saveHiddenPages(newHidden);
+  };
 
   const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'success', title: '', message: '',
@@ -568,6 +591,98 @@ const Einstellungen = () => {
           </div>
         </div>
       )}
+
+      {/* ── Navigation anpassen ─────────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-1 text-base font-semibold text-slate-900">Navigation anpassen</h3>
+        <p className="mb-5 text-xs text-slate-500">
+          Wähle ein Profil, um nur die relevanten Seiten anzuzeigen. Du kannst danach einzelne Seiten manuell ein- oder ausblenden.
+        </p>
+
+        {/* Profile cards */}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {(Object.entries(NAV_PROFILES) as [NavProfile, typeof NAV_PROFILES[NavProfile]][]).map(([key, profile]) => {
+            const isActive = navProfile === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleProfileChange(key)}
+                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${
+                  isActive
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <span className="text-2xl">{profile.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold leading-tight">{profile.label}</p>
+                  <p className={`text-xs leading-tight mt-0.5 ${
+                    isActive ? 'text-slate-400' : 'text-slate-500'
+                  }`}>{profile.description}</p>
+                </div>
+                {isActive && (
+                  <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Manual page toggles */}
+        <div className="mt-6 border-t border-slate-100 pt-5">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Seiten manuell ein-/ausblenden</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {ALL_PAGES.map((kittyId) => {
+              const label = PAGE_LABELS[kittyId];
+              const profilePages = NAV_PROFILES[navProfile].pages;
+              const inProfile = profilePages.length === 0 || profilePages.includes(kittyId);
+              const visible = isPageVisible(kittyId, navProfile, hiddenPages);
+              return (
+                <div
+                  key={kittyId}
+                  className={`flex items-center justify-between rounded-lg border px-3 py-2.5 ${
+                    !inProfile ? 'border-slate-100 bg-slate-50 opacity-50' : 'border-slate-200'
+                  }`}
+                >
+                  <span className="text-sm text-slate-700">{label}</span>
+                  <div className="flex items-center gap-2">
+                    {!inProfile && (
+                      <span className="text-[10px] text-slate-400">Nicht im Profil</span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={!inProfile}
+                      onClick={() => inProfile && handleTogglePage(kittyId, visible)}
+                      title={visible ? 'Ausblenden' : 'Einblenden'}
+                      className={`relative h-5 w-9 rounded-full transition-colors disabled:cursor-not-allowed ${
+                        visible ? 'bg-slate-900' : 'bg-slate-200'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                          visible ? 'translate-x-4' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {hiddenPages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setHiddenPages([]); saveHiddenPages([]); }}
+              className="mt-3 text-xs text-slate-500 underline hover:text-slate-800"
+            >
+              Alle manuellen Einstellungen zurücksetzen
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-2 text-base font-semibold text-slate-900">Über Bookitty</h3>        <p className="text-sm text-slate-500">

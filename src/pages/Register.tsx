@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import LogoLoader from '../components/LogoLoader';
 import NotificationModal from '../components/NotificationModal';
+import { saveNavProfile, NAV_PROFILES, type NavProfile } from '../utils/navProfileStore';
 
 const Register = () => {
   const { register, user, isLoading } = useAuth();
@@ -19,9 +20,15 @@ const Register = () => {
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [chosenProfile, setChosenProfile] = useState<NavProfile | null>(null);
   const [notify,  setNotify]  = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'error', title: '', message: '',
   });
+
+  const handleChooseProfile = (profile: NavProfile) => {
+    setChosenProfile(profile);
+    saveNavProfile(profile);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,20 +69,57 @@ const Register = () => {
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
 
           {success ? (
-            /* ── Success state ────────────────────────────────────────────── */
-            <div className="text-center space-y-4">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                <svg className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0-9.75 6.75L2.25 6.75" />
-                </svg>
+            /* ── Success + Profile picker ──────────────────────────────────── */
+            <div className="space-y-5">
+              <div className="text-center space-y-3">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0-9.75 6.75L2.25 6.75" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">Fast fertig!</h2>
+                <p className="text-sm text-slate-600">{success}</p>
               </div>
-              <h2 className="text-lg font-semibold text-slate-900">Fast fertig!</h2>
-              <p className="text-sm text-slate-600">{success}</p>
+
+              <div className="border-t border-slate-100 pt-5">
+                <p className="mb-3 text-sm font-medium text-slate-700">Welches Profil passt zu dir?</p>
+                <div className="flex flex-col gap-2">
+                  {(Object.keys(NAV_PROFILES) as NavProfile[]).map((key) => {
+                    const p = NAV_PROFILES[key];
+                    const isChosen = chosenProfile === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => handleChooseProfile(key)}
+                        className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                          isChosen
+                            ? 'border-slate-900 bg-slate-900 text-white'
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="text-lg">{p.emoji}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold">{p.label}</p>
+                          <p className={`text-xs ${isChosen ? 'text-slate-300' : 'text-slate-500'}`}>{p.description}</p>
+                        </div>
+                        {isChosen && (
+                          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-[11px] text-slate-400">Du kannst das Profil jederzeit in den Einstellungen ändern.</p>
+              </div>
+
               <Link
                 to="/login"
-                className="mt-4 inline-block rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+                className="mt-2 block w-full rounded-xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-slate-800"
               >
-                Zur Anmeldung
+                {chosenProfile ? 'Los geht\u2019s \u2192' : '\u00dcberspringen & Anmelden'}
               </Link>
             </div>
           ) : (
