@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../store/AuthContext';
 import SectionHeader from '../components/SectionHeader';
 import NotificationModal from '../components/NotificationModal';
 import { api } from '../services/api';
@@ -462,6 +463,7 @@ const MahnungDialog = ({
 export default function Rechnungen() {
   const location = useLocation();
   const isDemo   = location.pathname.startsWith('/demo');
+  const { isReadonly } = useAuth();
 
   const [invoices,  setInvoices]  = useState<Invoice[]>([]);
   const [contacts,  setContacts]  = useState<Contact[]>([]);
@@ -600,6 +602,7 @@ export default function Rechnungen() {
         title="Rechnungen"
         subtitle={`${invoices.length} total · ${stats.offen} offen · ${stats.overdue > 0 ? stats.overdue + ' überfällig' : 'keine überfällig'}`}
         action={
+          !isReadonly ? (
           <button
             onClick={() => { setEditing(null); setModal('add'); }}
             className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
@@ -609,6 +612,7 @@ export default function Rechnungen() {
             </svg>
             Neue Rechnung
           </button>
+          ) : <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-400">Nur-Lesen</span>
         }
       />
 

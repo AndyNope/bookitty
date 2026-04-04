@@ -33,15 +33,15 @@
 
 ## 🟠 Wichtig – oft nachgefragt, klarer Mehrwert
 
-- [ ] **6. Offerten / Angebote**
+- [x] **6. Offerten / Angebote**
   Angebotsstellung mit eigenem Nummernkreis (AN-2026-001).
   1-Klick-Umwandlung Angebot → Rechnung.
 
-- [ ] **7. Mahnungen versenden**
+- [x] **7. Mahnungen versenden**
   Zahlungserinnerungs-E-Mail direkt aus App versenden (1. / 2. / 3. Mahnung).
   Auf Basis der bestehenden Fälligkeits-Badges und IMAP-Konfiguration aufbauen.
 
-- [ ] **8. Mehrbenutzer + Rollen**
+- [x] **8. Mehrbenutzer + Rollen**
   Admin / Buchhalter / Mitarbeiter (Read-only) pro Firma.
   JWT-basiertes Rollen-System im Backend (api/auth.php erweitern).
 

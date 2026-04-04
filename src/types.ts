@@ -1,5 +1,22 @@
 export type BookingType = 'Einnahme' | 'Ausgabe';
 export type PaymentStatus = 'Offen' | 'Bezahlt';
+export type UserRole = 'admin' | 'buchhalter' | 'readonly';
+
+export type TeamMember = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  joined_at: string;
+  is_owner: boolean;
+};
+
+export type Invitation = {
+  email: string;
+  role: UserRole;
+  inviter_name: string;
+  user_exists: boolean;
+};
 
 export type InvoiceStatus = 'Entwurf' | 'Versendet' | 'Bezahlt' | 'Überfällig' | 'Storniert';
 export type OfferStatus  = 'Entwurf' | 'Versendet' | 'Angenommen' | 'Abgelehnt' | 'Abgelaufen';

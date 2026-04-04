@@ -11,16 +11,14 @@
  * Returns: { ok: true } | { error: string }
  */
 require_once __DIR__ . '/cors.php';
-require_once __DIR__ . '/jwt.php';
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-$payload = verify_jwt();
-if (!$payload) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); exit; }
-$userId = (int) $payload['sub'];
+$userId = effective_uid();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405); echo json_encode(['error' => 'Method Not Allowed']); exit;

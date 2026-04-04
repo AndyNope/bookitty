@@ -5,7 +5,7 @@ require_once __DIR__ . '/auth.php';
 
 set_cors_headers();
 
-$userId = require_auth();
+$userId = effective_uid();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

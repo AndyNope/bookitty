@@ -24,7 +24,7 @@ if (!$email || !$pass) {
 
 $pdo  = get_db();
 $stmt = $pdo->prepare(
-    'SELECT id, name, email, password_hash, email_confirmed FROM users WHERE email = ?'
+    'SELECT id, name, email, password_hash, email_confirmed, role, company_id FROM users WHERE email = ?'
 );
 $stmt->execute([$email]);
 $user = $stmt->fetch();
@@ -47,18 +47,27 @@ if (password_needs_rehash($user['password_hash'], PASSWORD_BCRYPT, ['cost' => 12
         ->execute([password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]), $user['id']]);
 }
 
-$token = jwt_encode([
+$role      = $user['role'] ?? 'admin';
+$companyId = $user['company_id'] ? (int) $user['company_id'] : null;
+
+$jwtPayload = [
     'sub'   => $user['id'],
     'email' => $user['email'],
+    'role'  => $role,
     'iat'   => time(),
     'exp'   => time() + JWT_EXPIRY,
-], JWT_SECRET);
+];
+if ($companyId !== null) $jwtPayload['company_id'] = $companyId;
+
+$token = jwt_encode($jwtPayload, JWT_SECRET);
 
 echo json_encode([
     'token' => $token,
     'user'  => [
-        'id'    => (int) $user['id'],
-        'email' => $user['email'],
-        'name'  => $user['name'],
+        'id'         => (int) $user['id'],
+        'email'      => $user['email'],
+        'name'       => $user['name'],
+        'role'       => $role,
+        'company_id' => $companyId,
     ],
 ]);

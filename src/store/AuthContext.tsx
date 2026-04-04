@@ -10,6 +10,8 @@ import { api, tokenStore, type AuthUser } from '../services/api';
 type AuthContextValue = {
   user:      AuthUser | null;
   isLoading: boolean;
+  isReadonly: boolean;   // true when role === 'readonly'
+  isAdmin:   boolean;    // true when role === 'admin' (and not demo)
   login:     (email: string, password: string) => Promise<void>;
   logout:    () => void;
   register:  (name: string, email: string, password: string) => Promise<{ message: string }>;
@@ -75,7 +77,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register }}>
+    <AuthContext.Provider value={{
+      user, isLoading,
+      isReadonly: user?.role === 'readonly',
+      isAdmin:    user?.role === 'admin',
+      login, logout, register,
+    }}>
       {children}
     </AuthContext.Provider>
   );

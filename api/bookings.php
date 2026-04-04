@@ -6,7 +6,7 @@ require_once __DIR__ . '/auth.php';
 
 set_cors_headers();
 
-$userId = require_auth();
+$userId = effective_uid();
 $pdo    = get_db();
 $method = $_SERVER['REQUEST_METHOD'];
 

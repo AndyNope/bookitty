@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $userId = require_auth();
 
 $pdo  = get_db();
-$stmt = $pdo->prepare('SELECT id, email, name FROM users WHERE id = ?');
+$stmt = $pdo->prepare('SELECT id, email, name, role, company_id FROM users WHERE id = ?');
 $stmt->execute([$userId]);
 $user = $stmt->fetch();
 
@@ -26,7 +26,9 @@ if (!$user) {
 }
 
 echo json_encode([
-    'id'    => (int) $user['id'],
-    'email' => $user['email'],
-    'name'  => $user['name'],
+    'id'         => (int) $user['id'],
+    'email'      => $user['email'],
+    'name'       => $user['name'],
+    'role'       => $user['role'] ?? 'admin',
+    'company_id' => $user['company_id'] ? (int) $user['company_id'] : null,
 ]);

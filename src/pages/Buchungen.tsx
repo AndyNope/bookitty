@@ -5,6 +5,7 @@ import BookingTable from '../components/BookingTable';
 import SectionHeader from '../components/SectionHeader';
 import NotificationModal from '../components/NotificationModal';
 import { useBookkeeping } from '../store/BookkeepingContext';
+import { useAuth } from '../store/AuthContext';
 import type { Booking, BookingDraft, BookingType, PaymentStatus } from '../types';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
 
@@ -12,6 +13,7 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 
 const Buchungen = () => {
   const { bookings, addBooking, removeBooking, updateBooking } = useBookkeeping();
+  const { isReadonly } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [prefilledDraft, setPrefilledDraft] = useState<Partial<BookingDraft> | undefined>();
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -95,6 +97,7 @@ const Buchungen = () => {
         title="Buchungen"
         subtitle="Erfassen, prüfen und verwalten Sie alle Buchungen."
         action={
+          !isReadonly ? (
           <button
             type="button"
             data-kitty-id="btn-neue-buchung"
@@ -107,6 +110,9 @@ const Buchungen = () => {
           >
             Neue Buchung
           </button>
+          ) : (
+            <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-400">Nur-Lesen</span>
+          )
         }
       />
 

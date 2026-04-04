@@ -14,7 +14,7 @@ set_error_handler(function (int $errno, string $errstr) {
     throw new ErrorException($errstr, $errno);
 });
 
-$userId = require_auth();
+$userId = effective_uid();
 $pdo    = get_db();
 $method = $_SERVER['REQUEST_METHOD'];
 

@@ -18,6 +18,7 @@ import Lohn from './pages/Lohn';
 import Import from './pages/Import';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Invite from './pages/Invite';
 import NotFound from './pages/NotFound';
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
@@ -39,6 +40,7 @@ const App = () => (
     {/* ── Auth pages ───────────────────────────────────────────────────── */}
     <Route path="login"    element={<Login />} />
     <Route path="register" element={<Register />} />
+    <Route path="invite"   element={<Invite />} />
 
     {/* ── Demo mode – localStorage, no login required ──────────────────── */}
     <Route

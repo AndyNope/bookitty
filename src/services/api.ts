@@ -1,4 +1,4 @@
-import type { Booking, Contact, DocumentImport, Invoice, Offer } from '../types';
+import type { Booking, Contact, DocumentImport, Invoice, Offer, TeamMember, Invitation, UserRole } from '../types';
 import type { Account } from '../data/chAccounts';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type AuthUser = { id: number; email: string; name: string };
+export type AuthUser = { id: number; email: string; name: string; role: import('../types').UserRole; company_id: number | null };
 
 // ─── API surface ──────────────────────────────────────────────────────────────
 export const api = {
@@ -128,6 +128,25 @@ export const api = {
       apiFetch<{ ok: boolean; level: number; sent_to: string }>('/mahnung.php', {
         method: 'POST',
         body: JSON.stringify({ invoice_id: invoiceId, level, message: message ?? '' }),
+      }),
+  },
+
+  team: {
+    list:   ()                          => apiFetch<TeamMember[]>('/team.php'),
+    invite: (email: string, role: UserRole) =>
+      apiFetch<{ ok: boolean; token: string }>('/team.php', { method: 'POST', body: JSON.stringify({ email, role }) }),
+    updateRole: (id: number, role: UserRole) =>
+      apiFetch<{ ok: boolean }>('/team.php', { method: 'PUT', body: JSON.stringify({ id, role }) }),
+    remove: (id: number) =>
+      apiFetch<{ ok: boolean }>('/team.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
+  },
+
+  invite: {
+    check:  (token: string)              => apiFetch<Invitation>(`/invite.php?token=${encodeURIComponent(token)}`),
+    accept: (token: string, name: string, password: string) =>
+      apiFetch<{ token: string; user: AuthUser }>('/invite.php', {
+        method: 'POST',
+        body: JSON.stringify({ token, name, password }),
       }),
   },
 };

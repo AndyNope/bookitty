@@ -14,9 +14,29 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash       VARCHAR(255)   NOT NULL,
     email_confirmed     TINYINT(1)     NOT NULL DEFAULT 0,
     confirmation_token  VARCHAR(64)    DEFAULT NULL,
+    role                VARCHAR(20)    NOT NULL DEFAULT 'admin',
+    company_id          INT            DEFAULT NULL,
     created_at          TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_users_email (email)
+    UNIQUE KEY uq_users_email (email),
+    CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── invitations ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS invitations (
+    id          INT            NOT NULL AUTO_INCREMENT,
+    token       VARCHAR(64)    NOT NULL,
+    email       VARCHAR(255)   NOT NULL,
+    role        VARCHAR(20)    NOT NULL DEFAULT 'buchhalter',
+    invited_by  INT            NOT NULL,
+    company_id  INT            NOT NULL,
+    used        TINYINT(1)     NOT NULL DEFAULT 0,
+    expires_at  TIMESTAMP      NOT NULL,
+    created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_inv_token (token),
+    KEY idx_inv_email (email),
+    CONSTRAINT fk_inv_inviter FOREIGN KEY (invited_by) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── bookings ─────────────────────────────────────────────────────────────────
