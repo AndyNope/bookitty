@@ -6,7 +6,7 @@
 
 ## Dashboard
 
-- [ ] **1. Dashboard: Karten verlinken**
+- [x] **1. Dashboard: Karten verlinken**
   Die fünf StatCards auf dem Dashboard sollen klickbar sein und direkt zur jeweiligen Seite führen
   (z. B. offene Rechnungen → `/app/rechnungen?filter=open`, Bankabgleich → `/app/bankabgleich`).
   `StatCard`-Komponente erhält ein optionales `to`-Prop, das via `react-router-dom` `Link` gerendert wird.
@@ -16,7 +16,7 @@
 
 ## Buchungen
 
-- [ ] **2. Buchungen: Konto-Suche / Autovervollständigung im Buchungsformular**
+- [x] **2. Buchungen: Konto-Suche / Autovervollständigung im Buchungsformular**
   Im `BookingForm` sollen die Felder für Soll- und Habenkonto eine Live-Suche (Combobox/Autocomplete)
   anbieten: Eingabe «erlös» filtert sofort alle Konten, bei denen die Bezeichnung oder Nummer den
   Teilstring enthält und zeigt sie als Dropdown (Format: `3400 – Dienstleistungserlöse`).
@@ -24,7 +24,7 @@
   Technisch: Debounce 150 ms, Client-seitig gegen `companyStore` / `customAccountStore` filtern;
   für grosse Kontenpläne: Server-Endpoint `/api/accounts?q=` als Fallback.
 
-- [ ] **3. Buchungen: Jahresgewinn-Konto vor manueller Buchung schützen**
+- [x] **3. Buchungen: Jahresgewinn-Konto vor manueller Buchung schützen**
   Das Abschlusskonto (Jahresgewinn, z. B. 2979) soll im `BookingForm` nicht frei buchbar sein.
   Hintergrund: Wird der Gewinn manuell eingebucht, entsteht ein inkonsistenter Doppeleintrag,
   wenn danach noch der Jahresabschluss-Assistent läuft.
@@ -36,14 +36,14 @@
 
 ## Rechnungen
 
-- [ ] **4. Rechnungen: Direktversand per E-Mail implementieren**
+- [x] **4. Rechnungen: Direktversand per E-Mail implementieren**
   Nutzer sollen eine Ausgangsrechnung ohne externes E-Mail-Programm direkt aus der App versenden können.
   Flow: Rechnung öffnen → «Senden»-Button → PDF wird generiert → Versand via `api/mailer.php`
   (mit Rechnung als Anhang) an die hinterlegte Empfängeradresse.
   Versandstatus (gesendet / fehlgeschlagen) in UI und DB festhalten; erneutes Senden bei Fehler ermöglichen.
   Technisch: `api/mailer.php` um ein Rechnungs-E-Mail-Template erweitern; PHPMailer/SMTP für Production.
 
-- [ ] **5. Rechnungen: Statusänderung nach «bezahlt» einschränken**
+- [-] **5. Rechnungen: Statusänderung nach «bezahlt» einschränken**
   Einmal als bezahlt markierte Rechnungen sollen nicht ohne Weiteres zurückgesetzt werden können.
   Begründung: Buchhalterische Integrität; verhindert versehentliche oder missbräuchliche Statusänderungen.
   Lösung: Nach «Als bezahlt markieren» (Bestätigungs-Dialog) ist der Status für Standardnutzer gesperrt.
@@ -54,7 +54,7 @@
 
 ## Navigation & UX
 
-- [ ] **6. Navigation: «Bilanz» umbenennen in «Bilanz / Erfolgsrechnung»**
+- [x] **6. Navigation: «Bilanz» umbenennen in «Bilanz / Erfolgsrechnung»**
   Der aktuelle Nav-Eintrag «Bilanz» deckt Bilanz und Erfolgsrechnung ab – das sollte im Label sichtbar sein.
   Änderung betrifft: `AppLayout.tsx`, Breadcrumbs, Seitentitel und allfällige Tests.
 
@@ -63,13 +63,13 @@
   Lösung: Eigener Nav-Eintrag «MWSt» mit der bestehenden MwSt-Übersicht (Vorsteuer,
   geschuldete MwSt, Saldo, ESTV-Formular). Bestehende MwSt-Logik aus `Bilanz.tsx` extrahieren.
 
-- [ ] **8. Dokumente: Upload-Bezeichnung für Kreditorenrechnungen intuitiver gestalten**
+- [x] **8. Dokumente: Upload-Bezeichnung für Kreditorenrechnungen intuitiver gestalten**
   Aktuell ist die Sektion unklarer betitelt. Nutzer müssen «raten», dass Lieferantenrechnungen
   unter «Dokumente» hochzuladen sind.
   Vorschlag: Abschnitt «Kreditorenrechnungen (Lieferanten)» mit kurzem Erklärungstext und
   einem Hinweis auf den Workflow (Upload → Erkennung → Buchungsvorschlag).
 
-- [ ] **9. Navigation: Reihenfolge und thematische Gruppen überarbeiten**
+- [x] **9. Navigation: Reihenfolge und thematische Gruppen überarbeiten**
   Die Navigation soll in logische Abschnitte (Trennlinien / Gruppen) unterteilt werden, z. B.:
   **Buchhaltung:** Dashboard, Buchungen, Import (Eröffnungsbuchhaltung), Bilanz / Erfolgsrechnung, Jahresabschluss
   **Rechnungen & Kontakte:** Rechnungen, Offerten, Kontakte
@@ -79,7 +79,7 @@
   **Sonstiges:** Archiv, Dokumente, Einstellungen
   Technisch: `navConfig.ts` einführen; `AppLayout.tsx` liest Gruppen + Items konfigurierbar aus JSON.
 
-- [ ] **10. Navigation: Subventionen als Spezialthema separat positionieren**
+- [x] **10. Navigation: Subventionen als Spezialthema separat positionieren**
   Subventionen sind ein Nischenthema (v. a. Startups / Förderanträge) und passen nicht
   in die Standard-Navigation unter normale Buchhaltungs-Tools.
   Vorschlag: Unter «Erweiterte Tools» / «Sonstiges» einstufen oder nur bei bestimmten
