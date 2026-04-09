@@ -186,7 +186,7 @@ const Dokumente = () => {
       />
       <SectionHeader
         title="Dokumenten-Import"
-        subtitle={`PDF- oder Bildbelege automatisch erkennen und als Buchung vorbereiten (OCR & QR-Scan).${
+        subtitle={`Kreditorenrechnungen & Lieferantenbelege hochladen — Workflow: Upload → Erkennung → Buchungsvorschlag.${
           isProcessing ? ' Erkennung läuft…' : ''
         }`}
         action={
@@ -247,7 +247,12 @@ const Dokumente = () => {
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         {/* Document list – hidden on mobile when form is open */}
         <div className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${mobileView === 'form' ? 'hidden lg:block' : ''}`}>
-          <h3 className="text-lg font-semibold text-slate-900">Eingehende Belege</h3>
+          <div className="mb-1">
+            <h3 className="text-lg font-semibold text-slate-900">Kreditorenrechnungen
+              <span className="ml-1.5 text-sm font-normal text-slate-400">(Lieferanten)</span>
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-400">Hochgeladene Belege werden automatisch erkannt und als Buchungsvorschlag vorbereitet.</p>
+          </div>
           <ul className="mt-4 space-y-3 text-sm text-slate-600">
             {documents.map((doc) => (
               <li

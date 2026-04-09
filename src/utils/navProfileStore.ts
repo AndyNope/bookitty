@@ -50,7 +50,7 @@ export const PAGE_LABELS: Record<string, string> = {
   offerten: 'Offerten',
   bankabgleich: 'Bankabgleich',
   kontakte: 'Kontakte',
-  bilanz: 'Bilanz',
+  bilanz: 'Bilanz / Erfolgsrechnung',
   mwst: 'MwSt-Abrechnung',
   dokumente: 'Dokumente',
   lohn: 'Lohn',

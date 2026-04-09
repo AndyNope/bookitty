@@ -4,7 +4,9 @@ import {
   accountCategories,
   formatAccount,
   getCategoryLabel,
+  type Account,
 } from '../data/chAccounts';
+import AccountCombobox from './AccountCombobox';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import { useAccounts } from '../hooks/useAccounts';
@@ -175,26 +177,16 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
               ))}
             </div>
           )}
-          <select
+          <AccountCombobox
             value={draft.account}
-            onChange={(event) => {
-              const selected = accounts.find(
-                (account) => formatAccount(account) === event.target.value,
-              );
-              updateField('account', event.target.value);
-              if (selected) {
-                updateField('category', getCategoryLabel(selected.categoryCode));
-              }
-            }}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2"
+            accounts={accounts}
             required
-          >
-            {accounts.map((account) => (
-              <option key={account.code} value={formatAccount(account)}>
-                {formatAccount(account)}
-              </option>
-            ))}
-          </select>
+            warnIfClosing
+            onChange={(formatted, selected?: Account) => {
+              updateField('account', formatted);
+              if (selected) updateField('category', getCategoryLabel(selected.categoryCode));
+            }}
+          />
         </div>
         <div className="flex flex-col gap-1 text-sm text-slate-600">
           <div className="flex items-center justify-between">
@@ -231,17 +223,12 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
               ))}
             </div>
           )}
-          <select
+          <AccountCombobox
             value={draft.contraAccount}
-            onChange={(event) => updateField('contraAccount', event.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2"
-          >
-            {accounts.map((account) => (
-              <option key={account.code} value={formatAccount(account)}>
-                {formatAccount(account)}
-              </option>
-            ))}
-          </select>
+            accounts={accounts}
+            warnIfClosing
+            onChange={(formatted) => updateField('contraAccount', formatted)}
+          />
           <span className="text-xs text-slate-400">{contraHint}</span>
         </div>
         <label className="text-sm text-slate-600">

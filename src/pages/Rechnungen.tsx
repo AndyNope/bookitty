@@ -492,6 +492,32 @@ export default function Rechnungen() {
   const [kursActualCHF, setKursActualCHF] = useState('');
   const [portalLink, setPortalLink] = useState<string | null>(null);
 
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+
+  const handleSendEmail = async (inv: Invoice) => {
+    if (!inv.contactEmail?.trim()) {
+      setNotification({ type: 'error', title: 'Keine E-Mail', message: 'Bitte E-Mail-Adresse beim Empfänger hinterlegen.' });
+      return;
+    }
+    setSendingEmail(inv.id);
+    if (isDemo) {
+      await new Promise(r => setTimeout(r, 700));
+      setSendingEmail(null);
+      handleStatusChange(inv.id, 'Versendet');
+      setNotification({ type: 'success', title: 'Demo: E-Mail simuliert', message: `Rechnung ${inv.number} an ${inv.contactEmail} (kein echter Versand im Demo-Modus).` });
+      return;
+    }
+    try {
+      await api.invoices.send(inv.id);
+      handleStatusChange(inv.id, 'Versendet');
+      setNotification({ type: 'success', title: 'Rechnung versendet', message: `${inv.number} wurde an ${inv.contactEmail} gesendet.` });
+    } catch {
+      setNotification({ type: 'error', title: 'Fehler', message: 'E-Mail konnte nicht versendet werden.' });
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
   const handlePortalLink = async (inv: Invoice) => {
     try {
       if (isDemo) {
@@ -773,18 +799,42 @@ export default function Rechnungen() {
                       {inv.currency} {fmtCHF(total)}
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={inv.status}
-                        onChange={e => handleStatusChange(inv.id, e.target.value as InvoiceStatus)}
-                        className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-xs font-medium outline-none ${STATUS_STYLE[inv.status]}`}
-                      >
-                        {(['Entwurf', 'Versendet', 'Bezahlt', 'Überfällig', 'Storniert'] as InvoiceStatus[]).map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
+                      {inv.status === 'Bezahlt' || inv.status === 'Storniert' ? (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[inv.status]}`}>
+                          {inv.status}
+                          <svg className="h-3 w-3 opacity-50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </span>
+                      ) : (
+                        <select
+                          value={inv.status}
+                          onChange={e => handleStatusChange(inv.id, e.target.value as InvoiceStatus)}
+                          className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-xs font-medium outline-none ${STATUS_STYLE[inv.status]}`}
+                        >
+                          {(['Entwurf', 'Versendet', 'Bezahlt', 'Überfällig', 'Storniert'] as InvoiceStatus[]).map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        {/* E-Mail senden */}
+                        {inv.status !== 'Bezahlt' && inv.status !== 'Storniert' && (
+                          <button title={inv.contactEmail ? 'Rechnung per E-Mail senden' : 'Keine E-Mail-Adresse hinterlegt'}
+                            onClick={() => handleSendEmail(inv)}
+                            disabled={sendingEmail === inv.id}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40">
+                            {sendingEmail === inv.id ? (
+                              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                            ) : (
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
                         {/* Mahnung */}
                         {(inv.status === 'Überfällig' || inv.status === 'Versendet') && (
                           <button title="Mahnung senden"

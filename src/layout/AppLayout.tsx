@@ -20,12 +20,42 @@ const switchLang = (code: string) => {
   localStorage.setItem('bookitty.lang', code);
 };
 
-const buildNavItems = (base: string) => [
+const NAV_GROUP_ORDER = [
+  'buchhaltung',
+  'rechnungen',
+  'auswertungen',
+  'personal',
+  'inventar',
+  'ablage',
+  'sonstiges',
+] as const;
+
+const NAV_GROUP_LABELS: Record<string, string> = {
+  buchhaltung:  'Buchhaltung',
+  rechnungen:   'Rechnungen & Kontakte',
+  auswertungen: 'Auswertungen',
+  personal:     'Personal & Kosten',
+  inventar:     'Inventar',
+  ablage:       'Ablage',
+  sonstiges:    'Erweiterte Tools',
+};
+
+type NavItem = {
+  to: string;
+  end: boolean;
+  label: string;
+  kittyId: string;
+  group: string;
+  icon: React.ReactNode;
+};
+
+const buildNavItems = (base: string): NavItem[] => [
   {
     to: base,
     end: true,
     label: 'Dashboard',
     kittyId: 'dashboard',
+    group: 'buchhaltung',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -37,9 +67,22 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Buchungen',
     kittyId: 'buchungen',
+    group: 'buchhaltung',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    ),
+  },
+  {
+    to: `${base}/import`,
+    end: false,
+    label: 'Import',
+    kittyId: 'import',
+    group: 'buchhaltung',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
       </svg>
     ),
   },
@@ -48,6 +91,7 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Rechnungen',
     kittyId: 'rechnungen',
+    group: 'rechnungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -59,20 +103,10 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Offerten',
     kittyId: 'offerten',
+    group: 'rechnungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-  },
-  {
-    to: `${base}/bankabgleich`,
-    end: false,
-    label: 'Bankabgleich',
-    kittyId: 'bankabgleich',
-    icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
       </svg>
     ),
   },
@@ -81,6 +115,7 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Kontakte',
     kittyId: 'kontakte',
+    group: 'rechnungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -88,10 +123,23 @@ const buildNavItems = (base: string) => [
     ),
   },
   {
+    to: `${base}/bankabgleich`,
+    end: false,
+    label: 'Bankabgleich',
+    kittyId: 'bankabgleich',
+    group: 'rechnungen',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+      </svg>
+    ),
+  },
+  {
     to: `${base}/bilanz`,
     end: false,
-    label: 'Bilanz',
+    label: 'Bilanz / Erfolgsrechnung',
     kittyId: 'bilanz',
+    group: 'auswertungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -103,31 +151,10 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'MwSt-Abrechnung',
     kittyId: 'mwst',
+    group: 'auswertungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  {
-    to: `${base}/dokumente`,
-    end: false,
-    label: 'Dokumente',
-    kittyId: 'dokumente',
-    icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-      </svg>
-    ),
-  },
-  {
-    to: `${base}/lohn`,
-    end: false,
-    label: 'Lohn',
-    kittyId: 'lohn',
-    icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
       </svg>
     ),
   },
@@ -136,9 +163,46 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Jahresabschluss',
     kittyId: 'jahresabschluss',
+    group: 'auswertungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    to: `${base}/lohn`,
+    end: false,
+    label: 'Lohn',
+    kittyId: 'lohn',
+    group: 'personal',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    to: `${base}/spesen`,
+    end: false,
+    label: 'Spesen',
+    kittyId: 'spesen',
+    group: 'personal',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+      </svg>
+    ),
+  },
+  {
+    to: `${base}/zeiterfassung`,
+    end: false,
+    label: 'Zeiterfassung',
+    kittyId: 'zeiterfassung',
+    group: 'personal',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
       </svg>
     ),
   },
@@ -147,6 +211,7 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Lager',
     kittyId: 'lager',
+    group: 'inventar',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -158,9 +223,22 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Anlagen',
     kittyId: 'anlagen',
+    group: 'inventar',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+  {
+    to: `${base}/dokumente`,
+    end: false,
+    label: 'Dokumente',
+    kittyId: 'dokumente',
+    group: 'ablage',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
       </svg>
     ),
   },
@@ -169,20 +247,10 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Archiv',
     kittyId: 'archiv',
+    group: 'ablage',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-      </svg>
-    ),
-  },
-  {
-    to: `${base}/spesen`,
-    end: false,
-    label: 'Spesen',
-    kittyId: 'spesen',
-    icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
       </svg>
     ),
   },
@@ -191,6 +259,7 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Swiss GAAP FER',
     kittyId: 'swiss-gaap-fer',
+    group: 'sonstiges',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -202,31 +271,10 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Subventionen',
     kittyId: 'subventionen',
+    group: 'sonstiges',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    to: `${base}/zeiterfassung`,
-    end: false,
-    label: 'Zeiterfassung',
-    kittyId: 'zeiterfassung',
-    icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-      </svg>
-    ),
-  },
-  {
-    to: `${base}/import`,
-    end: false,
-    label: 'Import',
-    kittyId: 'import',
-    icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
       </svg>
     ),
   },
@@ -235,9 +283,10 @@ const buildNavItems = (base: string) => [
     end: false,
     label: 'Einstellungen',
     kittyId: 'einstellungen',
+    group: 'einstellungen',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     ),
@@ -353,19 +402,32 @@ const AppLayout = () => {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
-            <div className="flex flex-col gap-1 text-sm">
-            {visibleNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={() => setMenuOpen(false)}
-                className={({ isActive }) => navHighlightClass(item.kittyId, isActive)}
-              >
-                {item.icon}
-                {item.label}
-              </NavLink>
-            ))}
+            <div className="flex flex-col gap-0.5 text-sm">
+            {NAV_GROUP_ORDER.map((groupId) => {
+              const items = visibleNavItems.filter(
+                (item) => item.group === groupId && item.kittyId !== 'einstellungen',
+              );
+              if (items.length === 0) return null;
+              return (
+                <div key={groupId} className="mb-2">
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                    {NAV_GROUP_LABELS[groupId]}
+                  </p>
+                  {items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={() => setMenuOpen(false)}
+                      className={({ isActive }) => navHighlightClass(item.kittyId, isActive)}
+                    >
+                      {item.icon}
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              );
+            })}
             <button
               type="button"
               onClick={() => { setMenuOpen(false); setTutorialStep(0); setTutorialOpen(true); }}
@@ -421,18 +483,31 @@ const AppLayout = () => {
             <p className="text-xs text-slate-500">Finanzbuchhaltung</p>
           </div>
         </div>
-        <nav className="flex flex-col gap-2 text-sm">
-          {visibleNavItems.filter((item) => item.kittyId !== 'einstellungen').map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => navHighlightClass(item.kittyId, isActive)}
-            >
-              {item.icon}
-              {item.label}
-            </NavLink>
-          ))}
+        <nav className="flex flex-col gap-0.5 text-sm overflow-y-auto">
+          {NAV_GROUP_ORDER.map((groupId) => {
+            const items = visibleNavItems.filter(
+              (item) => item.group === groupId && item.kittyId !== 'einstellungen',
+            );
+            if (items.length === 0) return null;
+            return (
+              <div key={groupId} className="mb-2">
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                  {NAV_GROUP_LABELS[groupId]}
+                </p>
+                {items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => navHighlightClass(item.kittyId, isActive)}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            );
+          })}
         </nav>
         <div className="mt-auto">
           <button
