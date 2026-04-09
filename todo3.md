@@ -58,7 +58,7 @@
   Der aktuelle Nav-Eintrag «Bilanz» deckt Bilanz und Erfolgsrechnung ab – das sollte im Label sichtbar sein.
   Änderung betrifft: `AppLayout.tsx`, Breadcrumbs, Seitentitel und allfällige Tests.
 
-- [ ] **7. Navigation: MWSt als eigener Navigationspunkt auslagern**
+- [x] **7. Navigation: MWSt als eigener Navigationspunkt auslagern**
   MWSt und Steuern sind aktuell unter «Bilanz» versteckt – viele Nutzer suchen das nicht dort.
   Lösung: Eigener Nav-Eintrag «MWSt» mit der bestehenden MwSt-Übersicht (Vorsteuer,
   geschuldete MwSt, Saldo, ESTV-Formular). Bestehende MwSt-Logik aus `Bilanz.tsx` extrahieren.
