@@ -6,7 +6,14 @@ require_once __DIR__ . '/config.php';
  * For SMTP, replace the mail() call with PHPMailer or similar.
  */
 function send_confirmation_email(string $toEmail, string $toName, string $token): bool {
-    $confirmUrl = APP_URL . '/api/confirm.php?token=' . urlencode($token);
+    // Build confirm URL robustly: avoid doubling '/api' if APP_URL already contains it
+    $base = rtrim(APP_URL, '/');
+    if (strpos($base, '/api') !== false) {
+      // APP_URL already points to API root or contains /api – append confirm.php
+      $confirmUrl = $base . '/confirm.php?token=' . urlencode($token);
+    } else {
+      $confirmUrl = $base . '/api/confirm.php?token=' . urlencode($token);
+    }
     $subject    = APP_NAME . ' – E-Mail-Adresse bestätigen';
 
     $html = '<!DOCTYPE html>
