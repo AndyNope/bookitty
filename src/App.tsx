@@ -26,6 +26,7 @@ import Subventionen from './pages/Subventionen';
 import Import from './pages/Import';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Confirm from './pages/Confirm';
 import Invite from './pages/Invite';
 import NotFound from './pages/NotFound';
 import Portal from './pages/Portal';
@@ -52,6 +53,7 @@ const App = () => (
     {/* ── Auth pages ───────────────────────────────────────────────────── */}
     <Route path="login"    element={<Login />} />
     <Route path="register" element={<Register />} />
+    <Route path="confirm"  element={<Confirm />} />
     <Route path="invite"   element={<Invite />} />
 
     {/* ── Demo mode – localStorage, no login required ──────────────────── */}
