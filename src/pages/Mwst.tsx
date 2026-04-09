@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { Booking } from '../types';
+import { getCompany } from '../utils/companyStore';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCHF(n: number) {
@@ -187,6 +188,7 @@ function exportEstvPdf(data: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Mwst() {
   const { bookings } = useBookkeeping();
+  const companyName = getCompany().name;
   const [year,        setYear]        = useState(currentYear());
   const [periodType,  setPeriodType]  = useState<'quarter' | 'year'>('quarter');
   const [quarter,     setQuarter]     = useState(Math.max(1, currentQ() - 1)); // closed quarter
@@ -235,7 +237,7 @@ export default function Mwst() {
               totalGeschuld,
               vorsteuer,
               zahllast,
-              companyName: '', // filled from company store on next iteration
+              companyName: companyName || 'Unbekannt',
             })}
             className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
           >

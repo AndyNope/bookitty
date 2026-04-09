@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
@@ -167,7 +168,9 @@ const SubtotalRow = ({ label, value, cur, highlight = false }: {
 // ── Main component ─────────────────────────────────────────────────────────
 const Bilanz = () => {
   const { bookings } = useBookkeeping();
-  const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'mwst' | 'steuern'>('erfolg');
+  const location = useLocation();
+  const base = location.pathname.startsWith('/demo') ? '/demo' : '/app';
+  const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'steuern'>('erfolg');
   const [canton, setCanton] = useState('ZH');
   const cur = bookings[0]?.currency ?? 'CHF';
 
@@ -408,7 +411,7 @@ const Bilanz = () => {
       {/* Tabs */}
       <div className="overflow-x-auto">
         <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-max">
-          {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['mwst', 'MwSt'], ['steuern', 'Steuern']] as const).map(([key, label]) => (
+          {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['steuern', 'Steuern']] as const).map(([key, label]) => (
             <button key={key} type="button" onClick={() => setTab(key)}
               className={`rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold whitespace-nowrap transition ${
                 tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
@@ -417,6 +420,15 @@ const Bilanz = () => {
               {label}
             </button>
           ))}
+          <Link
+            to={`${base}/mwst`}
+            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold whitespace-nowrap text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition"
+          >
+            MwSt-Abrechnung
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </Link>
         </div>
       </div>
 
@@ -638,57 +650,6 @@ const Bilanz = () => {
       )}
 
       {/* ── MwSt-Übersicht ── */}
-      {tab === 'mwst' && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <h3 className="text-base font-semibold text-slate-900">MwSt-Übersicht</h3>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-            {[
-              { label: 'Geschuldete MwSt (Ertrag)', value: geschuldeteMwst, color: 'text-rose-600' },
-              { label: 'Vorsteuer (Aufwand)',        value: vorsteuer,       color: 'text-emerald-600' },
-              { label: 'MwSt-Saldo (schulde ich)',   value: mwstSaldo,       color: mwstSaldo >= 0 ? 'text-rose-700' : 'text-emerald-700' },
-            ].map((c) => (
-              <div key={c.label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <p className="text-xs text-slate-500">{c.label}</p>
-                <p className={`mt-1 text-xl font-bold tabular-nums ${c.color}`}>{fmt(c.value, cur)}</p>
-              </div>
-            ))}
-          </div>
-          {mwstRows.length === 0 ? (
-            <p className="text-sm text-slate-400">Noch keine Buchungen mit MwSt-Betrag vorhanden.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 text-slate-500 uppercase">
-                  <tr>
-                    <th className="px-3 py-2">Datum</th>
-                    <th className="px-3 py-2">Beschreibung</th>
-                    <th className="px-3 py-2">Konto</th>
-                    <th className="px-3 py-2 text-right">Satz</th>
-                    <th className="px-3 py-2 text-right">MwSt-Betrag</th>
-                    <th className="px-3 py-2">Typ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {mwstRows.map((r, i) => (
-                    <tr key={i}>
-                      <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.date}</td>
-                      <td className="px-3 py-2 text-slate-800">{r.description}</td>
-                      <td className="px-3 py-2 text-slate-500 max-w-[160px] truncate">{r.account}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{r.rate}%</td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-900">{fmt(r.vatAmount, r.currency)}</td>
-                      <td className="px-3 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          r.type === 'Einnahme' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                        }`}>{r.type}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
       {/* ── Steuern (Provisorisch) ── */}
       {tab === 'steuern' && (
         <div className="space-y-5">
