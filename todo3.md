@@ -103,7 +103,7 @@
   Technisch: DB-Tabellen `products` + `stock_movements`; API `/api/products`, `/api/stock-movements`;
   transaktionales Update beim Rechnungsabschluss.
 
-- [ ] **13. Dokumentenerkennung: Zentrales Server-Training statt LocalStorage**
+- [x] **13. Dokumentenerkennung: Zentrales Server-Training statt LocalStorage**
   Aktuell lernt die automatische Dokumentenerkennung nur lokal im Browser-LocalStorage –
   das Wissen bleibt beim einzelnen Nutzer und geht bei Browser-Reset verloren.
   Lösung: Erkannte Felder + Korrekturen des Nutzers werden an `api/document-learning.php` gesendet
