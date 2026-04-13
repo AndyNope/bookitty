@@ -8,6 +8,8 @@ import type { Contact, Invoice, InvoiceLineItem, InvoiceStatus } from '../types'
 import { calcInvoiceTotals, exportInvoicePDF } from '../utils/invoicePdf';
 import { useForex, toCHF } from '../hooks/useForex';
 import { useBookkeeping } from '../store/BookkeepingContext';
+import { loadStockItems, deductStock } from '../utils/stockStore';
+import type { StockItem } from '../utils/stockStore';
 
 // ─── Demo localStorage ────────────────────────────────────────────────────────
 const STORAGE_KEY = 'bookitty.invoices';
@@ -61,6 +63,98 @@ function isOverdue(inv: Invoice) {
 // ─── Empty line item ──────────────────────────────────────────────────────────
 const EMPTY_ITEM: InvoiceLineItem = { description: '', quantity: 1, unit: 'Stk.', unitPrice: 0, vatRate: 8.1 };
 
+// ─── Stock picker dialog ──────────────────────────────────────────────────────
+const StockPickerDialog = ({
+  onPick,
+  onClose,
+}: {
+  onPick: (item: StockItem, qty: number) => void;
+  onClose: () => void;
+}) => {
+  const [items]   = useState(() => loadStockItems());
+  const [search, setSearch] = useState('');
+  const [qty, setQty]       = useState<Record<string, number>>({});
+
+  const filtered = items.filter(i =>
+    !search ||
+    i.name.toLowerCase().includes(search.toLowerCase()) ||
+    i.sku.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const pick = (item: StockItem) => {
+    const q = qty[item.id] ?? 1;
+    onPick(item, q);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+      <div className="flex w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl max-h-[80dvh]">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h3 className="text-sm font-semibold text-slate-800">Artikel aus Lager wählen</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-5 py-3 border-b border-slate-100">
+          <input
+            autoFocus
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Name oder SKU suchen…"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+          />
+        </div>
+
+        <div className="overflow-y-auto divide-y divide-slate-50">
+          {items.length === 0 && (
+            <p className="px-5 py-8 text-center text-sm text-slate-400">
+              Keine Artikel im Lager. Bitte erst unter «Lager» erfassen.
+            </p>
+          )}
+          {filtered.map(item => {
+            const q = qty[item.id] ?? 1;
+            const insufficient = item.stock < q;
+            return (
+              <div key={item.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                  <p className="text-xs text-slate-400">
+                    {item.sku && <span className="mr-2">{item.sku}</span>}
+                    Bestand: <span className={insufficient ? 'font-semibold text-rose-600' : 'text-slate-500'}>{item.stock} {item.unit}</span>
+                    {insufficient && <span className="ml-1 text-rose-500">⚠ ungenügend</span>}
+                    {' · '}CHF {item.salePrice.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <input
+                  type="number" min={0.01} step={0.01}
+                  value={q}
+                  onChange={e => setQty(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 1 }))}
+                  className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-right text-sm outline-none focus:border-slate-400"
+                  title="Menge"
+                />
+                <span className="w-8 text-xs text-slate-400">{item.unit}</span>
+                <button
+                  onClick={() => pick(item)}
+                  className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+                >
+                  Übernehmen
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-slate-100 px-5 py-3 flex justify-end">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">Schliessen</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Invoice form ─────────────────────────────────────────────────────────────
 const InvoiceForm = ({
   initial,
@@ -95,6 +189,8 @@ const InvoiceForm = ({
     currency:       initial?.currency  ?? 'CHF',
     notes:          initial?.notes,
   });
+
+  const [showStockPicker, setShowStockPicker] = useState(false);
 
   const set = <K extends keyof typeof form>(k: K) => (v: typeof form[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));
@@ -290,13 +386,22 @@ const InvoiceForm = ({
                 </tbody>
               </table>
             </div>
-            <button type="button" onClick={addItem}
-              className="mt-2 flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700">
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Position hinzufügen
-            </button>
+            <div className="mt-2 flex items-center gap-3">
+              <button type="button" onClick={addItem}
+                className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Position hinzufügen
+              </button>
+              <button type="button" onClick={() => setShowStockPicker(true)}
+                className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                </svg>
+                Aus Lager wählen
+              </button>
+            </div>
 
             {/* Totals */}
             <div className="mt-4 ml-auto w-64 space-y-1.5">
@@ -360,6 +465,24 @@ const InvoiceForm = ({
           </div>
         </form>
       </div>
+
+      {showStockPicker && (
+        <StockPickerDialog
+          onPick={(stockItem, qty) => {
+            const newLine: InvoiceLineItem = {
+              description: stockItem.name + (stockItem.description ? ` – ${stockItem.description}` : ''),
+              quantity:    qty,
+              unit:        stockItem.unit,
+              unitPrice:   stockItem.salePrice,
+              vatRate:     stockItem.vatRate,
+              stockItemId: stockItem.id,
+            };
+            setForm(prev => ({ ...prev, items: [...prev.items, newLine] }));
+            setShowStockPicker(false);
+          }}
+          onClose={() => setShowStockPicker(false)}
+        />
+      )}
     </div>
   );
 };
@@ -755,6 +878,12 @@ export default function Rechnungen() {
       const created: Invoice = { ...form, id: newId };
       setInvoices(prev => [created, ...prev]);
       if (!isDemo) await api.invoices.create(created).catch(console.error);
+      // Reduce stock for items picked from Lager
+      form.items.forEach(item => {
+        if (item.stockItemId) {
+          deductStock(item.stockItemId, item.quantity, form.number);
+        }
+      });
       setNotification({ type: 'success', title: 'Rechnung erstellt', message: `${form.number} wurde erstellt.` });
     }
     setModal(null);

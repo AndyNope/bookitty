@@ -48,6 +48,7 @@ export type InvoiceLineItem = {
   unit: string;
   unitPrice: number;
   vatRate: number;
+  stockItemId?: string;   // set when picked from Lager
 };
 
 export type Invoice = {
