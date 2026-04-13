@@ -89,7 +89,7 @@
 
 ## Verknüpfungen & Integrationen
 
-- [ ] **11. Zeiterfassung: Direkte Fakturierung aus dem Tool**
+- [x] **11. Zeiterfassung: Direkte Fakturierung aus dem Tool**
   Gebuchte Stunden sollen mit einem Klick als Rechnungsposition übernommen werden können.
   Flow: Zeiteinträge filtern (Projekt / Mitarbeiter / Zeitraum) → «In Rechnung übernehmen» →
   `RechnungForm` öffnet sich mit Positionen vorausgefüllt (Beschreibung, Stunden × Stundensatz, MwSt).
