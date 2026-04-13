@@ -1,0 +1,53 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # ────────────────────────────────────────────────────────────────────────
+      # FTP Deploy
+      #
+      # Deploys ./dist/ to the web root defined in FTP_SERVER_DIR.
+      # dangerous-clean-slate: false  → never deletes remote files; only
+      #   uploads new/changed files (tracked via .ftp-deploy-sync on server).
+      #
+      # Protected on server (will never be touched):
+      #   • api/config.php        – credentials (gitignored, not in dist)
+      #   • api/uploads/**        – user-uploaded files
+      #   • api/uploads/*/        – all subdirectories with uploaded content
+      # ────────────────────────────────────────────────────────────────────────
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:      ${{ secrets.FTP_SERVER }}
+          username:    ${{ secrets.FTP_USERNAME }}
+          password:    ${{ secrets.FTP_PASSWORD }}
+          server-dir:  ${{ secrets.FTP_SERVER_DIR }}
+          local-dir:   ./dist/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            api/config.php
+            api/uploads/**
+          dangerous-clean-slate: false
+          log-level: minimal

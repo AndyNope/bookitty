@@ -19,6 +19,9 @@ api/config.php
 api/uploads/*
 !api/uploads/.htaccess
 
+# FTP deploy sync state (lives on server, not in repo)
+.ftp-deploy-sync
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
