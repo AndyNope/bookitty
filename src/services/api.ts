@@ -172,4 +172,12 @@ export const api = {
   portal: {
     generate: (id: string) => apiFetch<{ token: string; url: string }>('/portal.php', { method: 'POST', body: JSON.stringify({ id }) }),
   },
+
+  learning: {
+    push: (samples: { type: string; fingerprint: string; payload: object; use_count: number }[]) =>
+      apiFetch<{ ok: boolean; stored: number }>('/document-learning.php', {
+        method: 'POST',
+        body: JSON.stringify({ samples }),
+      }),
+  },
 };

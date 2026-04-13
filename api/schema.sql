@@ -207,6 +207,24 @@ CREATE TABLE IF NOT EXISTS invoice_audit (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
+-- ─── document_training_samples ────────────────────────────────────────────────
+-- Stores anonymised import-mapping corrections from opt-in users.
+-- Sensitive values (account names, amounts) are NOT stored – only structural
+-- fingerprints and column-mapping choices.
+CREATE TABLE IF NOT EXISTS document_training_samples (
+    id           INT           NOT NULL AUTO_INCREMENT,
+    user_id      INT           NULL,          -- NULL = anonymous
+    sample_type  VARCHAR(20)   NOT NULL,      -- 'col_mapping' | 'account'
+    fingerprint  VARCHAR(500)  NOT NULL,      -- header fingerprint or account code
+    payload      JSON          NOT NULL,      -- col mapping or {code, name}
+    use_count    INT           NOT NULL DEFAULT 1,
+    created_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_sample (sample_type, fingerprint),
+    KEY idx_sample_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ─── expenses ─────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS expenses (
     id          VARCHAR(36)    NOT NULL,

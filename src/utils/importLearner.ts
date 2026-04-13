@@ -1,7 +1,19 @@
 import type { ColMap } from './importParser';
+import { api } from '../services/api';
 
-const MAPPINGS_KEY = 'bookitty.importMappings';
-const ACCOUNTS_KEY = 'bookitty.learnedAccounts';
+const MAPPINGS_KEY   = 'bookitty.importMappings';
+const ACCOUNTS_KEY   = 'bookitty.learnedAccounts';
+const OPT_IN_KEY     = 'bookitty.learningOptIn';
+
+// ── Opt-in helpers ──────────────────────────────────────────────────────────
+
+export const getLearningOptIn = (): boolean => {
+  try { return localStorage.getItem(OPT_IN_KEY) === 'true'; } catch { return false; }
+};
+
+export const setLearningOptIn = (value: boolean): void => {
+  try { localStorage.setItem(OPT_IN_KEY, value ? 'true' : 'false'); } catch {/**/ }
+};
 
 export type LearnedMapping = {
   fingerprint: string;
@@ -55,6 +67,16 @@ export const saveLearnedMapping = (headers: string[], colMap: ColMap): void => {
     if (idx >= 0) stored[idx] = entry;
     else stored.push(entry);
     localStorage.setItem(MAPPINGS_KEY, JSON.stringify(stored));
+
+    // Server push (fire & forget, only when opted-in)
+    if (getLearningOptIn()) {
+      api.learning.push([{
+        type: 'col_mapping',
+        fingerprint: fp,
+        payload: colMap as object,
+        use_count: entry.useCount,
+      }]).catch(() => {/* silently ignore */});
+    }
   } catch {
     // localStorage unavailable – silently skip
   }
@@ -71,18 +93,26 @@ export const learnAccounts = (rows: { code: string; name: string }[]): number =>
   try {
     const stored: LearnedAccount[] = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? '[]');
     let newCount = 0;
+    const toPush: { type: string; fingerprint: string; payload: object; use_count: number }[] = [];
     for (const { code, name } of rows) {
       if (!code || !name.trim()) continue;
       const idx = stored.findIndex((a) => a.code === code);
       if (idx >= 0) {
         stored[idx].count += 1;
-        stored[idx].name = name; // keep most-recent name
+        stored[idx].name = name;
       } else {
         stored.push({ code, name, count: 1 });
         newCount++;
       }
+      if (getLearningOptIn()) {
+        toPush.push({ type: 'account', fingerprint: code, payload: { code, name }, use_count: 1 });
+      }
     }
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(stored));
+
+    if (toPush.length > 0) {
+      api.learning.push(toPush).catch(() => {/* silently ignore */});
+    }
     return newCount;
   } catch {
     return 0;

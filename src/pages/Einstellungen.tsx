@@ -13,6 +13,7 @@ import {
   NAV_PROFILES, ALL_PAGES, PAGE_LABELS, isPageVisible, type NavProfile,
 } from '../utils/navProfileStore';
 import { NAV_PROFILE_ICONS } from '../utils/navProfileIcons';
+import { getLearningOptIn, setLearningOptIn } from '../utils/importLearner';
 
 type ImapConfig = {
   host: string;
@@ -56,6 +57,7 @@ const Einstellungen = () => {
 
   const [form, setForm] = useState<CompanyProfile>(getCompany);
   const [saved, setSaved] = useState(false);
+  const [learningOptIn, setLearningOptInState] = useState(getLearningOptIn);
 
   const [imap, setImap] = useState<ImapConfig>({ host: '', port: '993', username: '', password: '', ssl: true, folder: 'INBOX' });
   const [imapSaved, setImapSaved] = useState(false);
@@ -692,6 +694,43 @@ const Einstellungen = () => {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-1 text-base font-semibold text-slate-900">Datenschutz &amp; Lernfunktion</h3>
+        <p className="mb-4 text-sm text-slate-500">
+          Bookitty kann Import-Spaltenzuordnungen und Konten anonymisiert an den Server übermitteln,
+          damit alle Nutzer von verbesserten Vorschlägen profitieren. Es werden{' '}
+          <strong>keine Beträge, Namen oder Bankdaten</strong> übertragen — nur strukturelle Muster.
+        </p>
+        <label className="flex cursor-pointer items-center gap-3">
+          <div
+            onClick={() => {
+              const next = !learningOptIn;
+              setLearningOptInState(next);
+              setLearningOptIn(next);
+            }}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+              learningOptIn ? 'bg-indigo-600' : 'bg-slate-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                learningOptIn ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </div>
+          <span className="text-sm font-medium text-slate-700">
+            {learningOptIn
+              ? 'Ich nehme am anonymen Lernprogramm teil'
+              : 'Nicht teilnehmen (nur lokal lernen)'}
+          </span>
+        </label>
+        {learningOptIn && (
+          <p className="mt-2 text-xs text-slate-400">
+            Aktiv: Zuordnungsmuster werden beim nächsten Import anonym übermittelt.
+          </p>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
