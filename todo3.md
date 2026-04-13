@@ -43,7 +43,7 @@
   Versandstatus (gesendet / fehlgeschlagen) in UI und DB festhalten; erneutes Senden bei Fehler ermöglichen.
   Technisch: `api/mailer.php` um ein Rechnungs-E-Mail-Template erweitern; PHPMailer/SMTP für Production.
 
-- [-] **5. Rechnungen: Statusänderung nach «bezahlt» einschränken**
+- [x] **5. Rechnungen: Statusänderung nach «bezahlt» einschränken**
   Einmal als bezahlt markierte Rechnungen sollen nicht ohne Weiteres zurückgesetzt werden können.
   Begründung: Buchhalterische Integrität; verhindert versehentliche oder missbräuchliche Statusänderungen.
   Lösung: Nach «Als bezahlt markieren» (Bestätigungs-Dialog) ist der Status für Standardnutzer gesperrt.
