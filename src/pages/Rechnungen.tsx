@@ -690,6 +690,18 @@ export default function Rechnungen() {
     }
   };
 
+  // ── Pick up time-entry draft from sessionStorage ────────────────────────────
+  useEffect(() => {
+    const raw = sessionStorage.getItem('bookitty.newInvoiceDraft');
+    if (!raw) return;
+    sessionStorage.removeItem('bookitty.newInvoiceDraft');
+    try {
+      const draft = JSON.parse(raw) as Partial<Invoice>;
+      setEditing(draft as Invoice);
+      setModal('add');
+    } catch {/* ignore */}
+  }, []);
+
   // ── Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isDemo) {
@@ -1063,7 +1075,7 @@ export default function Rechnungen() {
       {/* ── Modals ─────────────────────────────────────────────────────── */}
       {(modal === 'add' || modal === 'edit') && (
         <InvoiceForm
-          initial={modal === 'edit' ? editing : null}
+          initial={modal === 'edit' ? editing : (editing ?? null)}
           contacts={contacts}
           existingInvoices={invoices}
           onSave={handleSave}

@@ -123,6 +123,7 @@ export default function Zeiterfassung() {
     const items = selectedEntries.map(e => ({
       description: `${e.project ? e.project + ': ' : ''}${e.description} (${e.hours}h × ${fmtCHF(e.hourlyRate, e.currency)}/h)`,
       quantity: e.hours,
+      unit: 'h',
       unitPrice: e.hourlyRate,
       vatRate: 8.1,
     }));
