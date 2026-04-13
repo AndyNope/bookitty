@@ -5,20 +5,8 @@ import { useAuth } from '../store/AuthContext';
 import KittyChat from '../components/KittyChat';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
 import OnboardingTutorial, { hasTutorialBeenSeen } from '../components/OnboardingTutorial';
-import { useTranslation } from 'react-i18next';
-import i18n from '../i18n';
 
-const LANGS = [
-  { code: 'de', label: 'DE', name: 'Deutsch' },
-  { code: 'fr', label: 'FR', name: 'Français' },
-  { code: 'it', label: 'IT', name: 'Italiano' },
-  { code: 'en', label: 'EN', name: 'English' },
-];
 
-const switchLang = (code: string) => {
-  i18n.changeLanguage(code);
-  localStorage.setItem('bookitty.lang', code);
-};
 
 const NAV_GROUP_ORDER = [
   'buchhaltung',
@@ -300,7 +288,6 @@ const AppLayout = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
-  useTranslation(); // i18n instance (lang switcher uses i18n directly)
   const isDemo = location.pathname.startsWith('/demo');
   const base   = isDemo ? '/demo' : '/app';
   const navItems = buildNavItems(base);
@@ -525,16 +512,7 @@ const AppLayout = () => {
 
       <main className="min-w-0 flex-1 pb-20 lg:pb-0">
         <div className="hidden items-center justify-end gap-2 lg:flex">
-          {/* Language switcher */}
-          <div className="flex items-center gap-0.5 rounded-full border border-slate-200 bg-white px-1 py-0.5">
-            {LANGS.map((l) => (
-              <button key={l.code} onClick={() => switchLang(l.code)}
-                className={`rounded-full px-2 py-1 text-xs font-medium transition-colors ${i18n.language === l.code ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800'}`}
-                title={l.name}>
-                {l.label}
-              </button>
-            ))}
-          </div>
+          {/* Language switcher – coming soon, hidden until i18n is implemented */}
           <button
             type="button"
             onClick={() => { setTutorialStep(0); setTutorialOpen(true); }}
