@@ -189,6 +189,22 @@ CREATE TABLE IF NOT EXISTS company_profiles (
     CONSTRAINT fk_company_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── invoice_audit ────────────────────────────────────────────────────────────
+-- Logs every admin-forced status override on a locked invoice.
+CREATE TABLE IF NOT EXISTS invoice_audit (
+    id          INT            NOT NULL AUTO_INCREMENT,
+    invoice_id  VARCHAR(36)    NOT NULL,
+    user_id     INT            NOT NULL,
+    changed_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    old_status  VARCHAR(20)    NOT NULL,
+    new_status  VARCHAR(20)    NOT NULL,
+    reason      TEXT           NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_audit_invoice (invoice_id),
+    CONSTRAINT fk_audit_invoice FOREIGN KEY (invoice_id) REFERENCES invoices (id) ON DELETE CASCADE,
+    CONSTRAINT fk_audit_user    FOREIGN KEY (user_id)    REFERENCES users    (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ─── expenses ─────────────────────────────────────────────────────────────────

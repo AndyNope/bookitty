@@ -115,6 +115,11 @@ export const api = {
     update: (inv: Invoice)        => apiFetch<{ ok: boolean }>('/invoices.php', { method: 'PUT',    body: JSON.stringify(inv) }),
     remove: (id: string)          => apiFetch<{ ok: boolean }>('/invoices.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
     send:   (id: string)          => apiFetch<{ ok: boolean }>('/invoices_send.php', { method: 'POST', body: JSON.stringify({ id }) }),
+    auditUnlock: (invoiceId: string, oldStatus: string, newStatus: string, reason: string) =>
+      apiFetch<{ ok: boolean }>('/invoice_audit.php', {
+        method: 'POST',
+        body: JSON.stringify({ invoice_id: invoiceId, old_status: oldStatus, new_status: newStatus, reason }),
+      }),
   },
 
   offers: {

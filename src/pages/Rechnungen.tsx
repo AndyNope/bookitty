@@ -469,11 +469,136 @@ const MahnungDialog = ({
   );
 };
 
+// ─── Bezahlt-Bestätigungs-Dialog ──────────────────────────────────────────────
+const BezahltConfirmDialog = ({
+  invoice,
+  onConfirm,
+  onClose,
+}: {
+  invoice: Invoice;
+  onConfirm: () => void;
+  onClose: () => void;
+}) => {
+  const { total } = calcInvoiceTotals(invoice.items);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+            <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-slate-800">Als bezahlt markieren</h3>
+        </div>
+        <p className="mb-2 text-sm text-slate-700">
+          Rechnung <span className="font-semibold">{invoice.number}</span> ({invoice.currency} {fmtCHF(total)}) als bezahlt markieren?
+        </p>
+        <p className="mb-6 text-xs text-slate-400">
+          Nach dem Markieren wird der Status gesperrt. Eine Änderung ist danach nur noch für Administratoren mit Pflichtbegründung möglich.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
+            Abbrechen
+          </button>
+          <button onClick={onConfirm}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+            Als bezahlt markieren
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Admin-Unlock-Dialog ──────────────────────────────────────────────────────
+const AdminUnlockDialog = ({
+  invoice,
+  onConfirm,
+  onClose,
+  saving,
+}: {
+  invoice: Invoice;
+  onConfirm: (newStatus: InvoiceStatus, reason: string) => void;
+  onClose: () => void;
+  saving: boolean;
+}) => {
+  const [reason, setReason] = useState('');
+  const [newStatus, setNewStatus] = useState<InvoiceStatus>('Versendet');
+  const unlockable: InvoiceStatus[] = ['Entwurf', 'Versendet', 'Überfällig'];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-slate-800">Status entsperren (Admin)</h3>
+            <p className="text-xs text-slate-400">Rechnung {invoice.number} · aktuell: <span className="font-medium text-slate-600">{invoice.status}</span></p>
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+          <strong>Audit-Log:</strong> Diese Änderung wird mit Begründung, Zeitstempel und Benutzer protokolliert.
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-1 block text-xs font-semibold text-slate-600">Neuer Status</label>
+          <div className="flex gap-2">
+            {unlockable.map(s => (
+              <button key={s} type="button"
+                onClick={() => setNewStatus(s)}
+                className={`flex-1 rounded-lg border py-2 text-xs font-medium transition-colors ${
+                  newStatus === s
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-1 block text-xs font-semibold text-slate-600">
+            Begründung <span className="text-rose-500">*</span>
+          </label>
+          <textarea
+            rows={3}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Pflichtfeld: z. B. «Zahlung irrtümlich doppelt erfasst», «Stornierung nach Rücksprache mit Kunde»…"
+            className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} disabled={saving}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-40">
+            Abbrechen
+          </button>
+          <button
+            disabled={!reason.trim() || saving}
+            onClick={() => onConfirm(newStatus, reason.trim())}
+            className="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-40">
+            {saving && <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>}
+            Status ändern
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Rechnungen() {
   const location = useLocation();
   const isDemo   = location.pathname.startsWith('/demo');
-  const { isReadonly } = useAuth();
+  const { isReadonly, isAdmin } = useAuth();
   const { rates } = useForex();
   const { addBooking } = useBookkeeping();
 
@@ -491,6 +616,10 @@ export default function Rechnungen() {
   const [kursDiffFor, setKursDiffFor] = useState<Invoice | null>(null);
   const [kursActualCHF, setKursActualCHF] = useState('');
   const [portalLink, setPortalLink] = useState<string | null>(null);
+  // Bezahlt confirmation + admin unlock
+  const [pendingBezahlt, setPendingBezahlt] = useState<Invoice | null>(null);
+  const [adminUnlock, setAdminUnlock]       = useState<Invoice | null>(null);
+  const [savingUnlock, setSavingUnlock]     = useState(false);
 
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
 
@@ -516,6 +645,26 @@ export default function Rechnungen() {
     } finally {
       setSendingEmail(null);
     }
+  };
+
+  const handleAdminUnlock = async (newStatus: InvoiceStatus, reason: string) => {
+    if (!adminUnlock) return;
+    setSavingUnlock(true);
+    const oldStatus = adminUnlock.status;
+    if (!isDemo) {
+      try {
+        await api.invoices.auditUnlock(adminUnlock.id, oldStatus, newStatus, reason);
+      } catch {
+        setNotification({ type: 'error', title: 'Fehler', message: 'Status konnte nicht geändert werden.' });
+        setSavingUnlock(false);
+        setAdminUnlock(null);
+        return;
+      }
+    }
+    setInvoices(prev => prev.map(i => i.id === adminUnlock!.id ? { ...i, status: newStatus } : i));
+    setSavingUnlock(false);
+    setAdminUnlock(null);
+    setNotification({ type: 'success', title: 'Status geändert', message: `${adminUnlock.number}: ${oldStatus} → ${newStatus} (protokolliert)` });
   };
 
   const handlePortalLink = async (inv: Invoice) => {
@@ -800,16 +949,32 @@ export default function Rechnungen() {
                     </td>
                     <td className="px-4 py-3">
                       {inv.status === 'Bezahlt' || inv.status === 'Storniert' ? (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[inv.status]}`}>
-                          {inv.status}
-                          <svg className="h-3 w-3 opacity-50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
+                        <span className="inline-flex items-center gap-1">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[inv.status]}`}>
+                            {inv.status}
+                            <svg className="h-3 w-3 opacity-50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          </span>
+                          {isAdmin && (
+                            <button
+                              title="Status entsperren (Admin)"
+                              onClick={() => setAdminUnlock(inv)}
+                              className="rounded p-0.5 text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition"
+                            >
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                              </svg>
+                            </button>
+                          )}
                         </span>
                       ) : (
                         <select
                           value={inv.status}
-                          onChange={e => handleStatusChange(inv.id, e.target.value as InvoiceStatus)}
+                          onChange={e => {
+                            const s = e.target.value as InvoiceStatus;
+                            if (s === 'Bezahlt') { setPendingBezahlt(inv); } else { handleStatusChange(inv.id, s); }
+                          }}
                           className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-xs font-medium outline-none ${STATUS_STYLE[inv.status]}`}
                         >
                           {(['Entwurf', 'Versendet', 'Bezahlt', 'Überfällig', 'Storniert'] as InvoiceStatus[]).map(s => (
@@ -920,6 +1085,22 @@ export default function Rechnungen() {
           onConfirm={handleSendMahnung}
           onClose={() => setMahnungFor(null)}
           sending={sendingMahnung}
+        />
+      )}
+
+      {pendingBezahlt && (
+        <BezahltConfirmDialog
+          invoice={pendingBezahlt}
+          onConfirm={() => { handleStatusChange(pendingBezahlt.id, 'Bezahlt'); setPendingBezahlt(null); }}
+          onClose={() => setPendingBezahlt(null)}
+        />
+      )}
+      {adminUnlock && (
+        <AdminUnlockDialog
+          invoice={adminUnlock}
+          onConfirm={handleAdminUnlock}
+          onClose={() => setAdminUnlock(null)}
+          saving={savingUnlock}
         />
       )}
 
