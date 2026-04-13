@@ -95,7 +95,7 @@
   `RechnungForm` öffnet sich mit Positionen vorausgefüllt (Beschreibung, Stunden × Stundensatz, MwSt).
   Technisch: `/api/time-entries?projectId=...&unbilled=1` + Mapping auf Invoice-Positionen.
 
-- [ ] **12. Lagerbuchhaltung mit Rechnungsstellung verknüpfen**
+- [x] **12. Lagerbuchhaltung mit Rechnungsstellung verknüpfen**
   Beim Erstellen einer Rechnung sollen Artikel direkt aus dem Lager gewählt werden können.
   Bei Abschluss der Rechnung reduziert das System den Lagerbestand automatisch und erzeugt
   die passende Buchung (z. B. `7000 Wareneinsatz` / `1200 Lagerbestand`).
