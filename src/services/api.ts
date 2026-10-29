@@ -33,6 +33,17 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AuthUser = { id: number; email: string; name: string; role: import('../types').UserRole; company_id: number | null };
+export type BillingSummary = {
+  plan: string;
+  status: string;
+  monthlyTokens: number;
+  purchasedTokens: number;
+  periodEnd: string | null;
+  billingEnabled: boolean;
+  portalEnabled: boolean;
+  plans: Record<string, { name: string; price: number; monthly_tokens: number }>;
+  tokenPacks: Record<string, { name: string; price: number; tokens: number }>;
+};
 
 // ─── API surface ──────────────────────────────────────────────────────────────
 export const api = {
@@ -178,6 +189,15 @@ export const api = {
       apiFetch<{ ok: boolean; stored: number }>('/document-learning.php', {
         method: 'POST',
         body: JSON.stringify({ samples }),
+      }),
+  },
+
+  billing: {
+    summary: () => apiFetch<BillingSummary>('/billing.php'),
+    checkout: (type: 'subscription' | 'tokens' | 'portal', option = '') =>
+      apiFetch<{ url: string }>('/billing.php', {
+        method: 'POST',
+        body: JSON.stringify(type === 'subscription' ? { type, plan: option } : { type, pack: option }),
       }),
   },
 };

@@ -9,8 +9,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Environment Detection ────────────────────────────────────────────────────
-$host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$isProd  = ($host === 'bookitty.bidebliss.com');
+$host    = strtolower(preg_replace('/:\\d+$/', '', $_SERVER['HTTP_HOST'] ?? 'localhost'));
+$isProd  = in_array($host, ['bookitty.ch', 'www.bookitty.ch', 'bookitty.bidebliss.com'], true);
 $isLocal = !$isProd;   // everything non-prod = local Docker
 
 // ─── Database ─────────────────────────────────────────────────────────────────
@@ -27,8 +27,11 @@ define('DB_PASS', $isProd  ? '<<PROD_DB_PASS_HIER>>' : 'local_secret');
 define('JWT_SECRET', 'bkty_CHANGE_ME_to_a_long_random_string_64chars_XXXXXXXXXXXXXXXXXXXX');
 define('JWT_EXPIRY', 60 * 60 * 24 * 30);
 
+// ─── One-time migration endpoint ─────────────────────────────────────────────
+define('MIGRATE_SECRET', '<<LONG_RANDOM_MIGRATION_SECRET_HIER>>');
+
 // ─── App ──────────────────────────────────────────────────────────────────────
-define('APP_URL',       $isProd ? 'https://bookitty.bidebliss.com' : 'http://localhost:8080');
+define('APP_URL',       $isProd ? 'https://bookitty.ch' : 'http://localhost:8080');
 define('APP_NAME',      'Bookitty');
 define('MAIL_FROM',     'noreply@bidebliss.com');
 define('MAIL_FROM_NAME','Bookitty');
@@ -37,12 +40,28 @@ define('MAIL_FROM_NAME','Bookitty');
 define('CORS_ORIGINS', [
     'http://localhost:5173',
     'http://localhost:4173',
+    'https://bookitty.ch',
+    'https://www.bookitty.ch',
     'https://bookitty.bidebliss.com',
 ]);
 
-// ─── Kitty Chatbot (OpenRouter) ──────────────────────────────────────────────
-// Kostenlose Modelle via :free Suffix – Key holen: https://openrouter.ai/keys
-define('KITTY_API_KEY', '<<OPENROUTER_API_KEY_HIER>>');
+// ─── Kitty AI (Infomaniak AI Services) ────────────────────────────────────────
+// Create an AI product and API token in the Infomaniak Manager.
+define('KITTY_API_KEY', '');
+define('KITTY_PRODUCT_ID', '');
+define('KITTY_MODEL', 'mistralai/Mistral-Small-4-119B-2603');
+
+// ─── Payments (Stripe Checkout + TWINT) ──────────────────────────────────────
+// Keep checkout disabled until prices, terms, and the merchant account are approved.
+define('BILLING_ENABLED', false);
+define('STRIPE_SECRET_KEY', '');
+define('STRIPE_WEBHOOK_SECRET', '');
+define('STRIPE_PRICE_PLAN_SOLO', '');
+define('STRIPE_PRICE_PLAN_TEAM', '');
+define('STRIPE_PRICE_PLAN_BUSINESS', '');
+define('STRIPE_PRICE_TOKEN_SMALL', '');
+define('STRIPE_PRICE_TOKEN_MEDIUM', '');
+define('STRIPE_PRICE_TOKEN_LARGE', '');
 
 // ─── File uploads ─────────────────────────────────────────────────────────────
 define('UPLOAD_DIR',  __DIR__ . '/uploads/');

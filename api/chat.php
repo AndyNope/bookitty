@@ -2,141 +2,252 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/db.php';
 
 set_cors_headers();
-set_exception_handler(function (Throwable $e): void {
-    http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
-});
+header('Content-Type: application/json; charset=utf-8');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['error' => 'Method Not Allowed']);
+function kitty_respond(int $status, array $data): never {
+    http_response_code($status);
+    echo json_encode($data);
     exit;
 }
 
-// ── Auth (optional – auch Demo-User können chatten) ──────────────────────────
+function kitty_uuid(): string {
+    $bytes = random_bytes(16);
+    $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+    $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+    $hex = bin2hex($bytes);
+    return substr($hex, 0, 8) . '-' . substr($hex, 8, 4) . '-' . substr($hex, 12, 4)
+        . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20);
+}
 
-// ── Input ─────────────────────────────────────────────────────────────────────
-$body     = json_decode(file_get_contents('php://input'), true) ?? [];
+function kitty_release_reservation(PDO $pdo, string $reservationId): void {
+    $pdo->beginTransaction();
+    try {
+        $reservationQuery = $pdo->prepare('SELECT * FROM ai_token_reservations WHERE id = ? FOR UPDATE');
+        $reservationQuery->execute([$reservationId]);
+        $reservation = $reservationQuery->fetch();
+        if ($reservation && $reservation['status'] === 'pending') {
+            $pdo->prepare(
+                'UPDATE billing_accounts SET monthly_tokens_remaining = monthly_tokens_remaining + ?,
+                 purchased_tokens_remaining = purchased_tokens_remaining + ? WHERE company_id = ?'
+            )->execute([$reservation['monthly_reserved'], $reservation['purchased_reserved'], $reservation['company_id']]);
+            $pdo->prepare("UPDATE ai_token_reservations SET status = 'released' WHERE id = ?")
+                ->execute([$reservationId]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+}
+
+function kitty_settle_reservation(PDO $pdo, string $reservationId, int $usedTokens): array {
+    $pdo->beginTransaction();
+    try {
+        $reservationQuery = $pdo->prepare('SELECT * FROM ai_token_reservations WHERE id = ? FOR UPDATE');
+        $reservationQuery->execute([$reservationId]);
+        $reservation = $reservationQuery->fetch();
+        if (!$reservation || $reservation['status'] !== 'pending') {
+            throw new RuntimeException('Token reservation is not pending');
+        }
+
+        $accountQuery = $pdo->prepare('SELECT * FROM billing_accounts WHERE company_id = ? FOR UPDATE');
+        $accountQuery->execute([$reservation['company_id']]);
+        $account = $accountQuery->fetch();
+        if (!$account) throw new RuntimeException('Billing account missing');
+
+        $monthlyReserved = (int) $reservation['monthly_reserved'];
+        $purchasedReserved = (int) $reservation['purchased_reserved'];
+        $reservedTotal = $monthlyReserved + $purchasedReserved;
+        $monthlyUsed = min($usedTokens, $monthlyReserved);
+        $purchasedUsed = min(max(0, $usedTokens - $monthlyUsed), $purchasedReserved);
+        $extra = max(0, $usedTokens - $monthlyUsed - $purchasedUsed);
+        $monthlyAvailable = $account['subscription_status'] === 'active'
+            ? (int) $account['monthly_tokens_remaining'] : 0;
+        $extraMonthly = min($extra, $monthlyAvailable);
+        $extraPurchased = min($extra - $extraMonthly, (int) $account['purchased_tokens_remaining']);
+        $charged = $monthlyUsed + $purchasedUsed + $extraMonthly + $extraPurchased;
+
+        $monthlyRefund = $monthlyReserved - $monthlyUsed;
+        $purchasedRefund = $purchasedReserved - $purchasedUsed;
+        $pdo->prepare(
+            'UPDATE billing_accounts SET monthly_tokens_remaining = monthly_tokens_remaining + ? - ?,
+             purchased_tokens_remaining = purchased_tokens_remaining + ? - ? WHERE company_id = ?'
+        )->execute([
+            $monthlyRefund, $extraMonthly, $purchasedRefund, $extraPurchased, $reservation['company_id'],
+        ]);
+        $pdo->prepare("UPDATE ai_token_reservations SET status = 'settled' WHERE id = ?")
+            ->execute([$reservationId]);
+        $pdo->prepare(
+            "INSERT INTO ai_token_ledger (company_id, entry_type, token_delta, reference_key)
+             VALUES (?, 'usage', ?, ?)"
+        )->execute([$reservation['company_id'], -$charged, 'ai:' . $reservationId]);
+
+        $remainingQuery = $pdo->prepare(
+            'SELECT monthly_tokens_remaining, purchased_tokens_remaining FROM billing_accounts WHERE company_id = ?'
+        );
+        $remainingQuery->execute([$reservation['company_id']]);
+        $remaining = $remainingQuery->fetch();
+        $pdo->commit();
+
+        return [
+            'usedTokens' => $charged,
+            'monthlyTokens' => (int) $remaining['monthly_tokens_remaining'],
+            'purchasedTokens' => (int) $remaining['purchased_tokens_remaining'],
+        ];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') kitty_respond(405, ['error' => 'Method Not Allowed']);
+
+$payload = get_auth_payload();
+$companyId = isset($payload['company_id']) ? (int) $payload['company_id'] : (int) $payload['sub'];
+$body = json_decode(file_get_contents('php://input'), true) ?? [];
 $messages = $body['messages'] ?? [];
+if (!is_array($messages) || $messages === []) kitty_respond(400, ['error' => 'messages array required']);
 
-if (empty($messages) || !is_array($messages)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'messages array required']);
-    exit;
+$history = [];
+$characterCount = 0;
+foreach (array_slice($messages, -12) as $message) {
+    if (!is_array($message) || !in_array($message['role'] ?? '', ['user', 'model', 'assistant'], true)) continue;
+    $text = trim(mb_substr((string) ($message['text'] ?? ''), 0, 2000));
+    if ($text === '') continue;
+    $characterCount += mb_strlen($text);
+    $history[] = [
+        'role' => ($message['role'] === 'user') ? 'user' : 'assistant',
+        'content' => $text,
+    ];
+}
+if ($history === [] || $characterCount > 8000) {
+    kitty_respond(413, ['error' => 'Die Chatnachricht ist zu lang. Bitte kürze den Gesprächsverlauf.']);
 }
 
-// Sanitize + convert to OpenAI format (role: user/assistant, content: string)
-$history = array_map(fn($m) => [
-    'role'    => $m['role'] === 'model' ? 'assistant' : 'user',
-    'content' => mb_substr((string)($m['text'] ?? ''), 0, 4000),
-], array_slice($messages, -20));
+$apiKey = defined('KITTY_API_KEY') ? KITTY_API_KEY : '';
+$productId = defined('KITTY_PRODUCT_ID') ? KITTY_PRODUCT_ID : '';
+$model = defined('KITTY_MODEL') ? KITTY_MODEL : '';
+if ($apiKey === '' || $productId === '' || $model === '' || !function_exists('curl_init')) {
+    kitty_respond(503, ['error' => 'Kitty ist noch nicht vollständig konfiguriert.']);
+}
 
-// ── System prompt ─────────────────────────────────────────────────────────────
+$pdo = get_db();
+$pdo->prepare("INSERT IGNORE INTO billing_accounts (company_id, plan_code) VALUES (?, 'starter')")
+    ->execute([$companyId]);
+$reservationId = kitty_uuid();
+$reservationAmount = ($characterCount * 4) + 1024;
+
+try {
+    $pdo->beginTransaction();
+    $staleQuery = $pdo->prepare(
+        "SELECT id, monthly_reserved, purchased_reserved FROM ai_token_reservations
+         WHERE company_id = ? AND status = 'pending' AND created_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+         FOR UPDATE"
+    );
+    $staleQuery->execute([$companyId]);
+    foreach ($staleQuery->fetchAll() as $stale) {
+        $pdo->prepare(
+            'UPDATE billing_accounts SET monthly_tokens_remaining = monthly_tokens_remaining + ?,
+             purchased_tokens_remaining = purchased_tokens_remaining + ? WHERE company_id = ?'
+        )->execute([$stale['monthly_reserved'], $stale['purchased_reserved'], $companyId]);
+        $pdo->prepare("UPDATE ai_token_reservations SET status = 'expired' WHERE id = ?")
+            ->execute([$stale['id']]);
+    }
+
+    $accountQuery = $pdo->prepare('SELECT * FROM billing_accounts WHERE company_id = ? FOR UPDATE');
+    $accountQuery->execute([$companyId]);
+    $account = $accountQuery->fetch();
+    $monthlyAvailable = $account['subscription_status'] === 'active'
+        ? (int) $account['monthly_tokens_remaining'] : 0;
+    $purchasedAvailable = (int) $account['purchased_tokens_remaining'];
+    $rateQuery = $pdo->prepare(
+        'SELECT COUNT(*) FROM ai_token_reservations WHERE company_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)'
+    );
+    $rateQuery->execute([$companyId]);
+    if ((int) $rateQuery->fetchColumn() >= 10) {
+        $pdo->rollBack();
+        kitty_respond(429, ['error' => 'Zu viele Kitty-Anfragen. Bitte warte kurz.']);
+    }
+    if ($monthlyAvailable + $purchasedAvailable < $reservationAmount) {
+        $pdo->rollBack();
+        kitty_respond(402, ['error' => 'Dein KI-Guthaben reicht für diese Anfrage nicht aus.']);
+    }
+
+    $monthlyReserved = min($monthlyAvailable, $reservationAmount);
+    $purchasedReserved = $reservationAmount - $monthlyReserved;
+    $pdo->prepare(
+        'UPDATE billing_accounts SET monthly_tokens_remaining = monthly_tokens_remaining - ?,
+         purchased_tokens_remaining = purchased_tokens_remaining - ? WHERE company_id = ?'
+    )->execute([$monthlyReserved, $purchasedReserved, $companyId]);
+    $pdo->prepare(
+        "INSERT INTO ai_token_reservations (id, company_id, monthly_reserved, purchased_reserved, status)
+         VALUES (?, ?, ?, ?, 'pending')"
+    )->execute([$reservationId, $companyId, $monthlyReserved, $purchasedReserved]);
+    $pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('Kitty token reservation failed: ' . $e->getMessage());
+    kitty_respond(503, ['error' => 'Kitty ist momentan nicht verfügbar.']);
+}
+
 $systemPrompt = <<<'PROMPT'
 Du bist Kitty, der freundliche KI-Assistent von Bookitty – einer Schweizer Buchhaltungssoftware für KMU.
-
-Deine Aufgaben:
-- Buchhaltungsfragen für Schweizer KMU beantworten (Schweizer Kontenrahmen KMU, doppelte Buchhaltung, MwSt-Sätze CH)
-- Bookitty-Funktionen erklären (Buchungen erfassen, Bilanz, Erfolgsrechnung, Dokumente hochladen)
-- Einfache, verständliche Sprache – die Nutzer sind Unternehmer, keine Buchhalter
-- Auf Deutsch antworten (ausser der Nutzer schreibt in einer anderen Sprache)
-
-Wichtige Fakten über Bookitty:
-- Buchungssystem nach Schweizer KMU-Kontenrahmen (1xxx=Aktiven, 2xxx=Passiven, 3xxx=Ertrag, 4xxx-8xxx=Aufwand)
-- Doppelte Buchführung: jede Buchung hat ein Soll- und ein Habenkonto
-- MwSt Schweiz: Normalsatz 8.1%, Sondersatz Beherbergung 3.8%, reduzierter Satz 2.6%
-- Einnahmen: Habenkonto = 3xxx (Erlöse), Sollkonto = 1xxx (Bank/Kasse/Debitoren)
-- Ausgaben: Sollkonto = 4xxx-8xxx (Aufwand), Habenkonto = 2xxx (Kreditoren/Bank)
-
-Grenzen:
-- Keine Steuerberatung (verweise an Treuhänder)
-- Keine Rechtsberatung
-- Wenn unsicher: ehrlich sagen und an Fachperson verweisen
-
-Ton: freundlich, professionell, kurz und präzise. Keine langen Einleitungen.
+Beantworte Fragen zum Schweizer KMU-Kontenrahmen, zur doppelten Buchführung, zu Schweizer MwSt-Sätzen und zu Bookitty-Funktionen in einfacher Sprache. Antworte auf Deutsch, ausser der Nutzer schreibt in einer anderen Sprache.
+Schweizer MwSt-Sätze: Normalsatz 8.1%, Beherbergung 3.8%, reduziert 2.6%. Einnahmen: Haben 3xxx, Soll 1xxx. Ausgaben: Soll 4xxx-8xxx, Haben 1xxx oder 2xxx.
+Gib keine Steuer- oder Rechtsberatung. Wenn unsicher, verweise an eine Fachperson. Behaupte nicht, eine Buchung ausgeführt zu haben.
 PROMPT;
-
-// ── Call OpenRouter API – Fallback-Kette bei Rate-Limit ──────────────────────
-$apiKey = defined('KITTY_API_KEY') ? KITTY_API_KEY : '';
-if (empty($apiKey)) {
-    http_response_code(503);
-    echo json_encode(['error' => 'Kitty ist momentan nicht verfügbar (kein API-Key konfiguriert).']);
-    exit;
-}
-
-$models = [
-    'upstage/solar-pro-3:free',
-    'openai/gpt-oss-20b:free',
-    'openai/gpt-oss-120b:free',
-    'mistralai/mistral-small-3.1-24b-instruct:free',
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'google/gemma-3-27b-it:free',
-    'nousresearch/hermes-3-llama-3.1-405b:free',
-    'nvidia/nemotron-nano-9b-v2:free',
-    'qwen/qwen3-4b:free',
-];
-
-$raw = null; $httpCode = 0;
-foreach ($models as $model) {
-    $payload = json_encode([
-        'model'    => $model,
-        'messages' => array_merge(
-            [['role' => 'system', 'content' => $systemPrompt]],
-            $history
-        ),
-        'temperature' => 0.4,
-        'max_tokens'  => 2048,
-    ]);
-
-    $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 30,
-        CURLOPT_HTTPHEADER     => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $apiKey,
-            'HTTP-Referer: https://bookitty.bidebliss.com',
-            'X-Title: Bookitty',
-        ],
-    ]);
-    $raw      = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode === 200) break; // Erfolg → kein weiterer Versuch nötig
-}
+$requestBody = json_encode([
+    'model' => $model,
+    'messages' => array_merge([['role' => 'system', 'content' => $systemPrompt]], $history),
+    'temperature' => 0.2,
+    'max_completion_tokens' => 1024,
+    'stream' => false,
+]);
+$url = 'https://api.infomaniak.com/2/ai/' . rawurlencode($productId) . '/openai/v1/chat/completions';
+$ch = curl_init($url);
+curl_setopt_array($ch, [
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => $requestBody,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 30,
+    CURLOPT_CONNECTTIMEOUT => 8,
+    CURLOPT_HTTPHEADER => [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $apiKey,
+    ],
+]);
+$raw = curl_exec($ch);
+$httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
 
 if ($raw === false || $httpCode !== 200) {
-    $detail = json_decode($raw ?? '{}', true)['error']['message'] ?? '';
-    // Rate-limit auf allen Modellen → freundliche Meldung
-    if (empty($detail) || str_contains($detail, 'rate') || str_contains($detail, 'quota') || $httpCode === 429) {
-        $detail = 'Kitty ist gerade sehr gefragt. Bitte versuche es in 30 Sekunden nochmal.';
+    try {
+        kitty_release_reservation($pdo, $reservationId);
+    } catch (Throwable $e) {
+        error_log('Kitty token reservation release failed: ' . $e->getMessage());
     }
-    http_response_code(502);
-    echo json_encode(['error' => $detail]);
-    exit;
+    error_log('Kitty provider request failed; HTTP ' . $httpCode);
+    kitty_respond(502, ['error' => 'Kitty ist gerade nicht erreichbar. Bitte versuche es später erneut.']);
 }
 
 $response = json_decode($raw, true);
-$message  = $response['choices'][0]['message'] ?? [];
-$text     = $message['content'] ?? '';
-
-// Reasoning-Modelle (z.B. solar-pro-3) liefern Antwort manchmal nur in reasoning_details
-if (empty($text)) {
-    $details = $message['reasoning_details'] ?? [];
-    foreach ($details as $d) {
-        if (!empty($d['text'])) { $text = $d['text']; break; }
-    }
+$text = trim((string) ($response['choices'][0]['message']['content'] ?? ''));
+if ($text === '') {
+    kitty_release_reservation($pdo, $reservationId);
+    kitty_respond(502, ['error' => 'Kitty hat keine Antwort erhalten. Bitte versuche es erneut.']);
 }
 
-if (empty($text)) {
-    http_response_code(502);
-    echo json_encode(['error' => 'Leere Antwort vom KI-Modell.']);
-    exit;
+$usage = $response['usage'] ?? [];
+$usedTokens = max(0, (int) ($usage['total_tokens'] ?? 0));
+if ($usedTokens === 0) $usedTokens = max(1, (int) ceil($characterCount / 2));
+try {
+    $tokenBalance = kitty_settle_reservation($pdo, $reservationId, $usedTokens);
+} catch (Throwable $e) {
+    error_log('Kitty token settlement failed: ' . $e->getMessage());
+    kitty_respond(502, ['error' => 'Die Antwort konnte nicht sicher verbucht werden. Bitte versuche es erneut.']);
 }
 
-echo json_encode(['text' => $text]);
+echo json_encode(['text' => $text, 'usage' => $tokenBalance]);

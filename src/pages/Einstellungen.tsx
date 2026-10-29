@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import { getCompany, saveCompany, type CompanyProfile } from '../utils/companyStore';
 import { useAuth } from '../store/AuthContext';
-import { api } from '../services/api';
+import { api, type BillingSummary } from '../services/api';
 import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
 import NotificationModal from '../components/NotificationModal';
@@ -75,6 +75,11 @@ const Einstellungen = () => {
   const [teamLoading,    setTeamLoading]   = useState(false);
   const [teamError,      setTeamError]     = useState('');
 
+  const [billing, setBilling] = useState<BillingSummary | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState('');
+  const [checkoutBusy, setCheckoutBusy] = useState('');
+
   // Treuhänder management
   const [treuEmail,      setTreuEmail]     = useState('');
   const [treuDays,       setTreuDays]      = useState(30);
@@ -111,6 +116,29 @@ const Einstellungen = () => {
     if (!isAdmin) return;
     api.team.list().then(setTeam).catch(() => {});
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!user || isDemo) return;
+    setBillingLoading(true);
+    api.billing.summary()
+      .then(setBilling)
+      .catch((error: Error) => setBillingError(error.message))
+      .finally(() => setBillingLoading(false));
+  }, [user, isDemo]);
+
+  const startCheckout = async (type: 'subscription' | 'tokens' | 'portal', option: string) => {
+    const key = `${type}:${option}`;
+    setCheckoutBusy(key);
+    setBillingError('');
+    try {
+      const { url } = await api.billing.checkout(type, option);
+      window.location.assign(url);
+    } catch (error) {
+      setBillingError((error as Error).message || 'Checkout konnte nicht gestartet werden.');
+    } finally {
+      setCheckoutBusy('');
+    }
+  };
 
   const handleInvite = async () => {
     setTeamError('');
@@ -283,6 +311,108 @@ const Einstellungen = () => {
           </div>
         )}
       </div>
+
+      {user && !isDemo && (
+        <section id="billing" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">Abo & KI-Guthaben</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Tarife und KI-Kontingente sind ein Arbeitsentwurf. Zahlungen werden erst nach Freigabe und Stripe-Konfiguration aktiviert.
+              </p>
+            </div>
+            {billing && (
+              <div className="flex items-center gap-3 text-right text-sm">
+                <div>
+                  <p className="font-semibold text-slate-900">{billing.plans[billing.plan]?.name ?? billing.plan}</p>
+                  <p className="text-xs text-slate-500">Status: {billing.status}</p>
+                </div>
+                {billing.portalEnabled && (
+                  <button
+                    type="button"
+                    disabled={checkoutBusy !== ''}
+                    onClick={() => startCheckout('portal', '')}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    {checkoutBusy === 'portal:' ? 'Weiter …' : 'Abo verwalten'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {billingLoading && <p className="mt-4 text-sm text-slate-500">Guthaben wird geladen …</p>}
+          {billingError && <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{billingError}</p>}
+
+          {billing && (
+            <>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="border-l-2 border-emerald-500 pl-3">
+                  <p className="text-xs text-slate-500">Abo-Tokens übrig</p>
+                  <p className="mt-1 font-mono text-lg font-semibold text-slate-900">
+                    {new Intl.NumberFormat('de-CH').format(billing.monthlyTokens)}
+                  </p>
+                </div>
+                <div className="border-l-2 border-sky-500 pl-3">
+                  <p className="text-xs text-slate-500">Gekaufte Tokens übrig</p>
+                  <p className="mt-1 font-mono text-lg font-semibold text-slate-900">
+                    {new Intl.NumberFormat('de-CH').format(billing.purchasedTokens)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-5">
+                <h4 className="text-sm font-semibold text-slate-900">Abo wählen</h4>
+                <div className="mt-3 divide-y divide-slate-100">
+                  {Object.entries(billing.plans).filter(([code]) => code !== 'starter').map(([code, plan]) => (
+                    <div key={code} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{plan.name} · CHF {(plan.price / 100).toFixed(2)} / Monat</p>
+                        <p className="text-xs text-slate-500">{new Intl.NumberFormat('de-CH').format(plan.monthly_tokens)} KI-Tokens pro Monat</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!billing.billingEnabled || checkoutBusy !== '' || billing.plan === code || billing.status !== 'inactive'}
+                        onClick={() => startCheckout('subscription', code)}
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {checkoutBusy === `subscription:${code}` ? 'Weiter …' : billing.plan === code ? 'Aktueller Tarif' : billing.status !== 'inactive' ? 'Aboanpassung gesperrt' : 'Mit TWINT fortfahren'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <h4 className="text-sm font-semibold text-slate-900">KI-Tokens nachkaufen</h4>
+                <div className="mt-3 divide-y divide-slate-100">
+                  {Object.entries(billing.tokenPacks).map(([code, pack]) => (
+                    <div key={code} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                      <p className="text-sm text-slate-700">
+                        {pack.name} · CHF {(pack.price / 100).toFixed(2)}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!billing.billingEnabled || checkoutBusy !== ''}
+                        onClick={() => startCheckout('tokens', code)}
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {checkoutBusy === `tokens:${code}` ? 'Weiter …' : 'Mit TWINT kaufen'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {!billing.billingEnabled && (
+                <p className="mt-4 text-xs text-amber-700">
+                  Checkout ist noch deaktiviert. Abo-/Tokenpreise, Vertragsbedingungen und Stripe-Webhooks müssen vor dem Livegang freigegeben und eingerichtet werden.
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {/* ── IMAP settings – only shown when logged in ── */}
       {user && (

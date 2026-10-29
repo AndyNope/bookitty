@@ -46,7 +46,7 @@ const steps: {
     title: 'Dashboard – Überblick',
     description:
       'Das Dashboard zeigt dir auf einen Blick deine Einnahmen, Ausgaben, den aktuellen Saldo und offene Belege. Hier siehst du auch die letzten Buchungen.',
-    action: { highlightId: 'dashboard', navigateTo: '/dashboard', cta: 'Zum Dashboard' },
+    action: { highlightId: 'nav-dashboard', navigateTo: '/dashboard', cta: 'Zum Dashboard' },
   },
   {
     badge: 'Buchungen',
@@ -58,7 +58,7 @@ const steps: {
     title: 'Buchungen erfassen',
     description:
       'Jede Buchung hat ein Soll- und ein Haben-Konto (doppelte Buchhaltung). Klicke auf «Neue Buchung», wähle Typ (Einnahme/Ausgabe) und Zahlungsstatus – die Konten werden automatisch vorgeschlagen.',
-    action: { highlightId: 'buchungen', navigateTo: '/buchungen', cta: 'Zu den Buchungen' },
+    action: { highlightId: 'nav-buchungen', navigateTo: '/buchungen', cta: 'Zu den Buchungen' },
   },
   {
     badge: 'Buchungsliste',
@@ -70,7 +70,7 @@ const steps: {
     title: 'Buchungen verwalten',
     description:
       'In der Tabelle siehst du nur das Wichtigste. Über das «…»-Menü findest du Details, Bearbeiten und Löschen. Lange Texte sind gekürzt – beim Hover siehst du alles.',
-    action: { highlightId: 'buchungen', navigateTo: '/buchungen', cta: 'Buchungsliste öffnen' },
+    action: { highlightId: 'nav-buchungen', navigateTo: '/buchungen', cta: 'Buchungsliste öffnen' },
   },
   {
     badge: 'Dokumente',
@@ -82,7 +82,7 @@ const steps: {
     title: 'Belege automatisch erkennen',
     description:
       'Lade ein PDF oder Foto einer Rechnung hoch. Bookitty liest Betrag, Datum und Konto per OCR + QR-Code automatisch aus und erstellt einen Buchungsvorschlag. Eigene Rechnungen (mit deinem Firmennamen) werden als Einnahme erkannt.',
-    action: { highlightId: 'dokumente', navigateTo: '/dokumente', cta: 'Zu den Dokumenten' },
+    action: { highlightId: 'nav-dokumente', navigateTo: '/dokumente', cta: 'Zu den Dokumenten' },
   },
   {
     badge: 'Bilanz',
@@ -94,7 +94,7 @@ const steps: {
     title: 'Bilanz & Erfolgsrechnung',
     description:
       'Unter «Bilanz» findest du die vollständige Bilanz (Aktiven/Passiven), die Erfolgsrechnung nach Schweizer KMU-Standard sowie die MwSt-Übersicht. Alle Werte werden in Echtzeit berechnet.',
-    action: { highlightId: 'bilanz', navigateTo: '/bilanz', cta: 'Zur Bilanz' },
+    action: { highlightId: 'nav-bilanz', navigateTo: '/bilanz', cta: 'Zur Bilanz' },
   },
   {
     badge: 'Kitty KI',
@@ -118,7 +118,7 @@ const steps: {
     title: 'Tipp: Einstellungen & Stammkonten',
     description:
       'Unter Einstellungen kannst du eigene Konten anlegen oder Bezeichnungen anpassen. Hinterlege deinen Firmennamen – dann erkennt Bookitty eigene Ausgangsrechnungen automatisch. Markiere häufig benutzte Konten mit dem Stern-Symbol als Stammkonten für schnellen Zugriff.',
-    action: { highlightId: 'einstellungen', navigateTo: '/einstellungen', cta: 'Zu den Einstellungen' },
+    action: { navigateTo: '/einstellungen', cta: 'Zu den Einstellungen' },
   },
 ];
 
@@ -156,30 +156,37 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
 
   useEffect(() => {
     if (!open) return;
+    if (current?.action?.navigateTo) {
+      navigate(`${basePath}${current.action.navigateTo}`);
+    }
     if (current?.action?.highlightId) {
       window.dispatchEvent(new CustomEvent('kitty:highlight', {
         detail: { id: current.action.highlightId },
       }));
     }
-  }, [open, step, current]);
+  }, [open, step, current, basePath, navigate]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl">
-        {/* Header bar with step badge + close */}
-        <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-100 px-6 py-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 px-3 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[360px] sm:px-0">
+      <section
+        aria-labelledby="tutorial-title"
+        className="pointer-events-auto max-h-[min(65dvh,520px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           {current.badge && (
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-              {current.badge}
-            </span>
+            <div>
+              <p className="text-[10px] font-semibold uppercase text-slate-500">Geführte Einführung</p>
+              <span className="text-xs font-semibold text-slate-800">{current.badge}</span>
+            </div>
           )}
           <button
             type="button"
             onClick={handleClose}
-            title="Tutorial schliessen (Esc)"
-            className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            title="Einführung schliessen (Esc)"
+            aria-label="Einführung schliessen"
+            className="ml-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -187,50 +194,48 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex flex-col items-center px-8 py-8 text-center">
-          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-50">
+        <div className="flex items-start gap-3 px-4 py-4">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100">
             {current.icon}
           </div>
-          <h2 className="text-xl font-bold text-slate-900">{current.title}</h2>
-          <p className="mt-3 text-sm leading-relaxed text-slate-500">{current.description}</p>
-          {current.action?.navigateTo && (
-            <button
-              type="button"
-              onClick={() => navigate(`${basePath}${current.action!.navigateTo}`)}
-              className="mt-4 rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-              {current.action.cta ?? 'Bereich öffnen'}
-            </button>
-          )}
+          <div className="min-w-0">
+            <h2 id="tutorial-title" className="text-sm font-bold text-slate-900">{current.title}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">{current.description}</p>
+            {current.action?.cta && (
+              <button
+                type="button"
+                onClick={() => navigate(`${basePath}${current.action!.navigateTo}`)}
+                className="mt-2 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              >
+                {current.action.cta} →
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex flex-col gap-4 rounded-b-3xl border-t border-slate-100 px-6 py-5">
-          {/* Step dots */}
-          <div className="flex justify-center gap-1.5">
-            {steps.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onStepChange(i)}
-                className={`h-2 rounded-full transition-all ${
-                  i === step ? 'w-6 bg-slate-900' : 'w-2 bg-slate-200 hover:bg-slate-300'
-                }`}
-                aria-label={`Schritt ${i + 1}`}
-              />
-            ))}
+        <div className="border-t border-slate-100 px-4 py-3">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="shrink-0 text-[10px] font-medium text-slate-500">Schritt {step + 1} von {steps.length}</span>
+            <div
+              role="progressbar"
+              aria-label="Fortschritt der Einführung"
+              aria-valuenow={step + 1}
+              aria-valuemin={1}
+              aria-valuemax={steps.length}
+              className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"
+            >
+              <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
+            </div>
           </div>
 
-          {/* Navigation buttons */}
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {step > 0 && (
               <button
                 type="button"
                 onClick={() => onStepChange(step - 1)}
-                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
               >
-                ← Zurück
+                Zurück
               </button>
             )}
             <button
@@ -242,24 +247,23 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
                   onStepChange(step + 1);
                 }
               }}
-              className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition"
+              className="ml-auto rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition"
             >
-              {isLast ? 'Loslegen' : 'Weiter'}
+              {isLast ? 'Fertig' : 'Weiter'}
             </button>
           </div>
 
-          {/* Skip link */}
           {!isLast && (
             <button
               type="button"
               onClick={handleClose}
-              className="text-center text-xs text-slate-400 hover:text-slate-600 transition"
+              className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 transition"
             >
-              Tutorial überspringen
+              Einführung beenden
             </button>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

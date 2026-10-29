@@ -222,6 +222,65 @@ if (tableExists($pdo, 'invoices') && !columnExists($pdo, 'invoices', 'payment_li
         'invoices.payment_link added', $done, $skipped);
 } else { $skipped[] = 'invoices.payment_link already handled'; }
 
+// ── 8. Billing, AI token ledger and Stripe event idempotency ─────────────────
+run($pdo, "
+    CREATE TABLE IF NOT EXISTS billing_accounts (
+        company_id INT NOT NULL,
+        plan_code VARCHAR(20) NOT NULL DEFAULT 'starter',
+        subscription_status VARCHAR(30) NOT NULL DEFAULT 'inactive',
+        monthly_tokens_remaining BIGINT UNSIGNED NOT NULL DEFAULT 0,
+        purchased_tokens_remaining BIGINT UNSIGNED NOT NULL DEFAULT 0,
+        stripe_customer_id VARCHAR(100) DEFAULT NULL,
+        stripe_subscription_id VARCHAR(100) DEFAULT NULL,
+        current_period_end DATETIME DEFAULT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (company_id),
+        UNIQUE KEY uq_billing_stripe_customer (stripe_customer_id),
+        UNIQUE KEY uq_billing_stripe_subscription (stripe_subscription_id),
+        CONSTRAINT fk_billing_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+", 'billing_accounts table ready', $done, $skipped);
+
+run($pdo, "
+    CREATE TABLE IF NOT EXISTS ai_token_ledger (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        company_id INT NOT NULL,
+        entry_type VARCHAR(24) NOT NULL,
+        token_delta BIGINT NOT NULL,
+        reference_key VARCHAR(160) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_ai_ledger_reference (reference_key),
+        KEY idx_ai_ledger_company_created (company_id, created_at),
+        CONSTRAINT fk_ai_ledger_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+", 'ai_token_ledger table ready', $done, $skipped);
+
+run($pdo, "
+    CREATE TABLE IF NOT EXISTS ai_token_reservations (
+        id CHAR(36) NOT NULL,
+        company_id INT NOT NULL,
+        monthly_reserved BIGINT UNSIGNED NOT NULL DEFAULT 0,
+        purchased_reserved BIGINT UNSIGNED NOT NULL DEFAULT 0,
+        status VARCHAR(12) NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_ai_reservation_pending (status, created_at),
+        CONSTRAINT fk_ai_reservation_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+", 'ai_token_reservations table ready', $done, $skipped);
+
+run($pdo, "
+    CREATE TABLE IF NOT EXISTS stripe_events (
+        event_id VARCHAR(100) NOT NULL,
+        processed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (event_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+", 'stripe_events table ready', $done, $skipped);
+
+$pdo->exec("INSERT IGNORE INTO billing_accounts (company_id, plan_code) SELECT id, 'starter' FROM users WHERE company_id IS NULL");
+$done[] = 'existing company owners initialized on Starter';
+
 // ── Result ────────────────────────────────────────────────────────────────────
 echo json_encode([
     'status'  => 'done',

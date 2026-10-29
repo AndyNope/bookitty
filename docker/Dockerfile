@@ -3,11 +3,11 @@ FROM php:8.1-apache
 # ── System deps ──────────────────────────────────────────────────────────────
 # msmtp: lightweight sendmail-compatible SMTP forwarder → routes mail() to MailHog
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends msmtp \
+    && apt-get install -y --no-install-recommends msmtp libcurl4-openssl-dev libonig-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ── PHP extensions ───────────────────────────────────────────────────────────
-RUN docker-php-ext-install pdo pdo_mysql fileinfo
+RUN docker-php-ext-install curl mbstring pdo pdo_mysql fileinfo
 
 # ── Apache modules ───────────────────────────────────────────────────────────
 RUN a2enmod rewrite headers

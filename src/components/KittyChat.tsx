@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { api, tokenStore } from '../services/api';
 import { searchKittyKnowledge, pickAnswer } from '../utils/kittySearch';
 import type { KittyAction } from '../utils/kittySearch';
 import type { BookingSuggestion } from '../data/kittyKnowledge';
@@ -97,15 +98,24 @@ const BookingCard = ({
 // ─────────────────────────────────────────────────────────────────────────────
 const KittyChat = () => {
   const { pathname } = useLocation();
-  const base = pathname.startsWith('/demo') ? '/demo' : '/app';
+  const isDemo = pathname.startsWith('/demo');
+  const base = isDemo ? '/demo' : '/app';
 
   const [open, setOpen]       = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput]     = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
   const bottomRef             = useRef<HTMLDivElement>(null);
   const inputRef              = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open || isDemo || !tokenStore.get()) return;
+    api.billing.summary()
+      .then((summary) => setRemainingTokens(summary.monthlyTokens + summary.purchasedTokens))
+      .catch(() => setRemainingTokens(null));
+  }, [open, isDemo]);
 
   // ── 19.2: Buchung im Chat markieren ──────────────────────────────
   useEffect(() => {
@@ -173,11 +183,21 @@ const KittyChat = () => {
       return;
     }
 
-    // ── 2. Fallback: OpenRouter API ───────────────────────────────────────────
+    // ── 2. Authenticated cloud AI ─────────────────────────────────────────────
+    const authToken = tokenStore.get();
+    if (isDemo || !authToken) {
+      setError('Cloud-Kitty ist nur mit einem angemeldeten Konto und KI-Guthaben verfügbar.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/chat.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
         body: JSON.stringify({ messages: nextMessages }),
       });
       const data = await res.json();
@@ -185,6 +205,7 @@ const KittyChat = () => {
         setError(data.error ?? 'Fehler beim Laden der Antwort.');
       } else {
         setMessages((prev) => [...prev, { role: 'model', text: data.text }]);
+        if (data.usage) setRemainingTokens(data.usage.monthlyTokens + data.usage.purchasedTokens);
       }
     } catch {
       setError('Verbindungsfehler. Bitte versuche es nochmal.');
@@ -265,7 +286,11 @@ const KittyChat = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Kitty</p>
-              <p className="text-[10px] text-slate-400">Bookitty KI-Assistent</p>
+              <p className="text-[10px] text-slate-400">
+                {isDemo ? 'Offline-Wissensbasis' : remainingTokens === null
+                  ? 'Bookitty KI-Assistent'
+                  : `${new Intl.NumberFormat('de-CH').format(remainingTokens)} KI-Tokens verfügbar`}
+              </p>
             </div>
             <button
               type="button"

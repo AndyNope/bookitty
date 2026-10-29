@@ -28,7 +28,7 @@ function set_cors_headers(): void {
 // ─── Global Exception Handler ────────────────────────────────────────────────
 set_exception_handler(function (Throwable $e): void {
     http_response_code(500);
-    $isProd = defined('APP_URL') && str_contains(APP_URL, 'bookitty.bidebliss.com');
+    $isProd = defined('APP_URL') && in_array(parse_url(APP_URL, PHP_URL_HOST), ['bookitty.ch', 'www.bookitty.ch', 'bookitty.bidebliss.com'], true);
     echo json_encode(
         $isProd
             ? ['error' => 'Internal Server Error']
