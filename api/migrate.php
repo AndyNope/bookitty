@@ -1,21 +1,29 @@
 <?php
 /**
  * Bookitty – DB Migration Script
- * Run ONCE via browser: https://bookitty.bidebliss.com/api/migrate.php?key=MIGRATE_SECRET
- * Then DELETE this file from the server immediately after.
+ * Run once from a trusted local machine with POST and the X-Migrate-Key header.
+ * Remove this endpoint from the server after the production migration.
  */
 
 require_once __DIR__ . '/config.php';
 
-// ── Simple authentication to prevent public access ────────────────────────────
-$secret = $_GET['key'] ?? '';
-if (!defined('MIGRATE_SECRET') || $secret !== MIGRATE_SECRET) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Forbidden. Provide ?key=MIGRATE_SECRET']);
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+header('X-Robots-Tag: noindex, nofollow');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method Not Allowed']);
     exit;
 }
 
-header('Content-Type: application/json; charset=utf-8');
+// Keep the migration secret out of URLs, browser history, and referrer headers.
+$secret = $_SERVER['HTTP_X_MIGRATE_KEY'] ?? '';
+if (!defined('MIGRATE_SECRET') || MIGRATE_SECRET === '' || !hash_equals(MIGRATE_SECRET, $secret)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
+}
 
 try {
     $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', DB_HOST, DB_PORT, DB_NAME);

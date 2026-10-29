@@ -47,7 +47,13 @@ Payrexx ist eine gute Schweizer Alternative und unterstützt wiederkehrendes TWI
 
 - Die ignorierte `api/config.php` nicht blind mit der Vorlage überschreiben. Dort Infomaniak-API-Key, AI-Produkt-ID und Modell sowie Stripe-Secret-Key und Webhook-Secret sicher eintragen. `BILLING_ENABLED` bleibt bis zur Preisfreigabe und erfolgreichen Tests `false`.
 - Zusätzlich die sechs Stripe-Price-IDs (`STRIPE_PRICE_PLAN_*` und `STRIPE_PRICE_TOKEN_*`) in `api/config.php` hinterlegen. Bookitty referenziert feste Katalogpreise; es werden keine Preise oder Stripe-Produkte pro Checkout dynamisch erstellt.
-- Die Datenbankmigration einmalig mit einem starken `MIGRATE_SECRET` ausführen. Den öffentlichen Migrationsendpunkt nach erfolgreicher Migration auf dem Server entfernen bzw. deaktivieren.
+- Auf dem Server ein starkes zufälliges `MIGRATE_SECRET` setzen. Die Migration einmalig vom lokalen Rechner per HTTPS-POST ausführen; die Eingabeaufforderung verbirgt den Schlüssel:
+
+	```bash
+	python3 -c 'import getpass,urllib.request; key=getpass.getpass("MIGRATE_SECRET: "); req=urllib.request.Request("https://bookitty.ch/api/migrate.php", data=b"{}", headers={"X-Migrate-Key": key, "Content-Type": "application/json"}, method="POST"); print(urllib.request.urlopen(req, timeout=30).read().decode())'
+	```
+
+	Den Schlüssel weder in die URL noch in den Chat einfügen. Nach erfolgreicher Migration `MIGRATE_SECRET` im Server-Config leeren und den Migrationsendpunkt über den Hosting-Dateimanager entfernen.
 - Stripe-Webhook auf `/api/stripe-webhook.php` konfigurieren und mindestens `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated` und `customer.subscription.deleted` zustellen lassen.
 - Erst im Stripe-Testmodus TWINT-Kauf, Aboverlängerung, fehlgeschlagene Zahlung, Kündigung, doppelte Webhook-Zustellung und Token-Nachkauf testen. Für Produktivbetrieb TWINT beim Händlerkonto aktivieren und Preise sowie AGB freigeben.
 
