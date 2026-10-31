@@ -4,7 +4,8 @@ import { getNavProfile, getHiddenPages, isPageVisible, type NavProfile } from '.
 import { useAuth } from '../store/AuthContext';
 import KittyChat from '../components/KittyChat';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
-import OnboardingTutorial, { hasTutorialBeenSeen } from '../components/OnboardingTutorial';
+import OnboardingTutorial from '../components/OnboardingTutorial';
+import { getOnboardingScope, isOnboardingComplete } from '../utils/onboardingProgress';
 
 
 
@@ -283,13 +284,17 @@ const buildNavItems = (base: string): NavItem[] => [
 
 const AppLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [tutorialOpen, setTutorialOpen] = useState(() => !hasTutorialBeenSeen());
+  const [tutorialManuallyOpenScope, setTutorialManuallyOpenScope] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState(0);
   const location  = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
   const isDemo = location.pathname.startsWith('/demo');
   const base   = isDemo ? '/demo' : '/app';
+  const onboardingScope = getOnboardingScope(user?.id, isDemo);
+  const tutorialOpen = onboardingScope
+    ? !isOnboardingComplete(onboardingScope) || tutorialManuallyOpenScope === onboardingScope
+    : false;
   const navItems = buildNavItems(base);
 
   const [navProfile, setNavProfile] = useState<NavProfile>(getNavProfile);
@@ -417,7 +422,7 @@ const AppLayout = () => {
             })}
             <button
               type="button"
-              onClick={() => { setMenuOpen(false); setTutorialStep(0); setTutorialOpen(true); }}
+              onClick={() => { setMenuOpen(false); setTutorialStep(0); setTutorialManuallyOpenScope(onboardingScope); }}
               className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -515,7 +520,7 @@ const AppLayout = () => {
           {/* Language switcher – coming soon, hidden until i18n is implemented */}
           <button
             type="button"
-            onClick={() => { setTutorialStep(0); setTutorialOpen(true); }}
+            onClick={() => { setTutorialStep(0); setTutorialManuallyOpenScope(onboardingScope); }}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
             title="Tutorial"
           >
@@ -618,10 +623,12 @@ const AppLayout = () => {
 
     <KittyChat />
     <OnboardingTutorial
+      key={onboardingScope ?? 'no-scope'}
       open={tutorialOpen}
       step={tutorialStep}
+      scope={onboardingScope ?? 'demo'}
       onStepChange={setTutorialStep}
-      onClose={() => setTutorialOpen(false)}
+      onClose={() => setTutorialManuallyOpenScope(null)}
       basePath={base}
     />
   </div>

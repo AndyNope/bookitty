@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import { getCompany, saveCompany, type CompanyProfile } from '../utils/companyStore';
+import { completeOnboardingTask, getOnboardingScope } from '../utils/onboardingProgress';
 import { useAuth } from '../store/AuthContext';
 import { api, type BillingSummary } from '../services/api';
 import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../data/chAccounts';
@@ -241,6 +242,10 @@ const Einstellungen = () => {
 
   const handleSave = () => {
     saveCompany(form);
+    const onboardingScope = getOnboardingScope(user?.id, isDemo);
+    if (onboardingScope && [form.name, form.street, form.city, form.email].every((value) => value.trim())) {
+      completeOnboardingTask('company', onboardingScope);
+    }
     if (user) {
       api.company.save(form).catch(console.error);
     }

@@ -11,6 +11,7 @@ import { initialBookings, initialDocuments } from '../data/mock';
 import { upsertTemplate } from '../utils/templateStore';
 import { useAuth } from './AuthContext';
 import { api } from '../services/api';
+import { completeOnboardingTask, getOnboardingScope } from '../utils/onboardingProgress';
 
 const createId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -80,6 +81,7 @@ type BookkeepingContextValue = {
     detection?: string,
     templateApplied?: boolean,
     vendorPattern?: string,
+    isDirectUpload?: boolean,
   ) => void;
   updateDocumentDraft: (id: string, draft: BookingDraft) => void;
   confirmDocument: (id: string) => void;
@@ -128,8 +130,15 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
   const addBooking = (draft: BookingDraft) => {
     const booking: Booking = { id: createId(), ...draft };
     setBookings((prev) => [booking, ...prev]);
-    if (!isDemo) {
-      api.bookings.create(booking).catch(console.error);
+    const onboardingScope = getOnboardingScope(user?.id, isDemo);
+    if (isDemo) {
+      if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
+    } else {
+      api.bookings.create(booking)
+        .then(() => {
+          if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
+        })
+        .catch(console.error);
     }
   };
 
@@ -139,6 +148,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     detection?: string,
     templateApplied?: boolean,
     vendorPattern?: string,
+    isDirectUpload = false,
   ) => {
     const baseName = file.name.replace(/\.[^/.]+$/, '');
     const today = new Date().toISOString().split('T')[0];
@@ -173,7 +183,10 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
 
     setDocuments((prev) => [docData, ...prev]);
 
-    if (!isDemo) {
+    const onboardingScope = getOnboardingScope(user?.id, isDemo);
+    if (isDemo) {
+      if (isDirectUpload && onboardingScope) completeOnboardingTask('document', onboardingScope);
+    } else {
       // Fire-and-forget: upload file → save metadata with permanent URL
       (async () => {
         try {
@@ -183,6 +196,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
           setDocuments((prev) =>
             prev.map((d) => (d.id === tempId ? { ...d, previewUrl: url } : d)),
           );
+          if (isDirectUpload && onboardingScope) completeOnboardingTask('document', onboardingScope);
         } catch (e) {
           console.error('Document upload failed:', e);
         }

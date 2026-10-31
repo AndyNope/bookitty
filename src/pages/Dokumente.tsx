@@ -58,10 +58,10 @@ const Dokumente = () => {
     try {
       setIsProcessing(true);
       const { draft, detection, templateApplied, vendorPattern } = await processDocument(file);
-      addDocument(file, draft, detection, templateApplied, vendorPattern);
+      addDocument(file, draft, detection, templateApplied, vendorPattern, true);
       showNotify('success', 'Beleg erkannt', `„${file.name}“ wurde erfolgreich verarbeitet und ist bereit zur Buchung.`);
     } catch {
-      addDocument(file);
+      addDocument(file, undefined, undefined, undefined, undefined, true);
       showNotify('error', 'Erkennung fehlgeschlagen', 'Beleg wurde hinzugefügt, konnte aber nicht automatisch erkannt werden.');
     } finally {
       setIsProcessing(false);

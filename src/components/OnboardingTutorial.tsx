@@ -1,45 +1,25 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const SEEN_KEY = 'bookitty.tutorial.seen';
-const CHECKLIST_KEY = 'bookitty.tutorial.checklist';
-const checklistTasks = [
-  { id: 'dashboard', title: 'Dashboard entdecken', detail: 'Verschaffe dir einen Überblick.', path: '/dashboard' },
-  { id: 'booking', title: 'Buchungen ansehen', detail: 'Finde die Liste deiner Geschäftsvorfälle.', path: '/buchungen' },
-  { id: 'documents', title: 'Belege kennenlernen', detail: 'Sieh dir den Beleg-Workflow an.', path: '/dokumente' },
-  { id: 'kitty', title: 'Kitty ausprobieren', detail: 'Stelle eine Frage zur Buchhaltung.' },
-];
-
-const readChecklist = (): string[] => {
-  try {
-    const saved = localStorage.getItem(CHECKLIST_KEY);
-    const parsed: unknown = saved ? JSON.parse(saved) : [];
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-};
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const hasTutorialBeenSeen = () =>
-  typeof localStorage !== 'undefined' && localStorage.getItem(SEEN_KEY) === 'true';
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const markTutorialSeen = () => {
-  if (typeof localStorage !== 'undefined') localStorage.setItem(SEEN_KEY, 'true');
-};
+import {
+  getCompletedOnboardingTasks,
+  ONBOARDING_PROGRESS_EVENT,
+  onboardingTasks,
+  type OnboardingTaskId,
+} from '../utils/onboardingProgress';
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
-const steps: {
+const tourSteps: {
   icon: React.ReactNode;
   title: string;
   description: string;
   badge?: string;
+  taskId?: OnboardingTaskId;
   action?: {
     highlightId?: string;
     navigateTo?: string;
     cta?: string;
+    openKitty?: boolean;
   };
 }[] = [
   {
@@ -139,58 +119,125 @@ const steps: {
   },
 ];
 
+const steps: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  badge?: string;
+  taskId?: OnboardingTaskId;
+  action?: {
+    highlightId?: string;
+    navigateTo?: string;
+    cta?: string;
+    openKitty?: boolean;
+  };
+}[] = [
+  {
+    ...tourSteps[0],
+    badge: 'Start',
+  },
+  {
+    ...tourSteps[7],
+    badge: '1 · Firmendaten',
+    taskId: 'company',
+    title: 'Firmendaten vervollständigen',
+    description: 'Trage Firmenname, Strasse, PLZ/Ort und E-Mail ein und speichere dein Unternehmensprofil.',
+    action: { ...tourSteps[7].action, cta: 'Firmendaten öffnen' },
+  },
+  {
+    ...tourSteps[2],
+    badge: '2 · Erste Buchung',
+    taskId: 'booking',
+    title: 'Erste Buchung erfassen',
+    description: 'Erfasse eine Einnahme oder Ausgabe. Der Schritt gilt, sobald Bookitty die Buchung gespeichert hat.',
+    action: { ...tourSteps[2].action, cta: 'Buchungen öffnen' },
+  },
+  {
+    ...tourSteps[4],
+    badge: '3 · Dokumente',
+    taskId: 'document',
+    title: 'Dokumenten-Upload testen',
+    description: 'Lade ein PDF oder Foto hoch und lass Bookitty den Beleg verarbeiten.',
+    action: { ...tourSteps[4].action, cta: 'Dokumente öffnen' },
+  },
+  {
+    ...tourSteps[6],
+    badge: '4 · Kitty',
+    taskId: 'kitty',
+    title: 'Kitty eine Frage stellen',
+    description: 'Öffne Kitty, stelle eine Buchhaltungsfrage und warte auf ihre Antwort.',
+    action: { cta: 'Kitty öffnen', openKitty: true },
+  },
+];
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 type Props = {
   open: boolean;
   step: number;
+  scope: string;
   onStepChange: (s: number) => void;
   onClose: () => void;
   basePath?: string;
 };
 
-const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }: Props) => {
+const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath = '' }: Props) => {
   const current = steps[step];
   const isLast = step === steps.length - 1;
   const navigate = useNavigate();
-  const [completedTasks, setCompletedTasks] = useState(readChecklist);
+  const [completedTasks, setCompletedTasks] = useState(() => getCompletedOnboardingTasks(scope));
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const points = completedTasks.length * 25;
   const level = points >= 100 ? 3 : points >= 50 ? 2 : 1;
   const levelNames = ['Lernstart', 'Entdecker', 'Buchungsprofi'];
   const progressToNextLevel = level === 3 ? 100 : ((points % 50) / 50) * 100;
-
-  const toggleTask = (taskId: string) => {
-    setCompletedTasks((currentTasks) => {
-      const nextTasks = currentTasks.includes(taskId)
-        ? currentTasks.filter((id) => id !== taskId)
-        : [...currentTasks, taskId];
-      localStorage.setItem(CHECKLIST_KEY, JSON.stringify(nextTasks));
-      return nextTasks;
-    });
-  };
+  const isComplete = completedTasks.length === onboardingTasks.length;
+  const canAdvance = !current.taskId || completedTasks.includes(current.taskId);
+  const containerPosition = isCollapsed
+    ? current.taskId === 'company'
+      ? 'bottom-24 right-3 sm:bottom-6 sm:right-6'
+      : 'left-3 top-16 sm:left-6 sm:top-24'
+    : 'inset-x-0 bottom-24 px-3 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[360px] sm:px-0';
 
   const handleClose = useCallback(() => {
-    markTutorialSeen();
-    onClose();
-  }, [onClose]);
+    if (isComplete) onClose();
+  }, [isComplete, onClose]);
+
+  useEffect(() => {
+    const handleProgress = (event: Event) => {
+      const detail = (event as CustomEvent<{ scope: string; taskId: OnboardingTaskId }>).detail;
+      if (!detail || detail.scope !== scope) return;
+
+      const updatedTasks = getCompletedOnboardingTasks(scope);
+      setCompletedTasks(updatedTasks);
+      if (updatedTasks.length === onboardingTasks.length) {
+        setShowCelebration(true);
+      } else if (steps[step]?.taskId === detail.taskId) {
+        setIsCollapsed(false);
+        onStepChange(Math.min(step + 1, steps.length - 1));
+      }
+    };
+
+    window.addEventListener(ONBOARDING_PROGRESS_EVENT, handleProgress);
+    return () => window.removeEventListener(ONBOARDING_PROGRESS_EVENT, handleProgress);
+  }, [scope, step, onStepChange]);
 
   // Escape key closes
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-      if (e.key === 'ArrowRight' && !isLast) onStepChange(step + 1);
+      if (e.key === 'Escape' && isComplete) handleClose();
+      if (e.key === 'Escape' && !isComplete) setIsCollapsed(true);
+      if (e.key === 'ArrowRight' && !isLast && canAdvance) onStepChange(step + 1);
       if (e.key === 'ArrowLeft' && step > 0) onStepChange(step - 1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, step, isLast, handleClose, onStepChange]);
+  }, [open, step, isLast, canAdvance, isComplete, handleClose, onStepChange]);
 
   useEffect(() => {
     if (!open) return;
-    if (current?.action?.navigateTo) {
-      navigate(`${basePath}${current.action.navigateTo}`);
-    }
     if (current?.action?.highlightId) {
       window.dispatchEvent(new CustomEvent('kitty:highlight', {
         detail: { id: current.action.highlightId },
@@ -201,7 +248,13 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
   if (!open) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 px-3 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[360px] sm:px-0">
+    <div className={`pointer-events-none fixed z-50 ${containerPosition}`}>
+      {isCollapsed ? (
+        <button type="button" onClick={() => setIsCollapsed(false)} title={`Einführung fortsetzen: ${current.title}`} aria-label={`Einführung fortsetzen: ${current.title}`} className="pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg">
+          <img src="/logo.svg" alt="" className="h-7 w-7" />
+          <span className="absolute -right-1 -top-1 rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] font-bold text-white">{completedTasks.length}/{onboardingTasks.length}</span>
+        </button>
+      ) : (
       <section
         aria-labelledby="tutorial-title"
         className="pointer-events-auto max-h-[min(78dvh,700px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
@@ -217,49 +270,30 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100" role="progressbar" aria-label="Fortschritt zum nächsten Level" aria-valuenow={progressToNextLevel} aria-valuemin={0} aria-valuemax={100}>
             <div className="h-full rounded-full bg-emerald-700 transition-all" style={{ width: `${progressToNextLevel}%` }} />
           </div>
-          <p className="mt-1 text-[10px] text-emerald-900/70">{completedTasks.length} von {checklistTasks.length} Aufgaben erledigt</p>
+          <p className="mt-1 text-[10px] text-emerald-900/70">{completedTasks.length} von {onboardingTasks.length} Aufgaben erledigt</p>
         </div>
 
         <div className="border-b border-slate-100 px-4 py-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold text-slate-800">Deine Checkliste</p>
+            <p className="text-xs font-semibold text-slate-800">Deine Schritte</p>
             <p className="text-[10px] text-slate-500">25 XP je Aufgabe</p>
           </div>
           <div className="space-y-1.5">
-            {checklistTasks.map((task) => {
+            {onboardingTasks.map((task) => {
               const isComplete = completedTasks.includes(task.id);
               return (
                 <div key={task.id} className={`flex items-center gap-2 rounded-md border px-2.5 py-2 ${isComplete ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-100 bg-white'}`}>
-                  <button
-                    type="button"
-                    onClick={() => toggleTask(task.id)}
-                    aria-label={`${isComplete ? 'Aufgabe wieder öffnen' : 'Aufgabe abschliessen'}: ${task.title}`}
-                    aria-pressed={isComplete}
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[10px] font-bold ${isComplete ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-300 text-transparent hover:border-emerald-700'}`}
-                  >
-                    ✓
-                  </button>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isComplete ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-400'}`} aria-label={isComplete ? 'Erledigt' : 'Offen'}>
+                    {isComplete ? '✓' : '·'}
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className={`text-xs font-semibold ${isComplete ? 'text-emerald-900' : 'text-slate-800'}`}>{task.title}</p>
                     <p className="text-[10px] text-slate-500">{task.detail}</p>
                   </div>
-                  {task.path && !isComplete && (
-                    <button type="button" onClick={() => navigate(`${basePath}${task.path}`)} title={`Zu ${task.title}`} aria-label={`Zu ${task.title}`} className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 17 17 7M7 7h10v10" />
-                      </svg>
-                    </button>
-                  )}
                 </div>
               );
             })}
           </div>
-          {completedTasks.length === checklistTasks.length && (
-            <div role="status" className="mt-3 border-l-2 border-emerald-700 bg-white px-3 py-2">
-              <p className="text-xs font-bold text-emerald-900">Stark gemacht! Du bist bereit für deine erste Buchung.</p>
-              <p className="mt-0.5 text-[10px] text-slate-600">Alle Stationen erledigt. Deine 100 XP bleiben in diesem Browser gespeichert.</p>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
@@ -269,7 +303,12 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
               <span className="text-xs font-semibold text-slate-800">{current.badge}</span>
             </div>
           )}
-          <button
+          <button type="button" onClick={() => setIsCollapsed(true)} title="Einführung minimieren" aria-label="Einführung minimieren" className="ml-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+            </svg>
+          </button>
+          {isComplete && <button
             type="button"
             onClick={handleClose}
             title="Einführung schliessen (Esc)"
@@ -279,7 +318,7 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </button>}
         </div>
 
         <div className="flex items-start gap-3 px-4 py-4">
@@ -292,8 +331,10 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
             {current.action?.cta && (
               <button
                 type="button"
-                onClick={() => navigate(`${basePath}${current.action!.navigateTo}`)}
-                className="mt-2 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                onClick={() => current.action?.openKitty
+                  ? (setIsCollapsed(true), window.dispatchEvent(new Event('kitty:open')))
+                  : current.action?.navigateTo && (setIsCollapsed(true), navigate(`${basePath}${current.action.navigateTo}`))}
+                className="mt-3 inline-flex rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
               >
                 {current.action.cta} →
               </button>
@@ -331,27 +372,47 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
               onClick={() => {
                 if (isLast) {
                   handleClose();
-                } else {
+                } else if (canAdvance) {
                   onStepChange(step + 1);
                 }
               }}
-              className="ml-auto rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition"
+              disabled={!canAdvance}
+              className="ml-auto rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {isLast ? 'Fertig' : 'Weiter'}
+              {isLast ? (isComplete ? 'Fertig' : 'Aufgabe abschliessen') : canAdvance ? 'Weiter' : 'Schritt abschliessen'}
             </button>
           </div>
 
-          {!isLast && (
-            <button
-              type="button"
-              onClick={handleClose}
-              className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 transition"
-            >
-              Einführung beenden
-            </button>
-          )}
+          {!isComplete && <p className="mt-2 text-[10px] text-slate-400">Der Wizard lässt sich minimieren, aber erst nach allen Schritten beenden.</p>}
         </div>
       </section>
+      )}
+      {showCelebration && (
+        <div className="pointer-events-auto fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-slate-950/55 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="onboarding-celebration-title">
+          <div className="onboarding-confetti" aria-hidden="true">
+            {Array.from({ length: 42 }, (_, index) => (
+              <span
+                key={index}
+                className="onboarding-confetti-piece"
+                style={{
+                  left: `${(index * 37) % 100}%`,
+                  animationDelay: `${(index % 9) * 0.11}s`,
+                  backgroundColor: ['#047857', '#f59e0b', '#e11d48', '#2563eb', '#a3e635'][index % 5],
+                }}
+              />
+            ))}
+          </div>
+          <div className="relative z-10 w-full max-w-md border border-white/40 bg-white px-7 py-8 text-center shadow-2xl sm:px-10">
+            <img src="/logo.svg" alt="Bookitty Katze" className="onboarding-cat-dance mx-auto h-24 w-24" />
+            <p className="mt-4 text-xs font-semibold uppercase text-emerald-800">100 XP · Buchungsprofi</p>
+            <h2 id="onboarding-celebration-title" className="mt-2 text-3xl font-bold text-slate-950">Geschafft, grossartig!</h2>
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-slate-600">Du hast dein Unternehmen eingerichtet, eine Buchung erfasst, einen Beleg getestet und Kitty kennengelernt. Bookitty ist startklar.</p>
+            <button type="button" onClick={() => { setShowCelebration(false); handleClose(); }} className="mt-6 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-800">
+              Los geht’s
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

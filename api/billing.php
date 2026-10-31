@@ -134,6 +134,7 @@ if ($purchaseType === 'portal') {
     $form['mode'] = 'subscription';
     $form['line_items[0][price]'] = constant($priceConstant);
     $form['line_items[0][quantity]'] = '1';
+    $form['allow_promotion_codes'] = 'true';
     $form['metadata[purchase_type]'] = 'subscription';
     $form['metadata[plan_code]'] = $planCode;
     $form['subscription_data[metadata][company_id]'] = (string) $companyId;

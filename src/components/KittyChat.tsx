@@ -4,6 +4,8 @@ import { api, tokenStore } from '../services/api';
 import { searchKittyKnowledge, pickAnswer } from '../utils/kittySearch';
 import type { KittyAction } from '../utils/kittySearch';
 import type { BookingSuggestion } from '../data/kittyKnowledge';
+import { useAuth } from '../store/AuthContext';
+import { completeOnboardingTask, getOnboardingScope } from '../utils/onboardingProgress';
 
 type Message = {
   role: 'user' | 'model';
@@ -100,6 +102,8 @@ const KittyChat = () => {
   const { pathname } = useLocation();
   const isDemo = pathname.startsWith('/demo');
   const base = isDemo ? '/demo' : '/app';
+  const { user } = useAuth();
+  const onboardingScope = getOnboardingScope(user?.id, isDemo);
 
   const [open, setOpen]       = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -179,6 +183,7 @@ const KittyChat = () => {
         action: localMatch.action,
         isLocal: true,
       }]);
+      if (onboardingScope) completeOnboardingTask('kitty', onboardingScope);
       setLoading(false);
       return;
     }
@@ -205,6 +210,7 @@ const KittyChat = () => {
         setError(data.error ?? 'Fehler beim Laden der Antwort.');
       } else {
         setMessages((prev) => [...prev, { role: 'model', text: data.text }]);
+        if (data.text?.trim() && onboardingScope) completeOnboardingTask('kitty', onboardingScope);
         if (data.usage) setRemainingTokens(data.usage.monthlyTokens + data.usage.purchasedTokens);
       }
     } catch {

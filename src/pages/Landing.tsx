@@ -103,6 +103,23 @@ const steps = [
   { num: '3', title: 'Prüfen & Buchen', desc: 'Vorschlag prüfen, anpassen und mit einem Klick buchen.' },
 ];
 
+const founders = [
+  {
+    name: 'Janick Gmür',
+    role: 'Founder',
+    image: '/team/janick.jpg',
+    description: 'Treibt die Produktvision voran: Buchhaltung für Schweizer KMU verständlicher und zugänglicher machen.',
+    href: 'https://bookitty-pitch.bidebliss.com/',
+  },
+  {
+    name: 'Andy Bui',
+    role: 'CTO & Co-Founder',
+    image: '/team/andy.png',
+    description: 'Verantwortet die technische Umsetzung. Full-Stack-Erfahrung in Frontend, Backend und Projektleitung.',
+    href: 'https://andynope.com/',
+  },
+];
+
 const stepIcons = [
   // 1 – Person/register
   <svg key="1" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -170,6 +187,9 @@ const Landing = () => {
           >
             Demo
           </Link>
+          <a href="#ueber-uns" className="hidden lg:block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 transition">
+            Über uns
+          </a>
           <Link
             to="/register"
             className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition sm:px-4 sm:py-2 sm:text-sm"
@@ -415,6 +435,32 @@ const Landing = () => {
       </div>
     </section>
 
+    {/* ── About us ── */}
+    <section id="ueber-uns" className="border-y border-slate-200 bg-[#f6f7f5] py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase text-emerald-800">Über uns</p>
+          <h2 className="mt-2 text-3xl font-bold text-slate-950">Zwei Gründer. Eine klare Idee.</h2>
+          <p className="mt-4 text-sm leading-relaxed text-slate-600">Bookitty entsteht aus dem Anspruch, Schweizer KMU von unnötig komplizierter Buchhaltung zu entlasten.</p>
+        </div>
+        <div className="mt-9 grid gap-5 md:grid-cols-2">
+          {founders.map((founder) => (
+            <article key={founder.name} className="grid grid-cols-[96px_1fr] items-center gap-5 border border-slate-200 bg-white p-4 sm:grid-cols-[128px_1fr] sm:gap-6 sm:p-5">
+              <img src={founder.image} alt={founder.name} className="aspect-square w-24 object-cover sm:w-32" loading="lazy" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase text-emerald-800">{founder.role}</p>
+                <h3 className="mt-1 text-lg font-bold text-slate-950">{founder.name}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600 sm:text-sm">{founder.description}</p>
+                <a href={founder.href} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-emerald-800">
+                  Mehr über {founder.name.split(' ')[0]}
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
     {/* ── FAQ ── */}
     <section className="py-20">
       <div className="mx-auto max-w-3xl px-6">
@@ -458,6 +504,7 @@ const Landing = () => {
           <span>© 2026 Bookitty – Finanzbuchhaltung für Schweizer KMU</span>
         </div>
         <div className="flex gap-5">
+          <a href="#ueber-uns" className="hover:text-slate-600 transition">Über uns</a>
           <Link to="/demo"     className="hover:text-slate-600 transition">Demo</Link>
           <Link to="/register" className="hover:text-slate-600 transition">Registrieren</Link>
           <Link to="/login"    className="hover:text-slate-600 transition">Anmelden</Link>
