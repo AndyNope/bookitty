@@ -108,8 +108,6 @@ if ($purchaseType === 'portal') {
         'mode' => '',
         'success_url' => rtrim(APP_URL, '/') . '/app/einstellungen?checkout=success&session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => rtrim(APP_URL, '/') . '/app/einstellungen?checkout=cancelled',
-        'payment_method_types[0]' => 'card',
-        'payment_method_types[1]' => 'twint',
         'client_reference_id' => (string) $companyId,
         'metadata[company_id]' => (string) $companyId,
     ];
