@@ -119,15 +119,25 @@ const stepIcons = [
 ];
 
 const partners = [
-  { name: 'Startup Night', role: 'Eventpartner', mark: 'SN', color: 'bg-rose-100 text-rose-800' },
-  { name: 'Stripe', role: 'Zahlungsinfrastruktur', mark: 'S', color: 'bg-violet-100 text-violet-800' },
-  { name: 'BideBliss', role: 'Produktentwicklung', mark: 'BB', color: 'bg-slate-200 text-slate-900' },
+  {
+    name: 'Startup Night',
+    href: 'https://startupnight.ch',
+    wordmark: <span className="text-[19px] font-black leading-none tracking-tight text-slate-950">startup<span className="ml-1 text-rose-700">night</span></span>,
+  },
+  {
+    name: 'Stripe',
+    href: 'https://stripe.com/ch',
+    wordmark: <span className="text-[27px] font-black leading-none tracking-tight text-[#635bff]">stripe</span>,
+  },
+  {
+    name: 'BideBliss',
+    href: 'https://bidebliss.com',
+    wordmark: <span className="text-[21px] font-bold leading-none tracking-tight text-slate-950">Bide<span className="font-normal">Bliss</span></span>,
+  },
 ];
 
 const Landing = () => {
-  const [partnerIndex, setPartnerIndex] = useState(0);
   const showStartupNight = isStartupNightActive();
-  const partner = partners[partnerIndex];
 
   return (
   <div className="min-h-screen bg-[#f6f7f5] text-slate-950">
@@ -246,39 +256,38 @@ const Landing = () => {
       </div>
     </section>
 
-    {/* ── Partner carousel ── */}
-    <section className="border-b border-slate-200 bg-[#f6f7f5]">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-6 sm:px-8 sm:py-8 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center justify-between gap-4 md:min-w-[220px]">
-          <div>
-            <p className="text-[10px] font-semibold uppercase text-slate-500">Partner & Wegbegleiter</p>
-            <p className="mt-1 text-xs text-slate-600">Gemeinsam für Schweizer KMU</p>
-          </div>
-          <div className="flex gap-1 md:hidden">
-            <button type="button" onClick={() => setPartnerIndex((partnerIndex + partners.length - 1) % partners.length)} aria-label="Vorheriger Partner" className="h-8 w-8 rounded-md border border-slate-300 text-slate-600">←</button>
-            <button type="button" onClick={() => setPartnerIndex((partnerIndex + 1) % partners.length)} aria-label="Nächster Partner" className="h-8 w-8 rounded-md border border-slate-300 text-slate-600">→</button>
+    {/* ── Partner marquee ── */}
+    <section className="border-b border-slate-200 bg-[#f6f7f5]" aria-label="Partner">
+      <div className="mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-7">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <p className="text-[10px] font-semibold uppercase text-slate-500">Partner & Wegbegleiter</p>
+          {showStartupNight && (
+            <Link to="/startup-night" className="shrink-0 text-xs font-semibold text-rose-800 hover:text-rose-950">
+              Challenge spielen <span aria-hidden="true">→</span>
+            </Link>
+          )}
+        </div>
+        <div className="partner-marquee" aria-label="Partner-Websites">
+          <div className="partner-marquee-track">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex shrink-0 items-center gap-14 pr-14 sm:gap-20 sm:pr-20" role="list" aria-hidden={copy === 1}>
+                {partners.map((item) => (
+                  <a
+                    key={item.name}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${item.name} Website öffnen`}
+                    tabIndex={copy === 1 ? -1 : undefined}
+                    className="flex h-10 shrink-0 items-center justify-center opacity-70 grayscale transition duration-200 hover:opacity-100 hover:grayscale-0 focus-visible:opacity-100 focus-visible:grayscale-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700"
+                  >
+                    {item.wordmark}
+                  </a>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
-        <div className="hidden flex-1 items-center justify-around gap-4 md:flex">
-          {partners.map((item) => (
-            <div key={item.name} className="flex items-center gap-3 border-l border-slate-300 pl-4 first:border-0">
-              <span className={`flex h-9 min-w-9 items-center justify-center px-2 text-xs font-bold ${item.color}`}>{item.mark}</span>
-              <div><p className="text-sm font-semibold text-slate-900">{item.name}</p><p className="text-[10px] text-slate-500">{item.role}</p></div>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between border-t border-slate-200 pt-3 md:hidden">
-          <div className="flex items-center gap-3">
-            <span className={`flex h-9 min-w-9 items-center justify-center px-2 text-xs font-bold ${partner.color}`}>{partner.mark}</span>
-            <div><p className="text-sm font-semibold text-slate-900">{partner.name}</p><p className="text-[10px] text-slate-500">{partner.role}</p></div>
-          </div>
-          <span className="text-[10px] text-slate-500">{partnerIndex + 1} / {partners.length}</span>
-        </div>
-        {showStartupNight && (
-          <Link to="/startup-night" className="inline-flex items-center gap-2 text-xs font-semibold text-rose-800 hover:text-rose-950 md:ml-4">
-            Challenge spielen <span aria-hidden="true">→</span>
-          </Link>
-        )}
       </div>
     </section>
 
