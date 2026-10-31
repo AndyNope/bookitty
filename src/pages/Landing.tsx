@@ -106,15 +106,15 @@ const steps = [
 const founders = [
   {
     name: 'Janick Gmür',
-    role: 'Founder',
+    role: 'Co-Founder · CEO & CMO',
     image: '/team/janick.jpg',
-    description: 'Treibt die Produktvision voran: Buchhaltung für Schweizer KMU verständlicher und zugänglicher machen.',
-    href: 'https://bookitty-pitch.bidebliss.com/',
+    description: 'Kennt den Schweizer Markt aus erster Hand und hat bereits ein Startup aufgebaut. Verantwortet Sales, Marketing und Investor Relations; HSG St. Gallen, 4. Semester.',
+    href: 'https://www.linkedin.com/in/janick-gm%C3%BCr-b2110827a/',
   },
   {
     name: 'Andy Bui',
     role: 'CTO & Co-Founder',
-    image: '/team/andy.png',
+    image: '/team/andy.jpg',
     description: 'Verantwortet die technische Umsetzung. Full-Stack-Erfahrung in Frontend, Backend und Projektleitung.',
     href: 'https://andynope.com/',
   },

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import QRCode from 'qrcode';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { isStartupNightActive } from '../utils/eventWindow';
 import StartupNightGame from '../components/StartupNightGame';
 
@@ -10,9 +10,10 @@ const QR_PAYLOAD = `BOOKITTY:STARTUP-NIGHT:2026:RECEIPT:${SCAN_CODE}`;
 const reader = new BrowserMultiFormatReader();
 
 const StartupNight = () => {
+  const [searchParams] = useSearchParams();
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
-  const [scanned, setScanned] = useState(false);
+  const [scanned, setScanned] = useState(() => searchParams.get('play') === '1');
   const [scanMessage, setScanMessage] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
 

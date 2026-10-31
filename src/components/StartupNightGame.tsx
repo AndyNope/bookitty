@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import QRCode from 'qrcode';
 
 const GAME_DURATION = 30;
 const TARGET_SCORE = 50;
@@ -31,11 +32,23 @@ const StartupNightGame = ({ unlocked }: { unlocked: boolean }) => {
   const [lives, setLives] = useState(3);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [copied, setCopied] = useState(false);
+  const [gameQrVisible, setGameQrVisible] = useState(false);
+  const [gameQrDataUrl, setGameQrDataUrl] = useState('');
   const laneRef = useRef(1);
   const gameRef = useRef<GameState>({
     items: [], score: 0, lives: 3, elapsed: 0, lastTickAt: 0, lastSpawnAt: 0, nextId: 0,
   });
   const gameStatus = !unlocked ? 'locked' : result ?? (started ? 'playing' : 'ready');
+
+  useEffect(() => {
+    const gameUrl = `${window.location.origin}/startup-night?play=1`;
+    QRCode.toDataURL(gameUrl, {
+      width: 240,
+      margin: 1,
+      errorCorrectionLevel: 'Q',
+      color: { dark: '#12231d', light: '#ffffff' },
+    }).then(setGameQrDataUrl).catch(() => setGameQrDataUrl(''));
+  }, []);
 
   const startGame = () => {
     const now = performance.now();
@@ -135,12 +148,25 @@ const StartupNightGame = ({ unlocked }: { unlocked: boolean }) => {
           <p className="text-xs font-semibold uppercase text-slate-500">Mini-Game</p>
           <h2 id="game-title" className="mt-1 text-xl font-bold text-slate-900">Kitty Cash Dash</h2>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-slate-600">Sammle Belege für Kitty und weiche Tintenflecken aus. 30 Sekunden, drei Leben. Steuere mit ← → oder A/D.</p>
+          <button type="button" onClick={() => setGameQrVisible((visible) => !visible)} aria-expanded={gameQrVisible} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-950">
+            {gameQrVisible ? 'Spiel-QR ausblenden' : 'Spiel auf dem Smartphone öffnen'}
+          </button>
         </div>
         <div className="shrink-0 text-right text-xs">
           <p className="font-semibold text-slate-900">{score} / {TARGET_SCORE} CHF</p>
           <p className="mt-1 text-slate-500">{timeLeft}s · {lives} Leben</p>
         </div>
       </div>
+
+      {gameQrVisible && gameQrDataUrl && (
+        <div className="mt-4 flex items-center gap-4 border border-slate-200 bg-white p-3">
+          <img src={gameQrDataUrl} alt="QR-Code zum direkten Start von Kitty Cash Dash auf dem Smartphone" className="h-28 w-28 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Scan & spiel mit</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">Der QR-Code öffnet Kitty Cash Dash direkt und schaltet das Spiel auf dem Smartphone frei.</p>
+          </div>
+        </div>
+      )}
 
       <div className="relative mt-5 aspect-[4/3] min-h-[280px] overflow-hidden border border-slate-300 bg-[#f7faf7] sm:min-h-[340px]" role="application" aria-label="Kitty Cash Dash Spielbereich">
         {[1, 2].map((divider) => (
