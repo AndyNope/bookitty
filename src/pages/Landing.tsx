@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { isStartupNightActive } from '../utils/eventWindow';
 
 const faqs = [
   {
@@ -117,8 +118,19 @@ const stepIcons = [
   </svg>,
 ];
 
-const Landing = () => (
-  <div className="min-h-screen bg-slate-50 text-slate-900">
+const partners = [
+  { name: 'Startup Night', role: 'Eventpartner', mark: 'SN', color: 'bg-rose-100 text-rose-800' },
+  { name: 'Stripe', role: 'Zahlungsinfrastruktur', mark: 'S', color: 'bg-violet-100 text-violet-800' },
+  { name: 'BideBliss', role: 'Produktentwicklung', mark: 'BB', color: 'bg-slate-200 text-slate-900' },
+];
+
+const Landing = () => {
+  const [partnerIndex, setPartnerIndex] = useState(0);
+  const showStartupNight = isStartupNightActive();
+  const partner = partners[partnerIndex];
+
+  return (
+  <div className="min-h-screen bg-[#f6f7f5] text-slate-950">
 
     {/* ── Navigation ── */}
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
@@ -128,6 +140,14 @@ const Landing = () => (
           <span className="text-base font-bold tracking-tight sm:text-lg truncate">Bookitty</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {showStartupNight && (
+            <Link
+              to="/startup-night"
+              className="hidden md:inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-100 transition"
+            >
+              Startup Night Challenge
+            </Link>
+          )}
           <Link
             to="/login"
             className="hidden sm:block rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 transition"
@@ -151,32 +171,114 @@ const Landing = () => (
     </header>
 
     {/* ── Hero ── */}
-    <section className="mx-auto max-w-6xl px-6 py-24 text-center">
-      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-700 mb-8">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        Speziell für Schweizer KMU
+    <section className="border-b border-slate-200 bg-white">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[1fr_0.92fr] lg:gap-16">
+        <div>
+          <div className="mb-6 inline-flex items-center gap-2 border-l-2 border-emerald-600 pl-3 text-xs font-semibold uppercase text-emerald-800">
+            Schweizer Buchhaltung. Endlich verständlich.
+          </div>
+          <h1 className="max-w-xl text-4xl font-bold leading-[1.05] text-slate-950 sm:text-5xl lg:text-6xl">
+            Dein KMU. Deine Zahlen. <span className="text-emerald-700">Im Griff.</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+            Belege erfassen, Buchungen prüfen und den Überblick behalten – mit Schweizer Kontenrahmen und Kitty an deiner Seite.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link to="/register" className="inline-flex items-center justify-center rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800">
+              Kostenlos starten <span aria-hidden="true" className="ml-2">→</span>
+            </Link>
+            <Link to="/demo" className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+              Demo ansehen
+            </Link>
+          </div>
+          <div className="mt-9 flex flex-wrap gap-x-6 gap-y-2 border-t border-slate-200 pt-5 text-xs text-slate-500">
+            <span>Schweizer KMU-Kontenrahmen</span>
+            <span>Keine Kreditkarte nötig</span>
+            <span>Offline-Demo verfügbar</span>
+          </div>
+        </div>
+
+        <div className="relative mx-auto w-full max-w-[520px]" aria-label="Bookitty Dashboard Vorschau">
+          <div className="overflow-hidden border border-slate-200 bg-[#f9faf8] shadow-[0_24px_70px_-35px_rgba(15,23,42,0.4)]">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-center gap-2">
+                <img src="/logo.svg" alt="" className="h-6 w-6" />
+                <span className="text-sm font-bold text-slate-900">Bookitty</span>
+              </div>
+              <span className="text-[10px] font-medium text-slate-500">Übersicht · Oktober</span>
+            </div>
+            <div className="grid grid-cols-2 gap-px bg-slate-200">
+              <div className="bg-white p-4 sm:p-5">
+                <p className="text-[10px] uppercase text-slate-500">Einnahmen</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">CHF 18’420</p>
+                <p className="mt-1 text-[10px] text-emerald-700">+8.4 % zum Vormonat</p>
+              </div>
+              <div className="bg-white p-4 sm:p-5">
+                <p className="text-[10px] uppercase text-slate-500">Ausgaben</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">CHF 7’860</p>
+                <p className="mt-1 text-[10px] text-slate-500">12 Belege erfasst</p>
+              </div>
+            </div>
+            <div className="bg-white p-4 sm:p-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <p className="text-[10px] uppercase text-slate-500">Ergebnis</p>
+                  <p className="mt-1 text-xl font-semibold text-slate-900">CHF 10’560</p>
+                </div>
+                <div className="flex h-12 items-end gap-1" aria-hidden="true">
+                  {[22, 32, 27, 44, 37, 58, 49, 72, 63, 86].map((height, index) => (
+                    <span key={index} className="w-2 bg-emerald-600/80" style={{ height: `${height}%` }} />
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between"><span className="text-slate-600">Lieferantenrechnung · Bürobedarf</span><span className="font-medium text-slate-900">CHF 108.10</span></div>
+                <div className="flex items-center justify-between"><span className="text-slate-600">Kundenrechnung · Beratung</span><span className="font-medium text-slate-900">CHF 2’400.00</span></div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 border-t border-slate-200 bg-[#f4f7f3] px-4 py-3">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">K</span>
+              <p className="text-xs text-slate-700"><strong>Kitty:</strong> Beleg erkannt und Kontierung vorbereitet.</p>
+              <span className="ml-auto text-[10px] font-semibold text-emerald-800">Bereit zur Prüfung</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-slate-900 mb-6 leading-tight">
-        Buchhaltung,<br className="hidden sm:block" /> so einfach wie nie.
-      </h1>
-      <p className="max-w-2xl mx-auto text-lg text-slate-500 mb-10 leading-relaxed">
-        Bookitty erkennt deine Rechnungen automatisch, bucht sie nach Schweizer
-        Standard und zeigt dir Bilanz und Erfolgsrechnung sofort – ohne
-        Buchhaltungskenntnisse.
-      </p>
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <Link
-          to="/register"
-          className="w-full sm:w-auto rounded-xl bg-slate-900 px-8 py-3.5 text-sm font-semibold text-white hover:bg-slate-800 transition"
-        >
-          Kostenlos registrieren →
-        </Link>
-        <Link
-          to="/demo"
-          className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-8 py-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
-        >
-          Demo ausprobieren
-        </Link>
+    </section>
+
+    {/* ── Partner carousel ── */}
+    <section className="border-b border-slate-200 bg-[#f6f7f5]">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-6 sm:px-8 sm:py-8 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center justify-between gap-4 md:min-w-[220px]">
+          <div>
+            <p className="text-[10px] font-semibold uppercase text-slate-500">Partner & Wegbegleiter</p>
+            <p className="mt-1 text-xs text-slate-600">Gemeinsam für Schweizer KMU</p>
+          </div>
+          <div className="flex gap-1 md:hidden">
+            <button type="button" onClick={() => setPartnerIndex((partnerIndex + partners.length - 1) % partners.length)} aria-label="Vorheriger Partner" className="h-8 w-8 rounded-md border border-slate-300 text-slate-600">←</button>
+            <button type="button" onClick={() => setPartnerIndex((partnerIndex + 1) % partners.length)} aria-label="Nächster Partner" className="h-8 w-8 rounded-md border border-slate-300 text-slate-600">→</button>
+          </div>
+        </div>
+        <div className="hidden flex-1 items-center justify-around gap-4 md:flex">
+          {partners.map((item) => (
+            <div key={item.name} className="flex items-center gap-3 border-l border-slate-300 pl-4 first:border-0">
+              <span className={`flex h-9 min-w-9 items-center justify-center px-2 text-xs font-bold ${item.color}`}>{item.mark}</span>
+              <div><p className="text-sm font-semibold text-slate-900">{item.name}</p><p className="text-[10px] text-slate-500">{item.role}</p></div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between border-t border-slate-200 pt-3 md:hidden">
+          <div className="flex items-center gap-3">
+            <span className={`flex h-9 min-w-9 items-center justify-center px-2 text-xs font-bold ${partner.color}`}>{partner.mark}</span>
+            <div><p className="text-sm font-semibold text-slate-900">{partner.name}</p><p className="text-[10px] text-slate-500">{partner.role}</p></div>
+          </div>
+          <span className="text-[10px] text-slate-500">{partnerIndex + 1} / {partners.length}</span>
+        </div>
+        {showStartupNight && (
+          <Link to="/startup-night" className="inline-flex items-center gap-2 text-xs font-semibold text-rose-800 hover:text-rose-950 md:ml-4">
+            Challenge spielen <span aria-hidden="true">→</span>
+          </Link>
+        )}
       </div>
     </section>
 
@@ -355,6 +457,7 @@ const Landing = () => (
     </footer>
 
   </div>
-);
+  );
+};
 
 export default Landing;

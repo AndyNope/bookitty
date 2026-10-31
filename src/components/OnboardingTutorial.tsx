@@ -1,7 +1,24 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const SEEN_KEY = 'bookitty.tutorial.seen';
+const CHECKLIST_KEY = 'bookitty.tutorial.checklist';
+const checklistTasks = [
+  { id: 'dashboard', title: 'Dashboard entdecken', detail: 'Verschaffe dir einen Überblick.', path: '/dashboard' },
+  { id: 'booking', title: 'Buchungen ansehen', detail: 'Finde die Liste deiner Geschäftsvorfälle.', path: '/buchungen' },
+  { id: 'documents', title: 'Belege kennenlernen', detail: 'Sieh dir den Beleg-Workflow an.', path: '/dokumente' },
+  { id: 'kitty', title: 'Kitty ausprobieren', detail: 'Stelle eine Frage zur Buchhaltung.' },
+];
+
+const readChecklist = (): string[] => {
+  try {
+    const saved = localStorage.getItem(CHECKLIST_KEY);
+    const parsed: unknown = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const hasTutorialBeenSeen = () =>
@@ -136,6 +153,21 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
   const current = steps[step];
   const isLast = step === steps.length - 1;
   const navigate = useNavigate();
+  const [completedTasks, setCompletedTasks] = useState(readChecklist);
+  const points = completedTasks.length * 25;
+  const level = points >= 100 ? 3 : points >= 50 ? 2 : 1;
+  const levelNames = ['Lernstart', 'Entdecker', 'Buchungsprofi'];
+  const progressToNextLevel = level === 3 ? 100 : ((points % 50) / 50) * 100;
+
+  const toggleTask = (taskId: string) => {
+    setCompletedTasks((currentTasks) => {
+      const nextTasks = currentTasks.includes(taskId)
+        ? currentTasks.filter((id) => id !== taskId)
+        : [...currentTasks, taskId];
+      localStorage.setItem(CHECKLIST_KEY, JSON.stringify(nextTasks));
+      return nextTasks;
+    });
+  };
 
   const handleClose = useCallback(() => {
     markTutorialSeen();
@@ -172,8 +204,64 @@ const OnboardingTutorial = ({ open, step, onStepChange, onClose, basePath = '' }
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 px-3 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[360px] sm:px-0">
       <section
         aria-labelledby="tutorial-title"
-        className="pointer-events-auto max-h-[min(65dvh,520px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
+        className="pointer-events-auto max-h-[min(78dvh,700px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
       >
+        <div className="border-b border-emerald-100 bg-emerald-50/70 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase text-emerald-800">Dein Lernpfad</p>
+              <p className="mt-0.5 text-sm font-bold text-slate-900">Level {level} · {levelNames[level - 1]}</p>
+            </div>
+            <span className="rounded-md bg-white px-2.5 py-1.5 text-xs font-bold text-emerald-900">{points} XP</span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100" role="progressbar" aria-label="Fortschritt zum nächsten Level" aria-valuenow={progressToNextLevel} aria-valuemin={0} aria-valuemax={100}>
+            <div className="h-full rounded-full bg-emerald-700 transition-all" style={{ width: `${progressToNextLevel}%` }} />
+          </div>
+          <p className="mt-1 text-[10px] text-emerald-900/70">{completedTasks.length} von {checklistTasks.length} Aufgaben erledigt</p>
+        </div>
+
+        <div className="border-b border-slate-100 px-4 py-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-800">Deine Checkliste</p>
+            <p className="text-[10px] text-slate-500">25 XP je Aufgabe</p>
+          </div>
+          <div className="space-y-1.5">
+            {checklistTasks.map((task) => {
+              const isComplete = completedTasks.includes(task.id);
+              return (
+                <div key={task.id} className={`flex items-center gap-2 rounded-md border px-2.5 py-2 ${isComplete ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-100 bg-white'}`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleTask(task.id)}
+                    aria-label={`${isComplete ? 'Aufgabe wieder öffnen' : 'Aufgabe abschliessen'}: ${task.title}`}
+                    aria-pressed={isComplete}
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[10px] font-bold ${isComplete ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-300 text-transparent hover:border-emerald-700'}`}
+                  >
+                    ✓
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-xs font-semibold ${isComplete ? 'text-emerald-900' : 'text-slate-800'}`}>{task.title}</p>
+                    <p className="text-[10px] text-slate-500">{task.detail}</p>
+                  </div>
+                  {task.path && !isComplete && (
+                    <button type="button" onClick={() => navigate(`${basePath}${task.path}`)} title={`Zu ${task.title}`} aria-label={`Zu ${task.title}`} className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 17 17 7M7 7h10v10" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {completedTasks.length === checklistTasks.length && (
+            <div role="status" className="mt-3 border-l-2 border-emerald-700 bg-white px-3 py-2">
+              <p className="text-xs font-bold text-emerald-900">Stark gemacht! Du bist bereit für deine erste Buchung.</p>
+              <p className="mt-0.5 text-[10px] text-slate-600">Alle Stationen erledigt. Deine 100 XP bleiben in diesem Browser gespeichert.</p>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           {current.badge && (
             <div>
