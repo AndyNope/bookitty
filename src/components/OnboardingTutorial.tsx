@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getCompletedOnboardingTasks,
@@ -185,9 +185,17 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
   const current = steps[step];
   const isLast = step === steps.length - 1;
   const navigate = useNavigate();
-  const [completedTasks, setCompletedTasks] = useState(() => getCompletedOnboardingTasks(scope));
+  const completedSnapshot = useSyncExternalStore(
+    (notify) => {
+      window.addEventListener(ONBOARDING_PROGRESS_EVENT, notify);
+      return () => window.removeEventListener(ONBOARDING_PROGRESS_EVENT, notify);
+    },
+    () => JSON.stringify(getCompletedOnboardingTasks(scope)),
+  );
+  const completedTasks = JSON.parse(completedSnapshot) as OnboardingTaskId[];
   const [showCelebration, setShowCelebration] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const points = completedTasks.length * 25;
   const level = points >= 100 ? 3 : points >= 50 ? 2 : 1;
   const levelNames = ['Lernstart', 'Entdecker', 'Buchungsprofi'];
@@ -195,14 +203,20 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
   const isComplete = completedTasks.length === onboardingTasks.length;
   const canAdvance = !current.taskId || completedTasks.includes(current.taskId);
   const containerPosition = isCollapsed
-    ? current.taskId === 'company'
-      ? 'bottom-24 right-3 sm:bottom-6 sm:right-6'
-      : 'left-3 top-16 sm:left-6 sm:top-24'
-    : 'inset-x-0 bottom-24 px-3 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[360px] sm:px-0';
+    ? 'left-3 top-16 sm:left-6 sm:top-24'
+    : 'inset-x-0 bottom-40 px-3 sm:inset-auto sm:bottom-40 sm:right-6 sm:w-[360px] sm:px-0 lg:bottom-6';
 
   const handleClose = useCallback(() => {
-    if (isComplete) onClose();
-  }, [isComplete, onClose]);
+    onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    const handleChatVisibility = (event: Event) => {
+      setChatOpen((event as CustomEvent<boolean>).detail);
+    };
+    window.addEventListener('kitty:visibility', handleChatVisibility);
+    return () => window.removeEventListener('kitty:visibility', handleChatVisibility);
+  }, []);
 
   useEffect(() => {
     const handleProgress = (event: Event) => {
@@ -210,7 +224,6 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
       if (!detail || detail.scope !== scope) return;
 
       const updatedTasks = getCompletedOnboardingTasks(scope);
-      setCompletedTasks(updatedTasks);
       if (updatedTasks.length === onboardingTasks.length) {
         setShowCelebration(true);
       } else if (steps[step]?.taskId === detail.taskId) {
@@ -227,14 +240,14 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isComplete) handleClose();
-      if (e.key === 'Escape' && !isComplete) setIsCollapsed(true);
+      if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.key === 'Escape' && !chatOpen) handleClose();
       if (e.key === 'ArrowRight' && !isLast && canAdvance) onStepChange(step + 1);
       if (e.key === 'ArrowLeft' && step > 0) onStepChange(step - 1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, step, isLast, canAdvance, isComplete, handleClose, onStepChange]);
+  }, [open, step, isLast, canAdvance, chatOpen, handleClose, onStepChange]);
 
   useEffect(() => {
     if (!open) return;
@@ -245,7 +258,7 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
     }
   }, [open, step, current, basePath, navigate]);
 
-  if (!open) return null;
+  if (!open || (chatOpen && !showCelebration)) return null;
 
   return (
     <div className={`pointer-events-none fixed z-50 ${containerPosition}`}>
@@ -257,7 +270,7 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
       ) : (
       <section
         aria-labelledby="tutorial-title"
-        className="pointer-events-auto max-h-[min(78dvh,700px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
+        className="pointer-events-auto max-h-[min(calc(100dvh-12rem),700px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl lg:max-h-[min(78dvh,700px)]"
       >
         <div className="border-b border-emerald-100 bg-emerald-50/70 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
@@ -308,7 +321,7 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
             </svg>
           </button>
-          {isComplete && <button
+          <button
             type="button"
             onClick={handleClose}
             title="Einführung schliessen (Esc)"
@@ -318,7 +331,7 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>}
+          </button>
         </div>
 
         <div className="flex items-start gap-3 px-4 py-4">
@@ -383,7 +396,7 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
             </button>
           </div>
 
-          {!isComplete && <p className="mt-2 text-[10px] text-slate-400">Der Wizard lässt sich minimieren, aber erst nach allen Schritten beenden.</p>}
+          {!isComplete && <p className="mt-2 text-[10px] text-slate-400">Dein Fortschritt bleibt beim Schliessen gespeichert.</p>}
         </div>
       </section>
       )}

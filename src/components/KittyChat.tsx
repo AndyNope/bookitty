@@ -115,6 +115,13 @@ const KittyChat = () => {
   const inputRef              = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent('kitty:visibility', { detail: open }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('kitty:visibility', { detail: false }));
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open || isDemo || !tokenStore.get()) return;
     api.billing.summary()
       .then((summary) => setRemainingTokens(summary.monthlyTokens + summary.purchasedTokens))
@@ -248,7 +255,7 @@ const KittyChat = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Kitty öffnen"
+        aria-label={open ? 'Kitty schliessen' : 'Kitty öffnen'}
         className={`fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all lg:hidden ${
           open ? 'bg-slate-700 rotate-0' : 'bg-slate-900 hover:bg-slate-700'
         }`}
@@ -258,15 +265,7 @@ const KittyChat = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          /* Cat face icon */
-          <svg className="h-7 w-7 text-white" viewBox="0 0 32 32" fill="currentColor">
-            <path d="M5 11 L3 4 L11 8.5 Q13.5 7 16 7 Q18.5 7 21 8.5 L29 4 L27 11 Q29.5 14 29.5 18 Q29.5 25 23 27.5 Q19.5 29 16 29 Q12.5 29 9 27.5 Q2.5 25 2.5 18 Q2.5 14 5 11 Z"/>
-            <ellipse cx="11.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
-            <ellipse cx="20.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
-            <path d="M14.5 22 L16 20 L17.5 22 L16 23.5 Z" fill="#0f172a" opacity="0.5"/>
-            <path d="M16 23.5 Q13 25.5 11 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
-            <path d="M16 23.5 Q19 25.5 21 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
-          </svg>
+          <img src="/logo.svg" alt="" className="h-9 w-9 rounded-full bg-white p-1" />
         )}
         {/* Unread dot when closed and has messages */}
         {!open && messages.length > 0 && (
@@ -276,19 +275,12 @@ const KittyChat = () => {
 
       {/* ── Chat window ── */}
       {open && (
-        <div className="fixed bottom-36 right-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl lg:bottom-24 lg:right-6">
+        <div role="region" aria-label="Kitty Chat" className="fixed bottom-36 right-4 z-50 flex max-h-[calc(100dvh-10rem)] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl lg:bottom-24 lg:right-6">
 
           {/* Header */}
           <div className="flex items-center gap-3 rounded-t-2xl bg-slate-900 px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
-              <svg className="h-5 w-5 text-white" viewBox="0 0 32 32" fill="currentColor">
-                <path d="M5 11 L3 4 L11 8.5 Q13.5 7 16 7 Q18.5 7 21 8.5 L29 4 L27 11 Q29.5 14 29.5 18 Q29.5 25 23 27.5 Q19.5 29 16 29 Q12.5 29 9 27.5 Q2.5 25 2.5 18 Q2.5 14 5 11 Z"/>
-                <ellipse cx="11.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
-                <ellipse cx="20.5" cy="18" rx="2.2" ry="2.5" fill="#0f172a"/>
-                <path d="M14.5 22 L16 20 L17.5 22 L16 23.5 Z" fill="#0f172a" opacity="0.5"/>
-                <path d="M16 23.5 Q13 25.5 11 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
-                <path d="M16 23.5 Q19 25.5 21 24.5" stroke="#0f172a" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.5"/>
-              </svg>
+              <img src="/logo.svg" alt="Bookitty" className="h-8 w-8 rounded-full bg-white p-1" />
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Kitty</p>
@@ -301,6 +293,7 @@ const KittyChat = () => {
             <button
               type="button"
               onClick={() => setOpen(false)}
+              aria-label="Chat schliessen"
               className="ml-auto rounded-lg p-1 text-slate-400 hover:text-white"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -310,7 +303,7 @@ const KittyChat = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex flex-col gap-3 overflow-y-auto p-4 h-80">
+          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-4 h-80">
             {messages.length === 0 ? (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-slate-500 text-center mt-4">

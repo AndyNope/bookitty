@@ -219,16 +219,27 @@ const Einstellungen = () => {
 
   // Load company profile from API when logged in
   useEffect(() => {
+    if (isDemo) {
+      const profile = getCompany();
+      if ([profile.name, profile.street, profile.city, profile.email].every((value) => value?.trim())) {
+        completeOnboardingTask('company', 'demo');
+      }
+      return;
+    }
     if (!user) return;
     api.company.get().then((data) => {
       if (data && Object.keys(data).length > 0) {
         const profile = data as unknown as CompanyProfile;
         setForm(profile);
         saveCompany(profile); // keep localStorage in sync
+        const scope = getOnboardingScope(user.id, isDemo);
+        if (scope && [profile.name, profile.street, profile.city, profile.email].every((value) => value?.trim())) {
+          completeOnboardingTask('company', scope);
+        }
       }
     }).catch(() => {/* ignore */});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, isDemo]);
 
   useEffect(() => {
     if (saved) {
@@ -240,14 +251,17 @@ const Einstellungen = () => {
   const patch = (key: keyof CompanyProfile) => (val: string) =>
     setForm((prev) => ({ ...prev, [key]: val }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    try {
+      if (user && !isDemo) await api.company.save(form);
+    } catch (error) {
+      showNotify('error', 'Speichern fehlgeschlagen', error instanceof Error ? error.message : 'Bitte versuche es erneut.');
+      return;
+    }
     saveCompany(form);
     const onboardingScope = getOnboardingScope(user?.id, isDemo);
     if (onboardingScope && [form.name, form.street, form.city, form.email].every((value) => value.trim())) {
       completeOnboardingTask('company', onboardingScope);
-    }
-    if (user) {
-      api.company.save(form).catch(console.error);
     }
     setSaved(true);
     showNotify('success', 'Einstellungen gespeichert', 'Das Unternehmensprofil wurde erfolgreich gespeichert.');

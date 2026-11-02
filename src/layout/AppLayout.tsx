@@ -285,6 +285,7 @@ const buildNavItems = (base: string): NavItem[] => [
 const AppLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialManuallyOpenScope, setTutorialManuallyOpenScope] = useState<string | null>(null);
+  const [tutorialDismissedScope, setTutorialDismissedScope] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState(0);
   const location  = useLocation();
   const navigate  = useNavigate();
@@ -293,7 +294,7 @@ const AppLayout = () => {
   const base   = isDemo ? '/demo' : '/app';
   const onboardingScope = getOnboardingScope(user?.id, isDemo);
   const tutorialOpen = onboardingScope
-    ? !isOnboardingComplete(onboardingScope) || tutorialManuallyOpenScope === onboardingScope
+    ? (!isOnboardingComplete(onboardingScope) && tutorialDismissedScope !== onboardingScope) || tutorialManuallyOpenScope === onboardingScope
     : false;
   const navItems = buildNavItems(base);
 
@@ -628,7 +629,7 @@ const AppLayout = () => {
       step={tutorialStep}
       scope={onboardingScope ?? 'demo'}
       onStepChange={setTutorialStep}
-      onClose={() => setTutorialManuallyOpenScope(null)}
+      onClose={() => { setTutorialManuallyOpenScope(null); setTutorialDismissedScope(onboardingScope); }}
       basePath={base}
     />
   </div>
