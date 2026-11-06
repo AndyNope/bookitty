@@ -36,7 +36,8 @@ function send_confirmation_email(string $toEmail, string $toName, string $token)
 
   function send_startup_reward_email(string $toEmail): bool {
     $subject = APP_NAME . ' – dein Startup-Night-Gutschein';
-    $gameUrl = rtrim(APP_FRONTEND_URL, '/') . '/startup-night';
+    $frontendUrl = defined('APP_FRONTEND_URL') ? rtrim(APP_FRONTEND_URL, '/') : rtrim(APP_URL, '/');
+    $gameUrl = $frontendUrl . '/startup-night';
     $code = 'KITTY-2026';
 
     $html = '<!DOCTYPE html>
