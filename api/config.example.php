@@ -32,6 +32,7 @@ define('MIGRATE_SECRET', '<<LONG_RANDOM_MIGRATION_SECRET_HIER>>');
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 define('APP_URL',       $isProd ? 'https://bookitty.ch' : 'http://localhost:8080');
+define('APP_FRONTEND_URL', $isProd ? 'https://bookitty.ch' : 'http://localhost:5173');
 define('APP_NAME',      'Bookitty');
 define('MAIL_FROM',     'noreply@bidebliss.com');
 define('MAIL_FROM_NAME','Bookitty');

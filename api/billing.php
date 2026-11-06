@@ -22,6 +22,7 @@ $tokenPacks = [
 ];
 
 $pdo = get_db();
+$frontendUrl = defined('APP_FRONTEND_URL') ? rtrim(APP_FRONTEND_URL, '/') : rtrim(APP_URL, '/');
 $pdo->prepare("INSERT IGNORE INTO billing_accounts (company_id, plan_code) VALUES (?, 'starter')")
     ->execute([$companyId]);
 
@@ -101,13 +102,13 @@ if ($purchaseType === 'portal') {
     }
     $form = [
         'customer' => $currentAccount['stripe_customer_id'],
-        'return_url' => rtrim(APP_URL, '/') . '/app/einstellungen',
+        'return_url' => $frontendUrl . '/app/einstellungen',
     ];
 } else {
     $form = [
         'mode' => '',
-        'success_url' => rtrim(APP_URL, '/') . '/app/einstellungen?checkout=success&session_id={CHECKOUT_SESSION_ID}',
-        'cancel_url' => rtrim(APP_URL, '/') . '/app/einstellungen?checkout=cancelled',
+        'success_url' => $frontendUrl . '/app/einstellungen?checkout=success&session_id={CHECKOUT_SESSION_ID}',
+        'cancel_url' => $frontendUrl . '/app/einstellungen?checkout=cancelled',
         'client_reference_id' => (string) $companyId,
         'metadata[company_id]' => (string) $companyId,
     ];
