@@ -222,7 +222,7 @@ const buildNavItems = (base: string): NavItem[] => [
   {
     to: `${base}/dokumente`,
     end: false,
-    label: 'Lieferantenbelege',
+    label: 'Belege Scan',
     kittyId: 'dokumente',
     group: 'ablage',
     icon: (

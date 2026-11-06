@@ -185,7 +185,7 @@ const Dokumente = () => {
         onClose={() => setNotify((n) => ({ ...n, open: false }))}
       />
       <SectionHeader
-        title="Lieferantenbelege"
+        title="Belege Scan"
         subtitle={`Eingangsrechnungen und Belege hochladen, prüfen und als Ausgaben buchen.${
           isProcessing ? ' Erkennung läuft…' : ''
         }`}

@@ -273,12 +273,24 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
         className="pointer-events-auto max-h-[min(calc(100dvh-12rem),700px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl lg:max-h-[min(78dvh,700px)]"
       >
         <div className="border-b border-emerald-100 bg-emerald-50/70 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase text-emerald-800">Dein Lernpfad</p>
               <p className="mt-0.5 text-sm font-bold text-slate-900">Level {level} · {levelNames[level - 1]}</p>
             </div>
-            <span className="rounded-md bg-white px-2.5 py-1.5 text-xs font-bold text-emerald-900">{points} XP</span>
+            <div className="flex shrink-0 items-center gap-1">
+              <span className="rounded-md bg-white px-2.5 py-1.5 text-xs font-bold text-emerald-900">{points} XP</span>
+              <button type="button" onClick={() => setIsCollapsed(true)} title="Einführung minimieren" aria-label="Einführung minimieren" className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-600 transition">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+                </svg>
+              </button>
+              <button type="button" onClick={handleClose} title="Einführung schliessen (Esc)" aria-label="Einführung schliessen" className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-slate-600 transition">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100" role="progressbar" aria-label="Fortschritt zum nächsten Level" aria-valuenow={progressToNextLevel} aria-valuemin={0} aria-valuemax={100}>
             <div className="h-full rounded-full bg-emerald-700 transition-all" style={{ width: `${progressToNextLevel}%` }} />
@@ -316,24 +328,6 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
               <span className="text-xs font-semibold text-slate-800">{current.badge}</span>
             </div>
           )}
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <button type="button" onClick={() => setIsCollapsed(true)} title="Einführung minimieren" aria-label="Einführung minimieren" className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={handleClose}
-              title="Einführung schliessen (Esc)"
-              aria-label="Einführung schliessen"
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
         </div>
 
         <div className="flex items-start gap-3 px-4 py-4">

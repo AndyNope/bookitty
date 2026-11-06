@@ -52,7 +52,7 @@ export const PAGE_LABELS: Record<string, string> = {
   kontakte: 'Kontakte',
   bilanz: 'Bilanz / Erfolgsrechnung',
   mwst: 'MwSt-Abrechnung',
-  dokumente: 'Lieferantenbelege',
+  dokumente: 'Belege Scan',
   lohn: 'Lohn',
   jahresabschluss: 'Jahresabschluss',
   lager: 'Lager',
