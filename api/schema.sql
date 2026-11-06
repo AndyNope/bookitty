@@ -293,3 +293,12 @@ CREATE TABLE IF NOT EXISTS expenses (
     KEY idx_expenses_status (status),
     CONSTRAINT fk_expenses_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Stores only explicit Startup Night marketing opt-ins; reward-only addresses are not persisted.
+CREATE TABLE IF NOT EXISTS startup_night_marketing_consents (
+    email           VARCHAR(254) NOT NULL,
+    consented_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    consent_version VARCHAR(30)  NOT NULL,
+    source          VARCHAR(80)  NOT NULL DEFAULT 'startup-night-2026',
+    PRIMARY KEY (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

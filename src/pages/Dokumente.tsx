@@ -185,8 +185,8 @@ const Dokumente = () => {
         onClose={() => setNotify((n) => ({ ...n, open: false }))}
       />
       <SectionHeader
-        title="Dokumenten-Import"
-        subtitle={`Kreditorenrechnungen & Lieferantenbelege hochladen — Workflow: Upload → Erkennung → Buchungsvorschlag.${
+        title="Lieferantenbelege"
+        subtitle={`Eingangsrechnungen und Belege hochladen, prüfen und als Ausgaben buchen.${
           isProcessing ? ' Erkennung läuft…' : ''
         }`}
         action={

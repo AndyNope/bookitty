@@ -34,6 +34,30 @@ function send_confirmation_email(string $toEmail, string $toName, string $token)
     return mail($toEmail, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers);
 }
 
+  function send_startup_reward_email(string $toEmail): bool {
+    $subject = APP_NAME . ' – dein Startup-Night-Gutschein';
+    $gameUrl = rtrim(APP_FRONTEND_URL, '/') . '/startup-night';
+    $code = 'KITTY-2026';
+
+    $html = '<!DOCTYPE html>
+  <html lang="de"><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:540px;margin:0 auto;padding:40px 24px;background:#f8fafc">
+  <div style="background:#fff;border-radius:16px;padding:40px 32px;border:1px solid #e2e8f0">
+    <h1 style="font-size:22px;margin:0 0 8px">Dein Gewinncode</h1>
+    <p style="color:#64748b">Danke fürs Spielen von Kitty Cash Dash. Dein Code für den Gratis-Monat:</p>
+    <p style="padding:16px;background:#ecfdf5;border-radius:10px;font-size:24px;font-weight:700;letter-spacing:2px;text-align:center">' . $code . '</p>
+    <p style="color:#64748b">Gib den Code im Stripe-Checkout ein. Der erste Abrechnungszeitraum ist kostenlos; danach wird dein gewählter Tarif monatlich verrechnet.</p>
+    <a href="' . htmlspecialchars($gameUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:12px 20px;background:#0f172a;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Bookitty ansehen</a>
+    <p style="font-size:12px;color:#94a3b8;margin-top:28px">Diese E-Mail enthält nur den angeforderten Gewinncode. Newsletter erhältst du nur, wenn du dem separat zugestimmt hast.</p>
+  </div></body></html>';
+
+    $headers  = 'MIME-Version: 1.0' . "\r\n";
+    $headers .= 'Content-type: text/html; charset=UTF-8' . "\r\n";
+    $headers .= 'From: ' . MAIL_FROM_NAME . ' <' . MAIL_FROM . '>' . "\r\n";
+    $headers .= 'Reply-To: ' . MAIL_FROM . "\r\n";
+
+    return mail($toEmail, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers);
+  }
+
 /**
  * Sends an invoice summary e-mail to the customer.
  *

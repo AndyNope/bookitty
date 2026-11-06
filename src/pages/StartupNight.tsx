@@ -68,8 +68,8 @@ const StartupNight = () => {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
-        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-          <section>
+        <div className="grid min-w-0 gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+          <section className="min-w-0">
             <p className="text-xs font-semibold uppercase text-rose-800">Bookitty Stand-Challenge</p>
             <h1 className="mt-3 max-w-lg text-4xl font-bold leading-tight sm:text-5xl">Kitty Cash Dash</h1>
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-slate-600">
@@ -116,7 +116,7 @@ const StartupNight = () => {
             </div>
           </section>
 
-          <section className="border-t border-slate-300 pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0" aria-labelledby="game-title">
+          <section className="min-w-0 border-t border-slate-300 pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0" aria-labelledby="game-title">
             <StartupNightGame unlocked={scanned} />
             <div className="mt-8 border-t border-slate-200 pt-4 print:hidden">
               <Link to="/demo" className="text-xs font-semibold text-slate-600 hover:text-slate-950">Bookitty in der Demo ansehen →</Link>

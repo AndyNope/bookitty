@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { getNavProfile, getHiddenPages, isPageVisible, type NavProfile } from '../utils/navProfileStore';
+import { getNavProfile, getHiddenPages, isPageVisible, hasSavedNavProfile, NAV_PROFILES, saveNavProfile, type NavProfile } from '../utils/navProfileStore';
 import { useAuth } from '../store/AuthContext';
 import KittyChat from '../components/KittyChat';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
@@ -21,7 +21,7 @@ const NAV_GROUP_ORDER = [
 
 const NAV_GROUP_LABELS: Record<string, string> = {
   buchhaltung:  'Buchhaltung',
-  rechnungen:   'Rechnungen & Kontakte',
+  rechnungen:   'Kunden & Verkauf',
   auswertungen: 'Auswertungen',
   personal:     'Personal & Kosten',
   inventar:     'Inventar',
@@ -78,7 +78,7 @@ const buildNavItems = (base: string): NavItem[] => [
   {
     to: `${base}/rechnungen`,
     end: false,
-    label: 'Rechnungen',
+    label: 'Kundenrechnungen',
     kittyId: 'rechnungen',
     group: 'rechnungen',
     icon: (
@@ -222,7 +222,7 @@ const buildNavItems = (base: string): NavItem[] => [
   {
     to: `${base}/dokumente`,
     end: false,
-    label: 'Dokumente',
+    label: 'Lieferantenbelege',
     kittyId: 'dokumente',
     group: 'ablage',
     icon: (
@@ -293,8 +293,9 @@ const AppLayout = () => {
   const isDemo = location.pathname.startsWith('/demo');
   const base   = isDemo ? '/demo' : '/app';
   const onboardingScope = getOnboardingScope(user?.id, isDemo);
+  const showDemoProfilePicker = isDemo && !hasSavedNavProfile();
   const tutorialOpen = onboardingScope
-    ? (!isOnboardingComplete(onboardingScope) && tutorialDismissedScope !== onboardingScope) || tutorialManuallyOpenScope === onboardingScope
+    ? (!showDemoProfilePicker && !isOnboardingComplete(onboardingScope) && tutorialDismissedScope !== onboardingScope) || tutorialManuallyOpenScope === onboardingScope
     : false;
   const navItems = buildNavItems(base);
 
@@ -623,6 +624,23 @@ const AppLayout = () => {
     </nav>
 
     <KittyChat />
+    {showDemoProfilePicker && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-slate-950/55 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="demo-profile-title">
+        <section className="my-auto w-full max-w-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-8">
+          <p className="text-xs font-semibold uppercase text-emerald-800">Demo einrichten</p>
+          <h1 id="demo-profile-title" className="mt-2 text-2xl font-bold text-slate-950">Welche Ansicht passt zu deinem Betrieb?</h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">Wir zeigen zuerst die Bereiche, die für dein Unternehmen relevant sind. Du kannst dein Profil später jederzeit in den Einstellungen ändern.</p>
+          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+            {(Object.entries(NAV_PROFILES) as [NavProfile, (typeof NAV_PROFILES)[NavProfile]][]).map(([profile, definition]) => (
+              <button key={profile} type="button" onClick={() => saveNavProfile(profile)} className="border border-slate-200 p-4 text-left transition hover:border-emerald-700 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-emerald-700">
+                <span className="block text-sm font-semibold text-slate-900">{definition.label}</span>
+                <span className="mt-1 block text-xs leading-relaxed text-slate-600">{definition.description}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+    )}
     <OnboardingTutorial
       key={onboardingScope ?? 'no-scope'}
       open={tutorialOpen}

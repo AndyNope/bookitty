@@ -11,8 +11,12 @@ Der Code `KITTY-2026` wird im Stripe-Checkout als Promotion-Code eingelöst. `ap
 
 Der Checkout erfasst das Zahlungsmittel für die wiederkehrende Subscription. Der Gewinner sieht vor dem Registrieren, dass nach dem kostenlosen ersten Monat der gewählte Tarif monatlich abgerechnet wird und vor der Verlängerung gekündigt werden muss, falls kein Abo gewünscht ist.
 
-## Minispiel
+## Minispiel und Daten
 
-Der QR-Code auf der Belegkarte schaltet „Kitty Cash Dash“ frei. Das Spiel dauert 30 Sekunden: Belege bringen Punkte, Tintenflecken kosten Leben. Ab 50 Punkten werden `KITTY-2026` und der Merch-Code angezeigt. Antworten oder persönliche Daten werden nicht gespeichert.
+Der QR-Code auf der Belegkarte schaltet „Kitty Cash Dash“ frei. Nach dem 30-Sekunden-Lauf folgt ein Wissenscheck mit drei Fragen. Erst nach bestandener Challenge kann der Gewinncode per E-Mail angefordert werden; der Code wird nicht im Browser angezeigt. Bei drei falschen Antworten ist ein neuer Lauf nötig.
+
+Die E-Mail-Adresse wird für den Versand benötigt. Ohne gesetztes Marketing-Häkchen wird sie nicht in der Datenbank gespeichert. Nur bei ausdrücklichem Opt-in wird die Adresse samt Einwilligungszeitpunkt und Textversion in `startup_night_marketing_consents` gespeichert. Der Einwilligungstext ist nicht vorangekreuzt. Reward-E-Mails werden nur an die angegebene Adresse verschickt; das Opt-in dient der späteren Kontaktaufnahme und ist getrennt davon.
+
+Vor dem Livegang muss die Datenbanktabelle über den geschützten `api/migrate.php`-Ablauf angelegt werden. Eine Einwilligung kann jederzeit über `support@bookitty.ch` widerrufen werden.
 
 Die Startup-Night-Seite wird am 1. Dezember 2026 automatisch ausgeblendet. Das Promotion-Code-Ablaufdatum in Stripe sollte dazu passend gesetzt werden.

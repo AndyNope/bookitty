@@ -289,6 +289,16 @@ run($pdo, "
 $pdo->exec("INSERT IGNORE INTO billing_accounts (company_id, plan_code) SELECT id, 'starter' FROM users WHERE company_id IS NULL");
 $done[] = 'existing company owners initialized on Starter';
 
+run($pdo, "
+    CREATE TABLE IF NOT EXISTS startup_night_marketing_consents (
+        email VARCHAR(254) NOT NULL,
+        consented_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        consent_version VARCHAR(30) NOT NULL,
+        source VARCHAR(80) NOT NULL DEFAULT 'startup-night-2026',
+        PRIMARY KEY (email)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+", 'startup_night_marketing_consents table ready', $done, $skipped);
+
 // ── Result ────────────────────────────────────────────────────────────────────
 echo json_encode([
     'status'  => 'done',

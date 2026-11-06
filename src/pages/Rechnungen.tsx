@@ -988,8 +988,8 @@ export default function Rechnungen() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <SectionHeader
-        title="Rechnungen"
-        subtitle={`${invoices.length} total · ${stats.offen} offen · ${stats.overdue > 0 ? stats.overdue + ' überfällig' : 'keine überfällig'}`}
+        title="Kundenrechnungen"
+        subtitle={`${invoices.length} Kundenrechnungen · ${stats.offen} offen · ${stats.overdue > 0 ? stats.overdue + ' überfällig' : 'keine überfällig'}`}
         action={
           !isReadonly ? (
           <button

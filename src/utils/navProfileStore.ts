@@ -46,13 +46,13 @@ export const ALL_PAGES = [
 export const PAGE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   buchungen: 'Buchungen',
-  rechnungen: 'Rechnungen',
+  rechnungen: 'Kundenrechnungen',
   offerten: 'Offerten',
   bankabgleich: 'Bankabgleich',
   kontakte: 'Kontakte',
   bilanz: 'Bilanz / Erfolgsrechnung',
   mwst: 'MwSt-Abrechnung',
-  dokumente: 'Dokumente',
+  dokumente: 'Lieferantenbelege',
   lohn: 'Lohn',
   jahresabschluss: 'Jahresabschluss',
   lager: 'Lager',
@@ -67,6 +67,12 @@ export const PAGE_LABELS: Record<string, string> = {
 
 const PROFILE_KEY = 'bookitty.navProfile';
 const HIDDEN_KEY  = 'bookitty.hiddenPages';
+
+export function hasSavedNavProfile(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  const saved = localStorage.getItem(PROFILE_KEY);
+  return !!saved && saved in NAV_PROFILES;
+}
 
 export function getNavProfile(): NavProfile {
   const stored = localStorage.getItem(PROFILE_KEY) as NavProfile | null;

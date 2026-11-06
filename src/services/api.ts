@@ -200,4 +200,13 @@ export const api = {
         body: JSON.stringify(type === 'subscription' ? { type, plan: option } : { type, pack: option }),
       }),
   },
+
+  startupNight: {
+    sendRewardCode: (email: string, marketingOptIn: boolean) =>
+      apiFetch<{ ok: boolean; marketing_opt_in_saved: boolean }>('/startup-night-reward.php', {
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({ email, marketing_opt_in: marketingOptIn }),
+      }),
+  },
 };
