@@ -61,6 +61,7 @@ const StartupNightGame = ({ unlocked }: { unlocked: boolean }) => {
   const [rewardStatus, setRewardStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [rewardError, setRewardError] = useState('');
   const [marketingConsentSaved, setMarketingConsentSaved] = useState(false);
+  const [marketingConsentWarning, setMarketingConsentWarning] = useState('');
   const laneRef = useRef(1);
   const gameRef = useRef<GameState>({
     items: [], score: 0, lives: 3, elapsed: 0, lastTickAt: 0, lastSpawnAt: 0, nextId: 0,
@@ -97,6 +98,7 @@ const StartupNightGame = ({ unlocked }: { unlocked: boolean }) => {
     setRewardStatus('idle');
     setRewardError('');
     setMarketingConsentSaved(false);
+    setMarketingConsentWarning('');
     setStarted(true);
   };
 
@@ -207,6 +209,7 @@ const StartupNightGame = ({ unlocked }: { unlocked: boolean }) => {
     try {
       const response = await api.startupNight.sendRewardCode(rewardEmail, marketingOptIn);
       setMarketingConsentSaved(response.marketing_opt_in_saved);
+      setMarketingConsentWarning(response.marketing_opt_in_saved || !marketingOptIn ? '' : response.message);
       setRewardStatus('sent');
     } catch (error) {
       setRewardStatus('error');
@@ -320,6 +323,7 @@ const StartupNightGame = ({ unlocked }: { unlocked: boolean }) => {
             <div role="status" className="mt-4 border-l-2 border-emerald-700 bg-white p-4">
               <p className="text-sm font-semibold text-emerald-900">Der Code ist unterwegs.</p>
               <p className="mt-1 text-xs text-slate-600">Prüfe dein Postfach{rewardEmail ? ` (${rewardEmail})` : ''}. Für Merch zeigst du denselben Code am Bookitty-Stand.</p>
+              {marketingConsentWarning && <p role="alert" className="mt-2 text-xs text-amber-800">{marketingConsentWarning}</p>}
               {marketingConsentSaved && <p className="mt-2 text-xs text-slate-500">Deine Einwilligung für Angebote und Newsletter wurde gespeichert. Widerruf: support@bookitty.ch.</p>}
             </div>
           ) : (

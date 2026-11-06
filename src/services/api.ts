@@ -203,7 +203,7 @@ export const api = {
 
   startupNight: {
     sendRewardCode: (email: string, marketingOptIn: boolean) =>
-      apiFetch<{ ok: boolean; marketing_opt_in_saved: boolean }>('/startup-night-reward.php', {
+      apiFetch<{ ok: boolean; marketing_opt_in_saved: boolean; message: string }>('/startup-night-reward.php', {
         method: 'POST',
         credentials: 'include',
         body: JSON.stringify({ email, marketing_opt_in: marketingOptIn }),

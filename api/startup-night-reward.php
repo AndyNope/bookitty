@@ -40,21 +40,33 @@ if (isset($_SESSION['startup_night_reward_sent_at']) && $now - (int) $_SESSION['
     exit;
 }
 
-if ($marketingOptIn) {
-    $pdo = get_db();
-    $stmt = $pdo->prepare(
-        'INSERT INTO startup_night_marketing_consents (email, consent_version, source)
-         VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE consented_at = CURRENT_TIMESTAMP, consent_version = VALUES(consent_version), source = VALUES(source)'
-    );
-    $stmt->execute([$email, '2026-11-v1', 'startup-night-2026']);
-}
-
 if (!send_startup_reward_email($email)) {
     http_response_code(503);
     echo json_encode(['error' => 'Der Versand ist gerade nicht möglich. Bitte versuche es später erneut.']);
     exit;
 }
 
+$marketingConsentSaved = false;
+if ($marketingOptIn) {
+    try {
+        $pdo = get_db();
+        $stmt = $pdo->prepare(
+            'INSERT INTO startup_night_marketing_consents (email, consent_version, source)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE consented_at = CURRENT_TIMESTAMP, consent_version = VALUES(consent_version), source = VALUES(source)'
+        );
+        $stmt->execute([$email, '2026-11-v1', 'startup-night-2026']);
+        $marketingConsentSaved = true;
+    } catch (Throwable $error) {
+        error_log('Startup Night marketing consent could not be saved: ' . $error->getMessage());
+    }
+}
+
 $_SESSION['startup_night_reward_sent_at'] = $now;
-echo json_encode(['ok' => true, 'marketing_opt_in_saved' => $marketingOptIn]);
+echo json_encode([
+    'ok' => true,
+    'marketing_opt_in_saved' => $marketingConsentSaved,
+    'message' => $marketingOptIn && !$marketingConsentSaved
+        ? 'Der Gewinncode wurde gesendet, aber die Newsletter-Einwilligung konnte nicht gespeichert werden.'
+        : 'Der Gewinncode wurde per E-Mail gesendet.',
+]);
