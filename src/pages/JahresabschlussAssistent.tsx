@@ -246,8 +246,10 @@ export default function JahresabschlussAssistent() {
       </div>
 
       {/* Step progress */}
-      <div className="flex items-center gap-0">
-        {STEPS.map((label, i) => (
+      <div className="min-w-0 max-w-full">
+        <div className="-mx-1 max-w-full overflow-x-auto px-1 pb-1">
+          <div className="flex w-max items-center gap-0">
+            {STEPS.map((label, i) => (
           <div key={label} className="flex items-center">
             <button
               onClick={() => !committed && setStep(i)}
@@ -271,6 +273,8 @@ export default function JahresabschlussAssistent() {
             {i < STEPS.length - 1 && <div className="mx-1 h-px w-6 bg-slate-200" />}
           </div>
         ))}
+          </div>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

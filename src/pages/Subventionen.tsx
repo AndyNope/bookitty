@@ -141,7 +141,7 @@ export default function Subventionen() {
           <div className="space-y-3">
             {filtered.map(prog => (
               <div key={prog.name} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-semibold text-slate-800">{prog.name}</h3>
@@ -150,7 +150,7 @@ export default function Subventionen() {
                     <p className="mt-1 text-xs text-indigo-600 font-medium">{prog.type}</p>
                     <p className="mt-1.5 text-sm text-slate-600">{prog.eligibility}</p>
                   </div>
-                  <div className="shrink-0 text-right">
+                  <div className="w-full min-w-0 text-left sm:w-auto sm:shrink-0 sm:text-right">
                     <p className="text-xs text-slate-400">Förderumfang</p>
                     <p className="text-sm font-semibold text-slate-800 mt-0.5">{prog.amount}</p>
                   </div>

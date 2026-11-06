@@ -244,20 +244,18 @@ const Dokumente = () => {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         {/* Document list – hidden on mobile when form is open */}
-        <div className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${mobileView === 'form' ? 'hidden lg:block' : ''}`}>
-          <div className="mb-1">
-            <h3 className="text-lg font-semibold text-slate-900">Kreditorenrechnungen
-              <span className="ml-1.5 text-sm font-normal text-slate-400">(Lieferanten)</span>
-            </h3>
+        <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${mobileView === 'form' ? 'hidden lg:block' : ''}`}>
+          <div className="mb-1 min-w-0">
+            <h3 className="break-words text-base font-semibold text-slate-900 sm:text-lg">Eingangsrechnungen</h3>
             <p className="mt-0.5 text-xs text-slate-400">Hochgeladene Belege werden automatisch erkannt und als Buchungsvorschlag vorbereitet.</p>
           </div>
-          <ul className="mt-4 space-y-3 text-sm text-slate-600">
+          <ul className="mt-4 min-w-0 space-y-3 text-sm text-slate-600">
             {documents.map((doc) => (
               <li
                 key={doc.id}
-                className={`cursor-pointer rounded-xl border px-4 py-3 transition ${
+                className={`min-w-0 cursor-pointer rounded-xl border px-4 py-3 transition ${
                   doc.id === selectedId
                     ? 'border-slate-900 bg-slate-50'
                     : 'border-slate-100 hover:bg-slate-50'
@@ -267,7 +265,7 @@ const Dokumente = () => {
                   setMobileView('form');
                 }}
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
                     {doc.previewUrl ? (
                       <a
@@ -321,7 +319,7 @@ const Dokumente = () => {
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
                     <span
                       className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
                         doc.status === 'Gebucht'

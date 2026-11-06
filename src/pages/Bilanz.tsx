@@ -393,24 +393,23 @@ const Bilanz = () => {
       />
 
       {/* KPI cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[
           { label: 'Betriebsertrag',  value: totalErtrag,     color: 'text-emerald-600' },
           { label: 'Betriebsaufwand', value: totalAufwand,    color: 'text-rose-600' },
           { label: 'Jahresergebnis',  value: jahresergebnis,  color: jahresergebnis >= 0 ? 'text-emerald-600' : 'text-rose-600' },
           { label: 'Aktiven / Passiven', value: totalAktiv,   color: 'text-slate-700', sub: fmt(totalPassiv, cur) },
         ].map((card) => (
-          <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs text-slate-500">{card.label}</p>
-            <p className={`mt-2 text-xl font-bold tabular-nums ${card.color}`}>{fmt(card.value, cur)}</p>
+          <div key={card.label} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+            <p className="break-words text-xs text-slate-500">{card.label}</p>
+            <p className={`mt-2 break-words text-base font-bold leading-tight tabular-nums sm:text-xl ${card.color}`}>{fmt(card.value, cur)}</p>
             {card.sub && <p className="mt-0.5 text-xs text-slate-400">{card.sub}</p>}
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="overflow-x-auto">
-        <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 w-max">
+      <div className="flex min-w-0 flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
           {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['steuern', 'Steuern']] as const).map(([key, label]) => (
             <button key={key} type="button" onClick={() => setTab(key)}
               className={`rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold whitespace-nowrap transition ${
@@ -429,7 +428,6 @@ const Bilanz = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
             </svg>
           </Link>
-        </div>
       </div>
 
       {/* ── Erfolgsrechnung (Slide 14) ── */}
