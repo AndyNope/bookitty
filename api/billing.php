@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (($payload['role'] ?? 'admin') !== 'admin') {
+if (($payload['role'] ?? '') !== 'admin' || (int) $payload['sub'] !== $companyId) {
     http_response_code(403);
     echo json_encode(['error' => 'Nur Admins können das Abo verwalten.']);
     exit;

@@ -3,10 +3,12 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/activity_lib.php';
 
 set_cors_headers();
 
 $userId = effective_uid();
+$actorId = (int) get_auth_payload()['sub'];
 $pdo    = get_db();
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -30,6 +32,8 @@ function row_to_invoice(array $row): array {
         'reference'      => $row['reference']        ?? null,
         'items'          => json_decode($row['items_json'] ?? '[]', true),
         'currency'       => $row['currency'],
+        'vatIncluded'    => (bool) ($row['vat_included'] ?? false),
+        'templateId'     => $row['template_id'] ?? null,
         'notes'          => $row['notes']            ?? null,
     ];
 }
@@ -51,12 +55,13 @@ if ($method === 'GET') {
         exit;
     }
 
+    $pdo->beginTransaction();
     $pdo->prepare(
         'INSERT INTO invoices
              (id, user_id, number, date, due_date, status, contact_id, contact_name,
               contact_company, contact_street, contact_zip, contact_city, contact_country,
-              contact_email, iban, reference, items_json, currency, notes)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                    contact_email, iban, reference, items_json, currency, vat_included, template_id, notes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     )->execute([
         $id, $userId,
         $d['number']         ?? '',
@@ -75,8 +80,12 @@ if ($method === 'GET') {
         $d['reference']      ?? null,
         json_encode($d['items'] ?? []),
         $d['currency']       ?? 'CHF',
+        !empty($d['vatIncluded']) ? 1 : 0,
+        $d['templateId']     ?? null,
         $d['notes']          ?? null,
     ]);
+    log_company_activity($pdo, $userId, $actorId, 'invoice_created', 'invoice', (string) $id);
+    $pdo->commit();
     echo json_encode(['ok' => true, 'id' => $id]);
 
 // ─── PUT – update invoice ─────────────────────────────────────────────────────
@@ -90,12 +99,16 @@ if ($method === 'GET') {
         exit;
     }
 
+    $pdo->beginTransaction();
+    $check = $pdo->prepare('SELECT id FROM invoices WHERE id = ? AND user_id = ? FOR UPDATE');
+    $check->execute([$id, $userId]);
+    if (!$check->fetchColumn()) { $pdo->rollBack(); http_response_code(404); echo json_encode(['error' => 'Rechnung nicht gefunden']); exit; }
     $pdo->prepare(
         'UPDATE invoices
             SET number=?, date=?, due_date=?, status=?, contact_id=?, contact_name=?,
                 contact_company=?, contact_street=?, contact_zip=?, contact_city=?,
                 contact_country=?, contact_email=?, iban=?, reference=?,
-                items_json=?, currency=?, notes=?
+                items_json=?, currency=?, vat_included=?, template_id=?, notes=?
           WHERE id=? AND user_id=?'
     )->execute([
         $d['number']         ?? '',
@@ -114,9 +127,13 @@ if ($method === 'GET') {
         $d['reference']      ?? null,
         json_encode($d['items'] ?? []),
         $d['currency']       ?? 'CHF',
+        !empty($d['vatIncluded']) ? 1 : 0,
+        $d['templateId']     ?? null,
         $d['notes']          ?? null,
         $id, $userId,
     ]);
+    log_company_activity($pdo, $userId, $actorId, 'invoice_changed', 'invoice', (string) $id);
+    $pdo->commit();
     echo json_encode(['ok' => true]);
 
 // ─── DELETE – remove invoice ──────────────────────────────────────────────────
@@ -130,6 +147,11 @@ if ($method === 'GET') {
         exit;
     }
 
-    $pdo->prepare('DELETE FROM invoices WHERE id=? AND user_id=?')->execute([$id, $userId]);
+    $pdo->beginTransaction();
+    $delete = $pdo->prepare('DELETE FROM invoices WHERE id=? AND user_id=?');
+    $delete->execute([$id, $userId]);
+    if (!$delete->rowCount()) { $pdo->rollBack(); http_response_code(404); echo json_encode(['error' => 'Rechnung nicht gefunden']); exit; }
+    log_company_activity($pdo, $userId, $actorId, 'invoice_deleted', 'invoice', (string) $id);
+    $pdo->commit();
     echo json_encode(['ok' => true]);
 }

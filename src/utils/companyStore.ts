@@ -1,3 +1,5 @@
+import { companyStorageKey } from './companyStorage';
+
 export type CompanyProfile = {
   name: string;
   street: string;
@@ -22,7 +24,7 @@ const defaults: CompanyProfile = {
 
 export const getCompany = (): CompanyProfile => {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(companyStorageKey(KEY));
     if (!raw) return { ...defaults };
     return { ...defaults, ...JSON.parse(raw) };
   } catch {
@@ -31,5 +33,5 @@ export const getCompany = (): CompanyProfile => {
 };
 
 export const saveCompany = (profile: CompanyProfile): void => {
-  localStorage.setItem(KEY, JSON.stringify(profile));
+  localStorage.setItem(companyStorageKey(KEY), JSON.stringify(profile));
 };

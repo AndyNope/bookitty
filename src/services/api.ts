@@ -1,5 +1,6 @@
 import type { Booking, Contact, DocumentImport, Expense, Invoice, Offer, TeamMember, Invitation, UserRole } from '../types';
 import type { Account } from '../data/chAccounts';
+import type { CompanyPermission } from '../utils/companyPermissions';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // In development (.env.development) this points to the remote server so you can
@@ -13,6 +14,38 @@ export const tokenStore = {
   get:   (): string | null => sessionStorage.getItem(TOKEN_KEY),
   set:   (t: string)       => sessionStorage.setItem(TOKEN_KEY, t),
   clear: ()                => sessionStorage.removeItem(TOKEN_KEY),
+};
+
+const privateFileName = (url: string): string | null => {
+  const match = url.match(/\/api\/uploads\/\d+\/([a-f0-9]{32}(?:\.[a-z0-9]{1,10})?)(?:[?#].*)?$/i);
+  return match?.[1] ?? null;
+};
+
+export const isPrivateDocumentUrl = (url: string): boolean => privateFileName(url) !== null;
+
+export const fetchDocument = async (url: string): Promise<Blob> => {
+  const name = privateFileName(url);
+  const token = tokenStore.get();
+  const response = await fetch(name ? `${API_URL}/file.php?name=${encodeURIComponent(name)}` : url, {
+    headers: name && token ? { Authorization: `Bearer ${token}` } : {},
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('Beleg konnte nicht geöffnet werden.');
+  return response.blob();
+};
+
+export const openPrivateDocument = async (url: string): Promise<void> => {
+  const tab = window.open('about:blank', '_blank');
+  if (!tab) throw new Error('Das Browserfenster wurde blockiert.');
+  tab.opener = null;
+  try {
+    const blobUrl = URL.createObjectURL(await fetchDocument(url));
+    tab.location.href = blobUrl;
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } catch (error) {
+    tab.close();
+    throw error;
+  }
 };
 
 // ─── Generic fetch wrapper ────────────────────────────────────────────────────
@@ -32,7 +65,10 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type AuthUser = { id: number; email: string; name: string; role: import('../types').UserRole; company_id: number | null };
+export type AuthUser = { id: number; email: string; name: string; role: import('../types').UserRole; company_id: number | null; permissions?: CompanyPermission[] | null };
+export type CompanyMembership = { id: number; name: string; role: UserRole };
+export type CompanyRole = { id: number; name: string; baseRole: 'buchhalter' | 'readonly'; permissions: CompanyPermission[] };
+export type CompanyActivity = { id: number; action: string; targetType: string; targetId: string | null; createdAt: string; actorName: string };
 export type BillingSummary = {
   plan: string;
   status: string;
@@ -53,17 +89,25 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ name, email, password }),
       }),
-    login: (email: string, password: string) =>
-      apiFetch<{ token: string; user: AuthUser }>('/login.php', {
+    login: (email: string, password: string, code = '') =>
+      apiFetch<{ token: string; user: AuthUser } | { requiresTwoFactor: true }>('/login.php', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, code }),
       }),
     me: () => apiFetch<AuthUser>('/me.php'),
+  },
+
+  twoFactor: {
+    status: () => apiFetch<{ enabled: boolean; available: boolean }>('/two-factor.php'),
+    setup: (password: string) => apiFetch<{ secret: string; uri: string }>('/two-factor.php', { method: 'POST', body: JSON.stringify({ action: 'setup', password }) }),
+    confirm: (code: string) => apiFetch<{ recoveryCodes: string[]; token: string }>('/two-factor.php', { method: 'POST', body: JSON.stringify({ action: 'confirm', code }) }),
+    disable: (password: string, code: string) => apiFetch<{ ok: boolean; token: string }>('/two-factor.php', { method: 'POST', body: JSON.stringify({ action: 'disable', password, code }) }),
   },
 
   bookings: {
     list:   ()                                  => apiFetch<Booking[]>('/bookings.php'),
     create: (b: Booking)                        => apiFetch<{ ok: boolean; id: string }>('/bookings.php', { method: 'POST',   body: JSON.stringify(b) }),
+    createBatch: (bookings: Booking[])          => apiFetch<{ ok: boolean; ids: string[] }>('/bookings.php', { method: 'POST', body: JSON.stringify({ bookings }) }),
     update: (id: string, data: Partial<Booking>) => apiFetch<{ ok: boolean }>('/bookings.php', { method: 'PUT',    body: JSON.stringify({ id, ...data }) }),
     remove: (id: string)                        => apiFetch<{ ok: boolean }>('/bookings.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
   },
@@ -73,6 +117,8 @@ export const api = {
     create: (d: DocumentImport)                            => apiFetch<{ ok: boolean; id: string }>('/documents.php', { method: 'POST',   body: JSON.stringify(d) }),
     update: (id: string, data: Partial<DocumentImport>)   => apiFetch<{ ok: boolean }>('/documents.php', { method: 'PUT',    body: JSON.stringify({ id, ...data }) }),
     remove: (id: string)                                   => apiFetch<{ ok: boolean }>('/documents.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
+    confirm: (documentId: string, bookingId: string, draft: import('../types').BookingDraft) =>
+      apiFetch<{ ok: boolean }>('/confirm_document.php', { method: 'POST', body: JSON.stringify({ documentId, bookingId, draft }) }),
   },
 
   /** Upload a file for an authenticated user. Returns the permanent server URL. */
@@ -101,10 +147,27 @@ export const api = {
     save: (data: object) => apiFetch<{ ok: boolean }>('/company.php', { method: 'PUT', body: JSON.stringify(data) }),
   },
 
+  companies: {
+    list: () => apiFetch<CompanyMembership[]>('/companies.php'),
+    switch: (companyId: number) => apiFetch<{ token: string }>('/companies.php', { method: 'POST', body: JSON.stringify({ company_id: companyId }) }),
+  },
+
+  roles: {
+    list: () => apiFetch<CompanyRole[]>('/roles.php'),
+    save: (role: Omit<CompanyRole, 'id'> & { id?: number }) =>
+      apiFetch<{ ok: boolean; id: number }>('/roles.php', { method: role.id ? 'PUT' : 'POST', body: JSON.stringify(role) }),
+    remove: (id: number) => apiFetch<{ ok: boolean }>('/roles.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
+  },
+
+  activity: {
+    list: () => apiFetch<CompanyActivity[]>('/activity.php'),
+  },
+
   imap: {
     get:   ()             => apiFetch<{ host?: string; port?: number; username?: string; ssl?: boolean; folder?: string }>('/imap.php'),
     save:  (data: object) => apiFetch<{ ok: boolean }>('/imap.php', { method: 'PUT', body: JSON.stringify(data) }),
     fetch: ()             => apiFetch<{ ok: boolean; emails: Array<{ subject: string; from: string; date: string; messageId: string; filename: string; data: string }> }>('/imap.php', { method: 'POST' }),
+    acknowledge: (messageId: string) => apiFetch<{ ok: boolean }>('/imap.php', { method: 'POST', body: JSON.stringify({ action: 'ack', messageId }) }),
   },
 
   customAccounts: {
@@ -150,20 +213,20 @@ export const api = {
 
   team: {
     list:   ()                          => apiFetch<TeamMember[]>('/team.php'),
-    invite: (email: string, role: UserRole, accessDays = 0) =>
-      apiFetch<{ ok: boolean; token: string }>('/team.php', { method: 'POST', body: JSON.stringify({ email, role, access_days: accessDays }) }),
-    updateRole: (id: number, role: UserRole) =>
-      apiFetch<{ ok: boolean }>('/team.php', { method: 'PUT', body: JSON.stringify({ id, role }) }),
+    invite: (email: string, role: UserRole, accessDays = 0, customRoleId?: number) =>
+      apiFetch<{ ok: boolean; token: string }>('/team.php', { method: 'POST', body: JSON.stringify({ email, role, access_days: accessDays, custom_role_id: customRoleId }) }),
+    updateRole: (id: number, role: UserRole, customRoleId?: number) =>
+      apiFetch<{ ok: boolean }>('/team.php', { method: 'PUT', body: JSON.stringify({ id, role, custom_role_id: customRoleId }) }),
     remove: (id: number) =>
       apiFetch<{ ok: boolean }>('/team.php', { method: 'DELETE', body: JSON.stringify({ id }) }),
   },
 
   invite: {
     check:  (token: string)              => apiFetch<Invitation>(`/invite.php?token=${encodeURIComponent(token)}`),
-    accept: (token: string, name: string, password: string) =>
+    accept: (token: string, name: string, password: string, code = '') =>
       apiFetch<{ token: string; user: AuthUser }>('/invite.php', {
         method: 'POST',
-        body: JSON.stringify({ token, name, password }),
+        body: JSON.stringify({ token, name, password, code }),
       }),
   },
 

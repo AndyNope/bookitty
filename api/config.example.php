@@ -27,6 +27,11 @@ define('DB_PASS', $isProd  ? '<<PROD_DB_PASS_HIER>>' : 'local_secret');
 define('JWT_SECRET', 'bkty_CHANGE_ME_to_a_long_random_string_64chars_XXXXXXXXXXXXXXXXXXXX');
 define('JWT_EXPIRY', 60 * 60 * 24 * 30);
 
+// Set to a base64-encoded random 32-byte key outside version control.
+define('TOTP_ENCRYPTION_KEY', getenv('BOOKITTY_2FA_KEY') ?: '');
+define('IMAP_ENCRYPTION_KEY', getenv('BOOKITTY_IMAP_KEY') ?: '');
+define('IMAP_ALLOWED_SERVERS', array_filter(explode(',', getenv('BOOKITTY_IMAP_ALLOWED_SERVERS') ?: '')));
+
 // ─── One-time migration endpoint ─────────────────────────────────────────────
 define('MIGRATE_SECRET', '<<LONG_RANDOM_MIGRATION_SECRET_HIER>>');
 

@@ -14,11 +14,13 @@ require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/activity_lib.php';
 
-header('Content-Type: application/json; charset=utf-8');
+set_cors_headers();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 $userId = effective_uid();
+$actorId = (int) get_auth_payload()['sub'];
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405); echo json_encode(['error' => 'Method Not Allowed']); exit;
@@ -37,7 +39,7 @@ if ($invoiceId === '' || !in_array($level, [1, 2, 3], true)) {
 }
 
 // ── Load invoice ──────────────────────────────────────────────────────────────
-$pdo  = get_pdo();
+$pdo  = get_db();
 $stmt = $pdo->prepare(
     'SELECT * FROM invoices WHERE id = ? AND user_id = ?'
 );
@@ -121,8 +123,11 @@ if (!$sent) {
 
 // ── Persist mahnung_level + date on invoice ───────────────────────────────────
 $today = date('Y-m-d');
+$pdo->beginTransaction();
 $pdo->prepare(
     'UPDATE invoices SET mahnung_level = ?, mahnung_date = ? WHERE id = ? AND user_id = ?'
 )->execute([$level, $today, $invoiceId, $userId]);
+log_company_activity($pdo, $userId, $actorId, 'invoice_reminder', 'invoice', $invoiceId);
+$pdo->commit();
 
 echo json_encode(['ok' => true, 'level' => $level, 'sent_to' => $toEmail]);

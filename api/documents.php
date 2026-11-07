@@ -87,16 +87,20 @@ if ($method === 'GET') {
     $id = $d['id'] ?? '';
     if (!$id) { http_response_code(400); echo json_encode(['error' => 'id fehlt']); exit; }
 
-    // Remove uploaded file if stored in our uploads folder
-    $stmt = $pdo->prepare('SELECT preview_url FROM documents WHERE id = ? AND user_id = ?');
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare('SELECT preview_url FROM documents WHERE id = ? AND user_id = ? FOR UPDATE');
     $stmt->execute([$id, $userId]);
     $doc = $stmt->fetch();
-    if ($doc && $doc['preview_url'] && str_contains((string)$doc['preview_url'], '/api/uploads/')) {
+    if (!$doc) {
+        $pdo->rollBack(); http_response_code(404); echo json_encode(['error' => 'Beleg nicht gefunden']); exit;
+    }
+    $pdo->prepare('DELETE FROM documents WHERE id = ? AND user_id = ?')->execute([$id, $userId]);
+    $pdo->commit();
+    if ($doc['preview_url'] && str_contains((string)$doc['preview_url'], '/api/uploads/')) {
         $filePath = UPLOAD_DIR . $userId . '/' . basename($doc['preview_url']);
         if (file_exists($filePath)) @unlink($filePath);
     }
 
-    $pdo->prepare('DELETE FROM documents WHERE id = ? AND user_id = ?')->execute([$id, $userId]);
     echo json_encode(['ok' => true]);
 
 } else {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import JSZip from 'jszip';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { Booking } from '../types';
+import { fetchDocument } from '../services/api';
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 const fmt = (n: number) =>
@@ -103,12 +104,10 @@ export default function Archiv() {
             for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
             docsFolder.file(`beleg-${doc.id}.${ext}`, bytes);
           } else if (doc.previewUrl.startsWith('blob:') || doc.previewUrl.startsWith('http')) {
-            const res = await fetch(doc.previewUrl);
-            if (res.ok) {
-              const ab = await res.arrayBuffer();
-              const ext = doc.previewUrl.includes('.pdf') ? 'pdf' : 'bin';
-              docsFolder.file(`beleg-${doc.id}.${ext}`, ab);
-            }
+            const blob = await fetchDocument(doc.previewUrl);
+            const ab = await blob.arrayBuffer();
+            const ext = doc.previewUrl.includes('.pdf') ? 'pdf' : 'bin';
+            docsFolder.file(`beleg-${doc.id}.${ext}`, ab);
           }
         } catch {
           /* Skip unreadable documents silently */

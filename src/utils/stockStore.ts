@@ -1,3 +1,5 @@
+import { companyStorageKey } from './companyStorage';
+
 // Shared localStorage helpers for Lager ↔ Rechnungen
 // Must stay in sync with the types in src/pages/Lager.tsx
 
@@ -30,19 +32,19 @@ export interface StockMovement {
 }
 
 export function loadStockItems(): StockItem[] {
-  try { return JSON.parse(localStorage.getItem(ITEMS_KEY) ?? '[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(companyStorageKey(ITEMS_KEY)) ?? '[]'); } catch { return []; }
 }
 
 export function saveStockItems(items: StockItem[]): void {
-  localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
+  localStorage.setItem(companyStorageKey(ITEMS_KEY), JSON.stringify(items));
 }
 
 export function addStockMovement(mov: Omit<StockMovement, 'id'>): void {
   try {
-    const raw  = localStorage.getItem(MOVEMENTS_KEY);
+    const raw  = localStorage.getItem(companyStorageKey(MOVEMENTS_KEY));
     const movs: StockMovement[] = raw ? JSON.parse(raw) : [];
     movs.unshift({ id: Math.random().toString(36).slice(2, 9), ...mov });
-    localStorage.setItem(MOVEMENTS_KEY, JSON.stringify(movs));
+    localStorage.setItem(companyStorageKey(MOVEMENTS_KEY), JSON.stringify(movs));
   } catch {/**/ }
 }
 

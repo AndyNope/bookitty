@@ -55,7 +55,7 @@ const rowToDraft = (code: string, name: string, amount: number, date: string): B
 };
 
 // ── Manual opening balances tab ────────────────────────────────────────────
-const ManualTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDraft[]) => void }) => {
+const ManualTab = ({ date, onImport, isImporting }: { date: string; onImport: (drafts: BookingDraft[]) => Promise<boolean>; isImporting: boolean }) => {
   const { accounts: mergedAccounts } = useAccounts();
   const [balances, setBalances] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState('');
@@ -83,15 +83,14 @@ const ManualTab = ({ date, onImport }: { date: string; onImport: (drafts: Bookin
 
   const filled = Object.entries(balances).filter(([, v]) => parseFloat(v.replace(',', '.')) > 0);
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const drafts = filled.map(([code, val]) => {
       const acct = mergedAccounts.find((a) => a.code === code);
       const name = acct?.name ?? code;
       const amount = parseFloat(val.replace(',', '.'));
       return rowToDraft(code, name, amount, date);
     });
-    onImport(drafts);
-    setBalances({});
+    if (await onImport(drafts)) setBalances({});
   };
 
   return (
@@ -166,6 +165,7 @@ const ManualTab = ({ date, onImport }: { date: string; onImport: (drafts: Bookin
           <button
             type="button"
             onClick={handleImport}
+            disabled={isImporting}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
             {filled.length} Eröffnungsbuchung{filled.length !== 1 ? 'en' : ''} erstellen
@@ -194,7 +194,7 @@ const COL_ROLES: { key: keyof ColMap; label: string }[] = [
   { key: 'balanceIdx', label: 'Saldo' },
 ];
 
-const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDraft[], newLearned?: number) => void }) => {
+const CsvTab = ({ date, onImport, onLearned, isImporting }: { date: string; onImport: (drafts: BookingDraft[]) => Promise<boolean>; onLearned: (count: number) => void; isImporting: boolean }) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [colMap, setColMap] = useState<ColMap>({ codeIdx: 0, nameIdx: -1, debitIdx: -1, creditIdx: -1, balanceIdx: -1 });
@@ -287,19 +287,20 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
   const toggle = (code: string) =>
     setSelected((p) => { const n = new Set(p); if (n.has(code)) n.delete(code); else n.add(code); return n; });
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const toImport = rows.filter((r) => selected.has(r.code));
     const drafts = toImport.map((r) => {
       const amount = Math.abs(r.balance || r.debit || r.credit);
       return rowToDraft(r.code, r.name, amount, date);
     });
+    if (!await onImport(drafts)) return;
     // Learn: save column mapping so next identical file is instantly recognized
     if (fileInfo?.headers.length) {
       saveLearnedMapping(fileInfo.headers, colMap);
     }
     // Learn: persist account code→name pairs for future imports
     const newLearned = learnAccounts(toImport.map((r) => ({ code: r.code, name: r.name })));
-    onImport(drafts, newLearned);
+    onLearned(newLearned);
     setFileInfo(null);
     setSelected(new Set());
     setColMap({ codeIdx: 0, nameIdx: -1, debitIdx: -1, creditIdx: -1, balanceIdx: -1 });
@@ -459,7 +460,7 @@ const CsvTab = ({ date, onImport }: { date: string; onImport: (drafts: BookingDr
               <p className="text-sm font-semibold text-emerald-800">
                 {selected.size} Konto{selected.size !== 1 ? 'en' : ''} importieren
               </p>
-              <button type="button" onClick={handleImport}
+              <button type="button" onClick={handleImport} disabled={isImporting}
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
                 {selected.size} Eröffnungsbuchung{selected.size !== 1 ? 'en' : ''} erstellen
               </button>
@@ -499,27 +500,30 @@ const LearnerStatsFooter = () => {
 
 // ── Main page ──────────────────────────────────────────────────────────────
 const Import = () => {
-  const { addBooking } = useBookkeeping();
+  const { addBookings } = useBookkeeping();
   const [tab, setTab] = useState<'manual' | 'csv'>('manual');
   const [date, setDate] = useState(`${new Date().getFullYear() - 1}-12-31`);
   const [importedCount, setImportedCount] = useState<number | null>(null);
   const [learnedCount, setLearnedCount] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
   const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'success', title: '', message: '',
   });
 
-  const handleImport = (drafts: BookingDraft[], newLearned = 0) => {
-    drafts.forEach((d) => addBooking(d));
-    setImportedCount(drafts.length);
-    setLearnedCount(newLearned);
-    setTimeout(() => setImportedCount(null), 6000);
-    const learnedMsg = newLearned > 0 ? ` \u00b7 ${newLearned} neue Bezeichnung${newLearned !== 1 ? 'en' : ''} gelernt.` : '';
-    setNotify({
-      open: true,
-      type: 'success',
-      title: 'Import erfolgreich!',
-      message: `${drafts.length} Eröffnungsbuchung${drafts.length !== 1 ? 'en' : ''} wurde${drafts.length !== 1 ? 'n' : ''} erstellt.${learnedMsg}`,
-    });
+  const handleImport = async (drafts: BookingDraft[]): Promise<boolean> => {
+    if (isImporting) return false;
+    setIsImporting(true);
+    try {
+      await addBookings(drafts);
+      setImportedCount(drafts.length);
+      setLearnedCount(0);
+      setTimeout(() => setImportedCount(null), 6000);
+      setNotify({ open: true, type: 'success', title: 'Import erfolgreich!', message: `${drafts.length} Eröffnungsbuchung${drafts.length !== 1 ? 'en' : ''} wurde${drafts.length !== 1 ? 'n' : ''} erstellt.` });
+      return true;
+    } catch (error) {
+      setNotify({ open: true, type: 'error', title: 'Import fehlgeschlagen', message: (error as Error).message });
+      return false;
+    } finally { setIsImporting(false); }
   };
 
   return (
@@ -580,8 +584,8 @@ const Import = () => {
         </div>
 
         {tab === 'manual'
-          ? <ManualTab date={date} onImport={handleImport} />
-          : <CsvTab    date={date} onImport={handleImport} />}
+          ? <ManualTab date={date} onImport={handleImport} isImporting={isImporting} />
+          : <CsvTab date={date} onImport={handleImport} onLearned={setLearnedCount} isImporting={isImporting} />}
       </div>
 
       {/* Gelerntes Wissen */}

@@ -1,4 +1,5 @@
 <?php
+const JWT_MAX_SESSION_SECONDS = 8 * 60 * 60;
 /**
  * Minimal HS256 JWT implementation – no dependencies required.
  */

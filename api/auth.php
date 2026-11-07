@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/jwt.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/permissions.php';
 
 /**
  * Extracts the Bearer token from the Authorization header.
@@ -35,11 +37,47 @@ function get_auth_payload(): array {
         exit;
     }
     $payload = jwt_decode($token, JWT_SECRET);
-    if (!$payload || !isset($payload['sub'])) {
+    if (!$payload || !isset($payload['sub'], $payload['iat'], $payload['exp']) ||
+        !is_numeric($payload['iat']) || (int) $payload['iat'] > time() + 60 ||
+        (int) $payload['iat'] < time() - JWT_MAX_SESSION_SECONDS) {
         http_response_code(401);
         echo json_encode(['error' => 'Token ungültig oder abgelaufen']);
         exit;
     }
+    $userId = (int) $payload['sub'];
+    $tokenCompany = isset($payload['company_id']) ? (int) $payload['company_id'] : $userId;
+    $stmt = get_db()->prepare('SELECT m.role, m.access_expires_at, m.custom_role_id, r.base_role, r.permissions_json, u.session_version
+        FROM company_memberships m JOIN users u ON u.id = m.user_id
+        LEFT JOIN company_roles r ON r.id = m.custom_role_id AND r.company_id = m.company_id
+        WHERE m.user_id = ? AND m.company_id = ?');
+    $stmt->execute([$userId, $tokenCompany]);
+    $membership = $stmt->fetch();
+    if (!$membership || (int) ($payload['session_version'] ?? 0) !== (int) $membership['session_version']) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Zugang geändert oder entzogen. Bitte erneut anmelden.']);
+        exit;
+    }
+    if (!empty($membership['access_expires_at']) && strtotime($membership['access_expires_at']) <= time()) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Treuhänder-Zugang abgelaufen. Bitte erneut einladen.']);
+        exit;
+    }
+    $permissions = null;
+    if ($membership['custom_role_id'] !== null) {
+        $permissions = json_decode($membership['permissions_json'] ?? '', true);
+        if (!is_array($permissions) || !in_array($membership['base_role'], ['buchhalter', 'readonly'], true) ||
+            count(array_diff($permissions, COMPANY_PERMISSION_GROUPS)) > 0) {
+            http_response_code(403); echo json_encode(['error' => 'Ungültige Firmenrolle.']); exit;
+        }
+    }
+    $payload['role'] = $membership['custom_role_id'] !== null ? $membership['base_role'] : $membership['role'];
+    $payload['permissions'] = $permissions;
+    if ($membership['access_expires_at'] !== null) {
+        $payload['access_expires_at'] = $membership['access_expires_at'];
+    } else {
+        unset($payload['access_expires_at']);
+    }
+    authorize_company_permissions($permissions);
     return $payload;
 }
 

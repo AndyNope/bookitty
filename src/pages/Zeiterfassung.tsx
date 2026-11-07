@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import NumberInput from '../components/NumberInput';
+import { companyStorageKey } from '../utils/companyStorage';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 type TimeEntry = {
@@ -18,10 +19,10 @@ type TimeEntry = {
 
 const LS_KEY = 'bookitty.timeentries';
 const loadEntries = (): TimeEntry[] => {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem(companyStorageKey(LS_KEY)) ?? '[]'); }
   catch { return []; }
 };
-const saveEntries = (e: TimeEntry[]) => localStorage.setItem(LS_KEY, JSON.stringify(e));
+const saveEntries = (e: TimeEntry[]) => localStorage.setItem(companyStorageKey(LS_KEY), JSON.stringify(e));
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}`; };

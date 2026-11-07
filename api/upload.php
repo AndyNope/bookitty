@@ -31,7 +31,15 @@ $finfo = finfo_open(FILEINFO_MIME_TYPE);
 $mime  = finfo_file($finfo, $file['tmp_name']);
 finfo_close($finfo);
 
-if (!in_array($mime, ALLOWED_MIME_TYPES, true)) {
+$extensions = [
+    'application/pdf' => 'pdf',
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/gif' => 'gif',
+    'image/webp' => 'webp',
+    'image/tiff' => 'tif',
+];
+if (!in_array($mime, ALLOWED_MIME_TYPES, true) || !isset($extensions[$mime])) {
     http_response_code(415);
     echo json_encode(['error' => 'Dateityp nicht erlaubt: ' . $mime]);
     exit;
@@ -53,8 +61,7 @@ if (!is_dir($userDir) && !mkdir($userDir, 0755, true)) {
 }
 
 // ─── Save with a UUID-based name (preserving extension) ───────────────────────
-$ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-$safeName = bin2hex(random_bytes(16)) . ($ext ? ".$ext" : '');
+$safeName = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
 $destPath = $userDir . $safeName;
 
 if (!move_uploaded_file($file['tmp_name'], $destPath)) {

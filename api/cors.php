@@ -17,6 +17,7 @@ function set_cors_headers(): void {
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
     header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
 
     // Preflight
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

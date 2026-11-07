@@ -1,0 +1,13 @@
+{
+    "require": {
+        "php": ">=8.1",
+        "spomky-labs/otphp": "^11.5"
+    },
+    "config": {
+        "platform": { "php": "8.1.0" },
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": ["php ../tests/two-factor.php", "php ../tests/invoice-math.php"]
+    }
+}

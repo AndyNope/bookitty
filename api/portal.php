@@ -24,9 +24,10 @@ if ($method === 'GET') {
     }
 
     $stmt = $pdo->prepare(
-        'SELECT i.*, u.company_name, u.name AS owner_name
+        'SELECT i.*, p.name AS company_name, u.name AS owner_name
          FROM invoices i
          JOIN users u ON u.id = i.user_id
+         LEFT JOIN company_profiles p ON p.user_id = i.user_id
          WHERE i.portal_token = ?'
     );
     $stmt->execute([$token]);
@@ -47,6 +48,7 @@ if ($method === 'GET') {
         'contactName'   => $inv['contact_name'],
         'items'         => json_decode($inv['items_json'] ?? '[]', true),
         'currency'      => $inv['currency'],
+        'vatIncluded'   => (bool) ($inv['vat_included'] ?? false),
         'notes'         => $inv['notes'],
         'iban'          => $inv['iban'],
         'reference'     => $inv['reference'],
@@ -83,7 +85,7 @@ if ($method === 'POST') {
     $token = $row['portal_token'] ?: bin2hex(random_bytes(24));
     $pdo->prepare('UPDATE invoices SET portal_token = ? WHERE id = ?')->execute([$token, $id]);
 
-    $base = rtrim(defined('BASE_URL') ? BASE_URL : ($_SERVER['HTTP_ORIGIN'] ?? ''), '/');
+    $base = rtrim(defined('APP_FRONTEND_URL') ? APP_FRONTEND_URL : APP_URL, '/');
     echo json_encode(['token' => $token, 'url' => "{$base}/portal/{$token}"]);
     exit;
 }

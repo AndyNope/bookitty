@@ -270,7 +270,7 @@ const OnboardingTutorial = ({ open, step, scope, onStepChange, onClose, basePath
       ) : (
       <section
         aria-labelledby="tutorial-title"
-        className="pointer-events-auto max-h-[min(calc(100dvh-12rem),700px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl lg:max-h-[min(78dvh,700px)]"
+        className="pointer-events-auto max-h-[min(max(calc(100dvh-15rem),6rem),700px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl lg:max-h-[min(78dvh,700px)]"
       >
         <div className="border-b border-emerald-100 bg-emerald-50/70 px-4 py-3">
           <div className="flex items-start justify-between gap-2">

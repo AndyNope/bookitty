@@ -13,6 +13,8 @@ const Login = () => {
   const [pass,    setPass]    = useState('');
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
+  const [code, setCode] = useState('');
   const [notify,  setNotify]  = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'error', title: '', message: '',
   });
@@ -30,7 +32,10 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      await login(email, pass);
+      if (await login(email, pass, code)) {
+        setNeedsTwoFactor(true);
+        return;
+      }
       navigate('/app', { replace: true });
     } catch (err: unknown) {
       setError((err as Error).message ?? 'Anmeldung fehlgeschlagen');
@@ -106,6 +111,14 @@ const Login = () => {
                 className="mt-0.5 rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-slate-400 focus:outline-none"
               />
             </label>
+
+            {needsTwoFactor && (
+              <label className="flex flex-col gap-1 text-sm text-slate-600">
+                Authenticator-Code oder Wiederherstellungscode
+                <input value={code} onChange={(event) => setCode(event.target.value)} required autoFocus
+                  autoComplete="one-time-code" className="mt-0.5 rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-slate-400 focus:outline-none" />
+              </label>
+            )}
 
             {error && (
               <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import NumberInput from '../components/NumberInput';
+import { companyStorageKey } from '../utils/companyStorage';
 
 /* ── Types ────────────────────────────────────────────────────────── */
 type DepreciationMethod = 'linear' | 'degressiv';
@@ -70,15 +71,17 @@ const calcBookValueAtYear = (a: Asset, year: number): number => {
 export default function Anlagen() {
   const { addBooking } = useBookkeeping();
   const [assets, setAssets] = useState<Asset[]>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(companyStorageKey(STORAGE_KEY)) ?? '[]'); } catch { return []; }
   });
   const [tab, setTab] = useState<'spiegel' | 'erfassen'>('spiegel');
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [booked, setBooked] = useState<string[]>([]);
+  const [bookingAssetId, setBookingAssetId] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState('');
 
   /* ── Persist ─────────────────────────────────────────────────────── */
-  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(assets)); }, [assets]);
+  useEffect(() => { localStorage.setItem(companyStorageKey(STORAGE_KEY), JSON.stringify(assets)); }, [assets]);
 
   /* ── Form state ───────────────────────────────────────────────────── */
   const blank: Omit<Asset, 'id'> = {
@@ -122,10 +125,12 @@ export default function Anlagen() {
     setAssets((prev) => prev.map((a) => a.id === id ? { ...a, disposed: !a.disposed, disposalDate: !a.disposed ? today() : undefined } : a));
 
   /* ── Book depreciation ────────────────────────────────────────────── */
-  const bookDepreciation = (a: Asset) => {
+  const bookDepreciation = async (a: Asset) => {
     const amt = Math.round(calcAnnualDepreciation(a) * 100) / 100;
-    if (amt <= 0) return;
-    addBooking({
+    if (amt <= 0 || bookingAssetId) return;
+    setBookingAssetId(a.id);
+    setBookingError('');
+    try { await addBooking({
       date: today(),
       description: `Abschreibung ${new Date().getFullYear()}: ${a.name}`,
       account: a.depreciationAccount,
@@ -142,6 +147,9 @@ export default function Anlagen() {
       x.id === a.id ? { ...x, currentBookValue: Math.max(0, x.currentBookValue - amt) } : x
     ));
     setBooked((prev) => [...prev, a.id]);
+    } catch (error) {
+      setBookingError((error as Error).message || 'Abschreibung konnte nicht gebucht werden.');
+    } finally { setBookingAssetId(null); }
   };
 
   /* ── Anlagenspiegel CSV export ────────────────────────────────────── */
@@ -174,6 +182,7 @@ export default function Anlagen() {
 
   return (
     <div className="space-y-6">
+      {bookingError && <p role="alert" className="text-sm text-red-700">{bookingError}</p>}
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -311,8 +320,8 @@ export default function Anlagen() {
                           ) : afa <= 0 ? (
                             <span className="text-xs text-slate-400">Vollständig abgeschrieben</span>
                           ) : (
-                            <button onClick={() => bookDepreciation(a)}
-                              className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700">
+                            <button onClick={() => bookDepreciation(a)} disabled={!!bookingAssetId}
+                              className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-40">
                               Abschreibung buchen
                             </button>
                           )}

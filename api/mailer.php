@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/invoice_math.php';
 
 /**
  * Sends the e-mail confirmation mail via PHP mail().
@@ -79,14 +80,12 @@ function send_invoice_email(string $toEmail, string $toName, array $invoice, str
 
     // Build positions table rows
     $rows = '';
-    $subtotal = 0.0;
     foreach (($invoice['items'] ?? []) as $item) {
         $desc    = htmlspecialchars($item['description'] ?? '', ENT_QUOTES, 'UTF-8');
         $qty     = (float)($item['quantity']  ?? 1);
         $unit    = htmlspecialchars($item['unit'] ?? 'Stk.', ENT_QUOTES, 'UTF-8');
         $price   = (float)($item['unitPrice'] ?? 0);
         $lineNet = $qty * $price;
-        $subtotal += $lineNet;
         $rows .= '<tr style="border-bottom:1px solid #f1f5f9">'
                . '<td style="padding:8px 0">' . $desc . '</td>'
                . '<td style="padding:8px;text-align:right;white-space:nowrap">' . rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') . ' ' . $unit . '</td>'
@@ -95,7 +94,8 @@ function send_invoice_email(string $toEmail, string $toName, array $invoice, str
                . '</tr>';
     }
 
-    $totalFormatted = $currency . ' ' . number_format($subtotal, 2, '.', "'");
+    $total = invoice_gross_total($invoice['items'] ?? [], !empty($invoice['vatIncluded']));
+    $totalFormatted = $currency . ' ' . number_format($total, 2, '.', "'");
 
     $notesHtml = $notes ? '<p style="color:#64748b;font-size:13px;margin-top:16px">' . nl2br($notes) . '</p>' : '';
     $ibanHtml  = $iban  ? '<p style="font-size:13px;color:#475569;margin-top:12px">IBAN: <strong>' . $iban . '</strong></p>' : '';

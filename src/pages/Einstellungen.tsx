@@ -4,10 +4,13 @@ import SectionHeader from '../components/SectionHeader';
 import { getCompany, saveCompany, type CompanyProfile } from '../utils/companyStore';
 import { completeOnboardingTask, getOnboardingScope } from '../utils/onboardingProgress';
 import { useAuth } from '../store/AuthContext';
-import { api, type BillingSummary } from '../services/api';
+import { api, type BillingSummary, type CompanyRole } from '../services/api';
 import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
 import NotificationModal from '../components/NotificationModal';
+import TwoFactorSettings from '../components/TwoFactorSettings';
+import CompanyRoles from '../components/CompanyRoles';
+import CompanyActivity from '../components/CompanyActivity';
 import type { TeamMember, UserRole } from '../types';
 import {
   getNavProfile, saveNavProfile, getHiddenPages, saveHiddenPages,
@@ -15,6 +18,13 @@ import {
 } from '../utils/navProfileStore';
 import { NAV_PROFILE_ICONS } from '../utils/navProfileIcons';
 import { getLearningOptIn, setLearningOptIn } from '../utils/importLearner';
+import {
+  getInvoiceTemplateScope,
+  getInvoiceTemplates,
+  saveInvoiceTemplates,
+  type InvoiceTemplate,
+  type InvoiceTemplateLayout,
+} from '../utils/invoiceTemplateStore';
 
 type ImapConfig = {
   host: string;
@@ -54,7 +64,7 @@ const Einstellungen = () => {
   const { user } = useAuth();
   const location = useLocation();
   const isDemo = location.pathname.startsWith('/demo');
-  const isAdmin = !isDemo && user?.role === 'admin';
+  const isAdmin = !isDemo && user?.role === 'admin' && (user.company_id ?? user.id) === user.id;
 
   const [form, setForm] = useState<CompanyProfile>(getCompany);
   const [saved, setSaved] = useState(false);
@@ -72,7 +82,8 @@ const Einstellungen = () => {
   // Team management
   const [team,           setTeam]          = useState<TeamMember[]>([]);
   const [inviteEmail,    setInviteEmail]   = useState('');
-  const [inviteRole,     setInviteRole]    = useState<UserRole>('buchhalter');
+  const [inviteRole,     setInviteRole]    = useState('buchhalter');
+  const [companyRoles,   setCompanyRoles]  = useState<CompanyRole[]>([]);
   const [teamLoading,    setTeamLoading]   = useState(false);
   const [teamError,      setTeamError]     = useState('');
 
@@ -90,6 +101,11 @@ const Einstellungen = () => {
   // Nav profile
   const [navProfile, setNavProfile] = useState<NavProfile>(getNavProfile);
   const [hiddenPages, setHiddenPages] = useState<string[]>(getHiddenPages);
+  const invoiceTemplateScope = getInvoiceTemplateScope(user?.id, isDemo);
+  const [invoiceTemplates, setInvoiceTemplates] = useState<InvoiceTemplate[]>(() => getInvoiceTemplates(invoiceTemplateScope));
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateLayout, setNewTemplateLayout] = useState<InvoiceTemplateLayout>('classic');
+  const [newTemplateColor, setNewTemplateColor] = useState('#16253d');
 
   const handleProfileChange = (profile: NavProfile) => {
     if (hiddenPages.length > 0 && !confirm('Deine manuellen Seiteneinstellungen werden zurückgesetzt. Profil trotzdem wechseln?')) return;
@@ -106,6 +122,39 @@ const Einstellungen = () => {
     saveHiddenPages(newHidden);
   };
 
+  const updateInvoiceTemplates = (next: InvoiceTemplate[]) => {
+    setInvoiceTemplates(next);
+    saveInvoiceTemplates(invoiceTemplateScope, next);
+  };
+
+  const patchInvoiceTemplate = (id: string, patch: Partial<InvoiceTemplate>) => {
+    updateInvoiceTemplates(invoiceTemplates.map((template) => ({
+      ...template,
+      ...(template.id === id ? patch : {}),
+    })));
+  };
+
+  const setDefaultInvoiceTemplate = (id: string) => {
+    updateInvoiceTemplates(invoiceTemplates.map((template) => ({ ...template, isDefault: template.id === id })));
+  };
+
+  const addInvoiceTemplate = () => {
+    const name = newTemplateName.trim();
+    if (!name) return;
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `invoice-template-${Date.now()}`;
+    updateInvoiceTemplates([...invoiceTemplates, {
+      id,
+      name,
+      layout: newTemplateLayout,
+      accentColor: newTemplateColor,
+      footerText: '',
+      isDefault: invoiceTemplates.length === 0,
+    }]);
+    setNewTemplateName('');
+  };
+
   const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'success', title: '', message: '',
   });
@@ -116,6 +165,7 @@ const Einstellungen = () => {
   useEffect(() => {
     if (!isAdmin) return;
     api.team.list().then(setTeam).catch(() => {});
+    api.roles.list().then(setCompanyRoles).catch(() => {});
   }, [isAdmin]);
 
   useEffect(() => {
@@ -146,7 +196,9 @@ const Einstellungen = () => {
     if (!inviteEmail.trim()) { setTeamError('E-Mail-Adresse erforderlich'); return; }
     setTeamLoading(true);
     try {
-      await api.team.invite(inviteEmail.trim(), inviteRole);
+      const selectedRole = companyRoles.find((role) => `custom:${role.id}` === inviteRole);
+      await api.team.invite(inviteEmail.trim(), selectedRole?.baseRole ?? inviteRole as UserRole, 0, selectedRole?.id);
+      window.dispatchEvent(new Event('bookitty:company-activity'));
       setInviteEmail('');
       showNotify('success', 'Einladung versendet', `Einladung an ${inviteEmail} wurde gesendet.`);
       api.team.list().then(setTeam).catch(() => {});
@@ -157,16 +209,30 @@ const Einstellungen = () => {
     }
   };
 
-  const handleRoleChange = async (id: number, role: UserRole) => {
-    await api.team.updateRole(id, role).catch(() => {});
-    setTeam(prev => prev.map(m => m.id === id ? { ...m, role } : m));
+  const handleRoleChange = async (id: number, choice: string) => {
+    setTeamError('');
+    try {
+      const selectedRole = companyRoles.find((role) => `custom:${role.id}` === choice);
+      const role = selectedRole?.baseRole ?? choice as UserRole;
+      await api.team.updateRole(id, role, selectedRole?.id);
+      window.dispatchEvent(new Event('bookitty:company-activity'));
+      setTeam(prev => prev.map(m => m.id === id ? { ...m, role, custom_role_id: selectedRole?.id ?? null } : m));
+    } catch (error) {
+      setTeamError((error as Error).message || 'Rolle konnte nicht geändert werden.');
+    }
   };
 
   const handleRemoveMember = async (id: number, name: string) => {
     if (!confirm(`${name} wirklich aus dem Team entfernen?`)) return;
-    await api.team.remove(id).catch(() => {});
-    setTeam(prev => prev.filter(m => m.id !== id));
-    showNotify('success', 'Entfernt', `${name} wurde aus dem Team entfernt.`);
+    setTeamError('');
+    try {
+      await api.team.remove(id);
+      window.dispatchEvent(new Event('bookitty:company-activity'));
+      setTeam(prev => prev.filter(m => m.id !== id));
+      showNotify('success', 'Entfernt', `${name} wurde aus dem Team entfernt.`);
+    } catch (error) {
+      setTeamError((error as Error).message || 'Zugang konnte nicht entzogen werden.');
+    }
   };
 
   const handleTreuInvite = async () => {
@@ -175,6 +241,7 @@ const Einstellungen = () => {
     setTreuLoading(true);
     try {
       await api.team.invite(treuEmail.trim(), 'readonly', treuDays);
+      window.dispatchEvent(new Event('bookitty:company-activity'));
       setTreuEmail('');
       showNotify('success', 'Treuhänder eingeladen', `Zeitlich begrenzter Zugang (${treuDays} Tage) wurde an ${treuEmail} gesendet.`);
       api.team.list().then(setTeam).catch(() => {});
@@ -195,7 +262,7 @@ const Einstellungen = () => {
           port:     String(d.port ?? 993),
           username: d.username ?? '',
           password: '••••••••',
-          ssl:      d.ssl !== false,
+          ssl:      true,
           folder:   d.folder ?? 'INBOX',
         });
       }
@@ -278,6 +345,10 @@ const Einstellungen = () => {
     showNotify('success', 'Konto gespeichert', `Konto ${code} „${name}“ wurde erfolgreich gespeichert.`);
   };
 
+  if (!isDemo && user?.permissions && !user.permissions.includes('einstellungen')) {
+    return <div className="space-y-6"><SectionHeader title="Kontosicherheit" subtitle="Persönliche Sicherheitseinstellungen" /><TwoFactorSettings /></div>;
+  }
+
   return (
     <div className="space-y-6">
       <NotificationModal
@@ -310,6 +381,8 @@ const Einstellungen = () => {
         }
       />
 
+      {!isDemo && user && <TwoFactorSettings />}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-base font-semibold text-slate-900">Unternehmensprofil</h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -337,7 +410,7 @@ const Einstellungen = () => {
             <div>
               <h3 className="text-base font-semibold text-slate-900">Abo & KI-Guthaben</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Tarife und KI-Kontingente sind ein Arbeitsentwurf. Zahlungen werden erst nach Freigabe und Stripe-Konfiguration aktiviert.
+                Alle Tarife enthalten Buchungen, Rechnungen, Belege Scan, Bilanz, MwSt und Kontakte. Die Tarife unterscheiden sich durch Preis und KI-Tokenkontingent; es gibt keine Abrechnung pro Benutzerplatz.
               </p>
             </div>
             {billing && (
@@ -395,7 +468,7 @@ const Einstellungen = () => {
                         onClick={() => startCheckout('subscription', code)}
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {checkoutBusy === `subscription:${code}` ? 'Weiter …' : billing.plan === code ? 'Aktueller Tarif' : billing.status !== 'inactive' ? 'Aboanpassung gesperrt' : 'Mit TWINT fortfahren'}
+                        {checkoutBusy === `subscription:${code}` ? 'Weiter …' : billing.plan === code ? 'Aktueller Tarif' : billing.status !== 'inactive' ? 'Aboanpassung gesperrt' : billing.billingEnabled ? 'Zur Kasse' : 'Derzeit nicht verfügbar'}
                       </button>
                     </div>
                   ))}
@@ -416,7 +489,7 @@ const Einstellungen = () => {
                         onClick={() => startCheckout('tokens', code)}
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {checkoutBusy === `tokens:${code}` ? 'Weiter …' : 'Mit TWINT kaufen'}
+                        {checkoutBusy === `tokens:${code}` ? 'Weiter …' : billing.billingEnabled ? 'Kaufen' : 'Derzeit nicht verfügbar'}
                       </button>
                     </div>
                   ))}
@@ -461,25 +534,13 @@ const Einstellungen = () => {
           )}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Field label="IMAP-Server (optional)" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.andynope.com" />
-              <p className="mt-1 text-xs text-slate-400">Leer lassen → wird automatisch als <span className="font-mono">mail.&lt;domain&gt;</span> aus dem Benutzernamen abgeleitet.</p>
+              <Field label="IMAP-Server" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.beispiel.ch" />
+              <p className="mt-1 text-xs text-slate-400">Server und Port müssen für Bookitty freigegeben sein. Die Verbindung verwendet TLS mit Zertifikatsprüfung.</p>
             </div>
             <Field label="Port" value={imap.port} onChange={(v) => setImap((p) => ({ ...p, port: v }))} placeholder="993" />
             <Field label="Benutzername / E-Mail" value={imap.username} onChange={(v) => setImap((p) => ({ ...p, username: v }))} placeholder="rechnung@firma.ch" />
             <Field label="Passwort" value={imap.password} onChange={(v) => setImap((p) => ({ ...p, password: v }))} type="password" />
             <Field label="Ordner" value={imap.folder} onChange={(v) => setImap((p) => ({ ...p, folder: v }))} placeholder="INBOX" />
-            <label className="flex flex-col gap-1 text-sm text-slate-600">
-              SSL/TLS
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  checked={imap.ssl}
-                  onChange={(e) => setImap((p) => ({ ...p, ssl: e.target.checked }))}
-                  className="h-4 w-4 rounded border-slate-300"
-                />
-                <span className="text-slate-700">SSL aktiviert (empfohlen)</span>
-              </div>
-            </label>
           </div>
         </div>
       )}
@@ -606,6 +667,9 @@ const Einstellungen = () => {
         </div>
       </div>
 
+      {isAdmin && <CompanyRoles roles={companyRoles} onChange={setCompanyRoles} />}
+      {isAdmin && <CompanyActivity />}
+
       {/* ── Team-Verwaltung (nur Admin, kein Demo) ─────────────────── */}
       {isAdmin && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -628,10 +692,11 @@ const Einstellungen = () => {
                   <span className="rounded-full bg-slate-900 px-2.5 py-0.5 text-[11px] font-semibold text-white">Admin</span>
                 ) : (
                   <>
-                    <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as UserRole)}
+                    <select value={member.custom_role_id ? `custom:${member.custom_role_id}` : member.role} onChange={e => handleRoleChange(member.id, e.target.value)}
                       className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700 outline-none focus:border-slate-400">
                       <option value="buchhalter">Buchhalter</option>
                       <option value="readonly">Nur-Lesen</option>
+                      {companyRoles.map((role) => <option key={role.id} value={`custom:${role.id}`}>{role.name}</option>)}
                     </select>
                     <button onClick={() => handleRemoveMember(member.id, member.name)}
                       className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500">
@@ -652,10 +717,11 @@ const Einstellungen = () => {
               <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
                 placeholder="name@firma.ch" type="email"
                 className="flex-1 min-w-48 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
-              <select value={inviteRole} onChange={e => setInviteRole(e.target.value as UserRole)}
+              <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
                 className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400">
                 <option value="buchhalter">Buchhalter</option>
                 <option value="readonly">Nur-Lesen</option>
+                {companyRoles.map((role) => <option key={role.id} value={`custom:${role.id}`}>{role.name}</option>)}
               </select>
               <button onClick={handleInvite} disabled={teamLoading}
                 className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40">
@@ -843,6 +909,68 @@ const Einstellungen = () => {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        {isPageVisible('rechnungen', navProfile, hiddenPages) && (
+          <section aria-labelledby="invoice-templates-title">
+            <h3 id="invoice-templates-title" className="text-base font-semibold text-slate-900">Rechnungsvorlagen</h3>
+            <p className="mt-1 text-sm text-slate-500">Erstelle eigene PDF-Layouts und wähle, welche Vorlage standardmässig für Kundenrechnungen verwendet wird.</p>
+            <div className="mt-4 space-y-3">
+              {invoiceTemplates.map((template) => (
+                <article key={template.id} className="border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="min-w-0 flex-1 text-xs font-medium text-slate-600">
+                      Vorlagenname
+                      <input value={template.name} onChange={(event) => patchInvoiceTemplate(template.id, { name: event.target.value })} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900" />
+                    </label>
+                    <label className="text-xs font-medium text-slate-600">
+                      Layout
+                      <select value={template.layout} onChange={(event) => patchInvoiceTemplate(template.id, { layout: event.target.value as InvoiceTemplateLayout })} className="mt-1 block rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900">
+                        <option value="classic">Klassisch</option>
+                        <option value="modern">Modern</option>
+                      </select>
+                    </label>
+                    <label className="text-xs font-medium text-slate-600">
+                      Akzentfarbe
+                      <input type="color" value={template.accentColor} onChange={(event) => patchInvoiceTemplate(template.id, { accentColor: event.target.value })} className="mt-1 block h-10 w-14 cursor-pointer rounded-md border border-slate-300 bg-white p-1" />
+                    </label>
+                  </div>
+                  <label className="mt-3 block text-xs font-medium text-slate-600">
+                    Fusszeile (optional)
+                    <textarea value={template.footerText} onChange={(event) => patchInvoiceTemplate(template.id, { footerText: event.target.value })} rows={2} className="mt-1 w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900" placeholder="Zahlungshinweise oder Grusstext" />
+                  </label>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                      <input type="radio" name="default-invoice-template" checked={template.isDefault} onChange={() => setDefaultInvoiceTemplate(template.id)} className="h-4 w-4 accent-emerald-700" />
+                      Als Standard verwenden
+                    </label>
+                    <button type="button" disabled={template.isDefault || invoiceTemplates.length === 1} onClick={() => updateInvoiceTemplates(invoiceTemplates.filter((item) => item.id !== template.id))} className="text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">Vorlage löschen</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+              <label className="min-w-48 flex-1 text-xs font-medium text-slate-600">
+                Neue Vorlage
+                <input value={newTemplateName} onChange={(event) => setNewTemplateName(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900" placeholder="z. B. Offerte mit Briefkopf" />
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Layout
+                <select value={newTemplateLayout} onChange={(event) => setNewTemplateLayout(event.target.value as InvoiceTemplateLayout)} className="mt-1 block rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900">
+                  <option value="classic">Klassisch</option>
+                  <option value="modern">Modern</option>
+                </select>
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Akzentfarbe
+                <input type="color" value={newTemplateColor} onChange={(event) => setNewTemplateColor(event.target.value)} className="mt-1 block h-10 w-14 cursor-pointer rounded-md border border-slate-300 bg-white p-1" />
+              </label>
+              <button type="button" disabled={!newTemplateName.trim()} onClick={addInvoiceTemplate} className="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Vorlage erstellen</button>
+            </div>
+            <p className="mt-3 text-[11px] text-slate-400">Vorlagen werden auf diesem Gerät gespeichert. Das Schweizer Kreuz im QR-Zahlteil bleibt als Pflichtbestandteil der QR-Rechnung erhalten.</p>
+          </section>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

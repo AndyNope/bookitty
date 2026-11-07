@@ -31,6 +31,7 @@ import Invite from './pages/Invite';
 import NotFound from './pages/NotFound';
 import Portal from './pages/Portal';
 import StartupNight from './pages/StartupNight';
+import ContactSupport from './pages/ContactSupport';
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -48,6 +49,8 @@ const App = () => (
     {/* ── Landing page ─────────────────────────────────────────────────── */}
     <Route path="/" element={<Landing />} />
     <Route path="startup-night" element={<StartupNight />} />
+    <Route path="kontakt" element={<ContactSupport mode="contact" />} />
+    <Route path="support" element={<ContactSupport mode="support" />} />
 
     {/* ── Public portal (no auth) ────────────────────────────────────── */}
     <Route path="portal/:token" element={<Portal />} />

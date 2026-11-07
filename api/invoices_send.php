@@ -4,6 +4,7 @@ require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/activity_lib.php';
 
 set_cors_headers();
 
@@ -16,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $userId = effective_uid();
+$actorId = (int) get_auth_payload()['sub'];
 $pdo    = get_db();
 
 $data = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -46,7 +48,7 @@ if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 
 // Fetch issuer company name
-$companyStmt = $pdo->prepare('SELECT company_name FROM companies WHERE user_id = ? LIMIT 1');
+$companyStmt = $pdo->prepare('SELECT name FROM company_profiles WHERE user_id = ? LIMIT 1');
 $companyStmt->execute([$userId]);
 $company = $companyStmt->fetchColumn();
 $issuerName = $company ?: APP_NAME;
@@ -58,6 +60,7 @@ $invoice = [
     'notes'    => $row['notes'] ?? '',
     'iban'     => $row['iban']  ?? '',
     'currency' => $row['currency'],
+    'vatIncluded' => (bool) ($row['vat_included'] ?? false),
     'items'    => json_decode($row['items_json'] ?? '[]', true),
 ];
 
@@ -70,9 +73,12 @@ if (!$sent) {
 }
 
 // Update status to Versendet if currently Entwurf
+$pdo->beginTransaction();
 if ($row['status'] === 'Entwurf') {
     $pdo->prepare('UPDATE invoices SET status = ? WHERE id = ? AND user_id = ?')
         ->execute(['Versendet', $id, $userId]);
 }
+log_company_activity($pdo, $userId, $actorId, 'invoice_sent', 'invoice', $id);
+$pdo->commit();
 
 echo json_encode(['ok' => true]);

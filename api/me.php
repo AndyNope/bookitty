@@ -12,7 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$userId = require_auth();
+$payload = get_auth_payload();
+$userId = (int) $payload['sub'];
 
 $pdo  = get_db();
 $stmt = $pdo->prepare('SELECT id, email, name, role, company_id FROM users WHERE id = ?');
@@ -29,6 +30,7 @@ echo json_encode([
     'id'         => (int) $user['id'],
     'email'      => $user['email'],
     'name'       => $user['name'],
-    'role'       => $user['role'] ?? 'admin',
-    'company_id' => $user['company_id'] ? (int) $user['company_id'] : null,
+    'role'       => $payload['role'],
+    'company_id' => isset($payload['company_id']) ? (int) $payload['company_id'] : null,
+    'permissions' => $payload['permissions'],
 ]);

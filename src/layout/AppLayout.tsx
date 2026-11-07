@@ -5,6 +5,8 @@ import { useAuth } from '../store/AuthContext';
 import KittyChat from '../components/KittyChat';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
 import OnboardingTutorial from '../components/OnboardingTutorial';
+import CompanySwitcher from '../components/CompanySwitcher';
+import { canAccessPage } from '../utils/companyPermissions';
 import { getOnboardingScope, isOnboardingComplete } from '../utils/onboardingProgress';
 
 
@@ -292,12 +294,16 @@ const AppLayout = () => {
   const { user, logout } = useAuth();
   const isDemo = location.pathname.startsWith('/demo');
   const base   = isDemo ? '/demo' : '/app';
-  const onboardingScope = getOnboardingScope(user?.id, isDemo);
+  const onboardingScope = !isDemo && user?.permissions ? null : getOnboardingScope(user?.id, isDemo);
   const showDemoProfilePicker = isDemo && !hasSavedNavProfile();
   const tutorialOpen = onboardingScope
     ? (!showDemoProfilePicker && !isOnboardingComplete(onboardingScope) && tutorialDismissedScope !== onboardingScope) || tutorialManuallyOpenScope === onboardingScope
     : false;
   const navItems = buildNavItems(base);
+  const localOnlyPages = ['lohn', 'anlagen', 'lager', 'zeiterfassung'];
+  const isCompanyOwner = !user || (user.company_id ?? user.id) === user.id;
+  const mayOpenPage = (page: string) => isDemo ||
+    (canAccessPage(page, user?.permissions) && (isCompanyOwner || !localOnlyPages.includes(page)));
 
   const [navProfile, setNavProfile] = useState<NavProfile>(getNavProfile);
   const [hiddenPages, setHiddenPages] = useState<string[]>(getHiddenPages);
@@ -312,8 +318,12 @@ const AppLayout = () => {
   }, []);
 
   const visibleNavItems = navItems.filter(
-    (item) => item.kittyId === 'einstellungen' || isPageVisible(item.kittyId, navProfile, hiddenPages),
+    (item) => mayOpenPage(item.kittyId) &&
+      (item.kittyId === 'einstellungen' || isPageVisible(item.kittyId, navProfile, hiddenPages)),
   );
+  const activePage = location.pathname.slice(base.length).split('/').filter(Boolean)[0] ?? 'dashboard';
+  const pageAllowed = mayOpenPage(activePage);
+  const canUseKitty = isDemo || !user?.permissions || user.permissions.includes('kitty');
 
   const handleLogout = () => {
     logout();
@@ -395,6 +405,7 @@ const AppLayout = () => {
               </svg>
             </button>
           </div>
+          {!isDemo && <CompanySwitcher />}
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <div className="flex flex-col gap-0.5 text-sm">
             {NAV_GROUP_ORDER.map((groupId) => {
@@ -477,6 +488,7 @@ const AppLayout = () => {
             <p className="text-xs text-slate-500">Finanzbuchhaltung</p>
           </div>
         </div>
+        {!isDemo && <CompanySwitcher />}
         <nav className="flex flex-col gap-0.5 text-sm overflow-y-auto">
           {NAV_GROUP_ORDER.map((groupId) => {
             const items = visibleNavItems.filter(
@@ -503,7 +515,7 @@ const AppLayout = () => {
             );
           })}
         </nav>
-        <div className="mt-auto">
+        {canUseKitty && <div className="mt-auto">
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('kitty:open'))}
@@ -514,7 +526,7 @@ const AppLayout = () => {
               KI‑Hilfe für Buchungen
             </span>
           </button>
-        </div>
+        </div>}
       </aside>
 
       <main className="min-w-0 flex-1 pb-20 lg:pb-0">
@@ -571,7 +583,7 @@ const AppLayout = () => {
           )}
         </div>
         <div className="lg:mt-6">
-          <Outlet />
+          {pageAllowed ? <Outlet /> : <p className="py-8 text-sm text-slate-600">Für diese Funktion fehlt die Berechtigung.</p>}
         </div>
       </main>
     </div>
@@ -623,7 +635,7 @@ const AppLayout = () => {
       </div>
     </nav>
 
-    <KittyChat />
+    {canUseKitty && <KittyChat />}
     {showDemoProfilePicker && (
       <div className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-slate-950/55 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="demo-profile-title">
         <section className="my-auto w-full max-w-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-8">

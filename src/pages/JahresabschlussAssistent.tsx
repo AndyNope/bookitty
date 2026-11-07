@@ -57,9 +57,11 @@ const STEPS = ['Rückstellungen', 'Abschreibungen', 'Transitorische Posten', 'Ge
 
 /* ── Component ───────────────────────────────────────────────────── */
 export default function JahresabschlussAssistent() {
-  const { addBooking } = useBookkeeping();
+  const { addBookings } = useBookkeeping();
   const [step, setStep] = useState(0);
   const [committed, setCommitted] = useState(false);
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState('');
 
   /* Step 1 */
   const [rueckstellungen, setRueckstellungen] = useState<Rueckstellung[]>([]);
@@ -194,10 +196,17 @@ export default function JahresabschlussAssistent() {
     return bookings;
   };
 
-  const handleCommit = () => {
+  const handleCommit = async () => {
+    if (committing) return;
     const bookings = buildBookings();
-    bookings.forEach((b) => addBooking(b));
-    setCommitted(true);
+    setCommitting(true);
+    setCommitError('');
+    try {
+      await addBookings(bookings);
+      setCommitted(true);
+    } catch (error) {
+      setCommitError((error as Error).message || 'Abschlussbuchungen konnten nicht gespeichert werden.');
+    } finally { setCommitting(false); }
   };
 
   /* ── Template picker for Rückstellungen ─────────────────────────── */
@@ -612,7 +621,8 @@ export default function JahresabschlussAssistent() {
                   Provisorisch — lassen Sie alle Abschlussbuchungen von Ihrem Treuhänder oder Buchhalter prüfen.
                 </div>
 
-                <button onClick={handleCommit} className="rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
+                {commitError && <p role="alert" className="text-sm text-red-700">{commitError}</p>}
+                <button onClick={handleCommit} disabled={committing} className="rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm disabled:opacity-40">
                   Alle {previewBookings.length} Buchungen erfassen
                 </button>
               </>

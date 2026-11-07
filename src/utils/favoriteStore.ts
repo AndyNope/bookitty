@@ -1,8 +1,10 @@
+import { companyStorageKey } from './companyStorage';
+
 const KEY = 'bookitty.favorites';
 
 export const getFavorites = (): string[] => {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(companyStorageKey(KEY));
     return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
     return [];
@@ -21,6 +23,6 @@ export const toggleFavorite = (account: string): string[] => {
   const next = current.includes(account)
     ? current.filter((a) => a !== account)
     : [...current, account];
-  localStorage.setItem(KEY, JSON.stringify(next));
+  localStorage.setItem(companyStorageKey(KEY), JSON.stringify(next));
   return next;
 };

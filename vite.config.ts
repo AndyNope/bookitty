@@ -51,11 +51,6 @@ export default defineConfig(({ mode }) => {
               handler: 'CacheFirst',
               options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
             },
-            {
-              urlPattern: /\/api\/.*/i,
-              handler: 'NetworkFirst',
-              options: { cacheName: 'api-cache', expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 } },
-            },
           ],
         },
         devOptions: { enabled: false },
@@ -65,8 +60,11 @@ export default defineConfig(({ mode }) => {
         // dist/ is already in .gitignore, so credentials in config.php never hit GitHub.
         name: 'copy-api',
         closeBundle() {
+          const excludedPaths = ['config.php', 'uploads', 'migrate.php', 'debug.php']
+            .map((name) => resolve(__dirname, 'api', name))
           cpSync(resolve(__dirname, 'api'), resolve(__dirname, 'dist/api'), {
             recursive: true,
+            filter: (source) => !excludedPaths.includes(source),
           })
           console.log('[build] api/ -> dist/api/')
         },

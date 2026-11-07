@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { calcInvoiceTotals } from '../utils/invoicePdf';
+import type { InvoiceLineItem } from '../types';
 
 /* ── Types ────────────────────────────────────────────────────────── */
-interface LineItem { description: string; quantity: number; unitPrice: number; vatRate: number; }
 interface PortalInvoice {
   number: string;
   date: string;
   dueDate: string;
   status: string;
   contactName: string;
-  items: LineItem[];
+  items: InvoiceLineItem[];
   currency: string;
+  vatIncluded?: boolean;
   notes?: string;
   iban?: string;
   reference?: string;
@@ -21,12 +23,6 @@ interface PortalInvoice {
 /* ── Helpers ─────────────────────────────────────────────────────── */
 const fmt = (n: number, currency = 'CHF') =>
   n.toLocaleString('de-CH', { style: 'currency', currency, minimumFractionDigits: 2 });
-
-const calcTotals = (items: LineItem[], currency = 'CHF') => {
-  const net = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const vat = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.vatRate / 100), 0);
-  return { net, vat, gross: net + vat, currency };
-};
 
 const statusColor = (status: string) => {
   const map: Record<string, string> = {
@@ -95,7 +91,7 @@ export default function Portal() {
     );
   }
 
-  const { net, vat, gross } = calcTotals(invoice.items, invoice.currency);
+  const { subtotal: net, vatTotal: vat, total: gross } = calcInvoiceTotals(invoice.items, invoice.vatIncluded);
   const isOverdue = invoice.status === 'Offen' && invoice.dueDate && new Date(invoice.dueDate) < new Date();
 
   return (

@@ -16,7 +16,7 @@ $companyId = effective_uid();   // reads + enforces role / readonly
 $role      = get_auth_role();
 $payload   = get_auth_payload();
 $ownId     = (int) $payload['sub'];
-$pdo       = get_pdo();
+$pdo       = get_db();
 
 // ─── GET ──────────────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {

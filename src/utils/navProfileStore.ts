@@ -1,3 +1,5 @@
+import { companyStorageKey } from './companyStorage';
+
 export type NavProfile = 'starter' | 'rechnungssteller' | 'haendler' | 'arbeitgeber' | 'voll';
 
 export interface ProfileDef {
@@ -70,24 +72,24 @@ const HIDDEN_KEY  = 'bookitty.hiddenPages';
 
 export function hasSavedNavProfile(): boolean {
   if (typeof localStorage === 'undefined') return false;
-  const saved = localStorage.getItem(PROFILE_KEY);
+  const saved = localStorage.getItem(companyStorageKey(PROFILE_KEY));
   return !!saved && saved in NAV_PROFILES;
 }
 
 export function getNavProfile(): NavProfile {
-  const stored = localStorage.getItem(PROFILE_KEY) as NavProfile | null;
+  const stored = localStorage.getItem(companyStorageKey(PROFILE_KEY)) as NavProfile | null;
   return stored && stored in NAV_PROFILES ? stored : 'voll';
 }
 
 export function saveNavProfile(profile: NavProfile): void {
-  localStorage.setItem(PROFILE_KEY, profile);
-  localStorage.removeItem(HIDDEN_KEY);
+  localStorage.setItem(companyStorageKey(PROFILE_KEY), profile);
+  localStorage.removeItem(companyStorageKey(HIDDEN_KEY));
   window.dispatchEvent(new Event('bookitty:navprofile'));
 }
 
 export function getHiddenPages(): string[] {
   try {
-    const raw = localStorage.getItem(HIDDEN_KEY);
+    const raw = localStorage.getItem(companyStorageKey(HIDDEN_KEY));
     return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
     return [];
@@ -95,7 +97,7 @@ export function getHiddenPages(): string[] {
 }
 
 export function saveHiddenPages(pages: string[]): void {
-  localStorage.setItem(HIDDEN_KEY, JSON.stringify(pages));
+  localStorage.setItem(companyStorageKey(HIDDEN_KEY), JSON.stringify(pages));
   window.dispatchEvent(new Event('bookitty:navprofile'));
 }
 

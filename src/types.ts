@@ -29,6 +29,7 @@ export type TeamMember = {
   joined_at: string;
   is_owner: boolean;
   access_expires_at?: string | null;
+  custom_role_id?: number | null;
 };
 
 export type Invitation = {
@@ -36,6 +37,7 @@ export type Invitation = {
   role: UserRole;
   inviter_name: string;
   user_exists: boolean;
+  requires_two_factor?: boolean;
 };
 
 export type InvoiceStatus = 'Entwurf' | 'Versendet' | 'Bezahlt' | 'Überfällig' | 'Storniert';
@@ -70,6 +72,8 @@ export type Invoice = {
   paymentLink?: string;     // TWINT-Nummer oder Stripe-/PayPal-URL
   items: InvoiceLineItem[];
   currency: string;
+  vatIncluded?: boolean;
+  templateId?: string;
   notes?: string;
   // Mahnung
   mahnungLevel?: 1 | 2 | 3;   // zuletzt versandte Mahnstufe

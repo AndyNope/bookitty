@@ -12,7 +12,7 @@ type AuthContextValue = {
   isLoading: boolean;
   isReadonly: boolean;   // true when role === 'readonly'
   isAdmin:   boolean;    // true when role === 'admin' (and not demo)
-  login:     (email: string, password: string) => Promise<void>;
+  login:     (email: string, password: string, code?: string) => Promise<boolean>;
   logout:    () => void;
   register:  (name: string, email: string, password: string) => Promise<{ message: string }>;
 };
@@ -39,10 +39,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const { token, user: u } = await api.auth.login(email, password);
-    tokenStore.set(token);
-    setUser(u);
+  const login = async (email: string, password: string, code = '') => {
+    const result = await api.auth.login(email, password, code);
+    if ('requiresTwoFactor' in result) return true;
+    tokenStore.set(result.token);
+    try {
+      setUser(await api.auth.me());
+    } catch (error) {
+      tokenStore.clear();
+      throw error;
+    }
+    return false;
   };
 
   const logout = () => {

@@ -1,4 +1,6 @@
 <?php
+http_response_code(404);
+exit;
 // TEMPORARY debug script – DELETE after diagnosis!
 require_once __DIR__ . '/config.php';
 header('Content-Type: application/json; charset=utf-8');

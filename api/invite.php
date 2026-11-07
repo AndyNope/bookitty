@@ -9,11 +9,14 @@ require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/jwt.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/auth_rate_limit.php';
+require_once __DIR__ . '/two_factor_lib.php';
+require_once __DIR__ . '/activity_lib.php';
 
 set_cors_headers();
 header('Content-Type: application/json; charset=utf-8');
 
-$pdo = get_pdo();
+$pdo = get_db();
 
 // ─── GET – validate token ─────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -34,12 +37,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $exists = $pdo->prepare('SELECT id FROM users WHERE email = ?');
     $exists->execute([$inv['email']]);
     $existing = $exists->fetch();
+    $requiresTwoFactor = false;
+    if ($existing) {
+        $twoFactor = $pdo->prepare('SELECT enabled FROM user_two_factor WHERE user_id = ?');
+        $twoFactor->execute([$existing['id']]);
+        $requiresTwoFactor = (bool) $twoFactor->fetchColumn();
+    }
 
     echo json_encode([
         'email'        => $inv['email'],
         'role'         => $inv['role'],
         'inviter_name' => $inv['inviter_name'],
         'user_exists'  => (bool) $existing,
+        'requires_two_factor' => $requiresTwoFactor,
     ]);
     exit;
 }
@@ -64,19 +74,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->rollBack();
         http_response_code(404); echo json_encode(['error' => 'Einladung ungültig oder abgelaufen']); exit;
     }
+    if (!empty($inv['access_expires_at']) && strtotime($inv['access_expires_at']) <= time()) {
+        $pdo->rollBack();
+        http_response_code(403); echo json_encode(['error' => 'Der Zugang aus dieser Einladung ist bereits abgelaufen.']); exit;
+    }
 
     // Check if user already exists with this email
-    $existing = $pdo->prepare('SELECT id, email, name FROM users WHERE email = ?');
+    $existing = $pdo->prepare('SELECT id, email, name, password_hash, email_confirmed, session_version FROM users WHERE email = ?');
     $existing->execute([$inv['email']]);
     $existingUser = $existing->fetch(PDO::FETCH_ASSOC);
 
     if ($existingUser) {
-        // Existing user: just link to company
-        $pdo->prepare('UPDATE users SET company_id = ?, role = ? WHERE id = ?')
-            ->execute([$inv['company_id'], $inv['role'], $existingUser['id']]);
+        auth_rate_check($pdo, $existingUser['email']);
+        if (!password_verify($pass, $existingUser['password_hash'])) {
+            $pdo->rollBack();
+            auth_rate_failure($pdo, $existingUser['email']);
+            http_response_code(401); echo json_encode(['error' => 'Passwort falsch']); exit;
+        }
+        if (!$existingUser['email_confirmed']) {
+            $pdo->rollBack();
+            http_response_code(403); echo json_encode(['error' => 'Bitte bestätige zuerst dein bestehendes Konto.']); exit;
+        }
+        $twoFactor = $pdo->prepare('SELECT enabled FROM user_two_factor WHERE user_id = ?');
+        $twoFactor->execute([$existingUser['id']]);
+        if ($twoFactor->fetchColumn() && !two_factor_verify($pdo, (int) $existingUser['id'], trim((string) ($body['code'] ?? '')), true)) {
+            $pdo->commit();
+            http_response_code(401); echo json_encode(['error' => '2FA-Code ungültig oder vorübergehend gesperrt']); exit;
+        }
+        $check = $pdo->prepare('SELECT 1 FROM company_memberships WHERE company_id = ? AND user_id = ?');
+        $check->execute([$inv['company_id'], $existingUser['id']]);
+        if ($check->fetchColumn()) {
+            $pdo->rollBack();
+            http_response_code(409); echo json_encode(['error' => 'Dieses Konto gehört bereits zur Firma.']); exit;
+        }
+        $pdo->prepare('INSERT INTO company_memberships (company_id, user_id, role, custom_role_id, access_expires_at) VALUES (?, ?, ?, ?, ?)')
+            ->execute([$inv['company_id'], $existingUser['id'], $inv['role'], $inv['custom_role_id'], $inv['access_expires_at']]);
         $userId = (int) $existingUser['id'];
         $userName = $existingUser['name'];
         $userEmail = $existingUser['email'];
+        $sessionVersion = (int) $existingUser['session_version'];
+        auth_rate_success($pdo, $userEmail);
     } else {
         // New user: create account
         if ($name === '' || strlen($pass) < 8) {
@@ -87,16 +124,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $hash = password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]);
         $pdo->prepare(
-            'INSERT INTO users (email, name, password_hash, email_confirmed, role, company_id)
-             VALUES (?, ?, ?, 1, ?, ?)'
-        )->execute([$inv['email'], $name, $hash, $inv['role'], $inv['company_id']]);
+              'INSERT INTO users (email, name, password_hash, email_confirmed, role, company_id, access_expires_at)
+               VALUES (?, ?, ?, 1, ?, ?, ?)'
+           )->execute([$inv['email'], $name, $hash, $inv['role'], $inv['company_id'], $inv['access_expires_at']]);
         $userId    = (int) $pdo->lastInsertId();
         $userName  = $name;
         $userEmail = $inv['email'];
+        $sessionVersion = 0;
+        $pdo->prepare('INSERT INTO company_memberships (company_id, user_id, role, custom_role_id, access_expires_at) VALUES (?, ?, ?, ?, ?)')
+            ->execute([$inv['company_id'], $userId, $inv['role'], $inv['custom_role_id'], $inv['access_expires_at']]);
     }
 
     // Mark invitation as used
     $pdo->prepare('UPDATE invitations SET used = 1 WHERE token = ?')->execute([$token]);
+    log_company_activity($pdo, (int) $inv['company_id'], $userId, 'invitation_accepted', 'user', (string) $userId);
     $pdo->commit();
 
     // Issue JWT
@@ -104,10 +145,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'sub'        => $userId,
         'email'      => $userEmail,
         'role'       => $inv['role'],
+        'session_version' => $sessionVersion,
         'company_id' => (int) $inv['company_id'],
         'iat'        => time(),
-        'exp'        => time() + JWT_EXPIRY,
+        'exp'        => time() + min(JWT_EXPIRY, JWT_MAX_SESSION_SECONDS),
     ];
+    if ($inv['access_expires_at']) {
+        $jwtPayload['access_expires_at'] = $inv['access_expires_at'];
+        $jwtPayload['exp'] = min($jwtPayload['exp'], strtotime($inv['access_expires_at']));
+    }
     $jwtToken = jwt_encode($jwtPayload, JWT_SECRET);
 
     echo json_encode([

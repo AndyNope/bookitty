@@ -49,11 +49,21 @@ if ($stmt->fetch()) {
 $hash  = password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]);
 $token = bin2hex(random_bytes(32)); // 64-char hex token
 
-$stmt = $pdo->prepare(
-    'INSERT INTO users (email, name, password_hash, confirmation_token, email_confirmed)
-     VALUES (?, ?, ?, ?, 0)'
-);
-$stmt->execute([$email, $name, $hash, $token]);
+$pdo->beginTransaction();
+try {
+    $stmt = $pdo->prepare(
+        'INSERT INTO users (email, name, password_hash, confirmation_token, email_confirmed)
+         VALUES (?, ?, ?, ?, 0)'
+    );
+    $stmt->execute([$email, $name, $hash, $token]);
+    $userId = (int) $pdo->lastInsertId();
+    $pdo->prepare("INSERT INTO company_memberships (company_id, user_id, role) VALUES (?, ?, 'admin')")
+        ->execute([$userId, $userId]);
+    $pdo->commit();
+} catch (Throwable $error) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    throw $error;
+}
 
 send_confirmation_email($email, $name, $token);
 

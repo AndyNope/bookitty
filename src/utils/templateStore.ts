@@ -1,4 +1,5 @@
 import type { BookingDraft } from '../types';
+import { companyStorageKey } from './companyStorage';
 
 export type TemplateRule = {
   id: string;
@@ -14,7 +15,7 @@ const STORAGE_KEY = 'bookitty.templates';
 
 const readTemplates = (): TemplateRule[] => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(companyStorageKey(STORAGE_KEY));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as TemplateRule[];
     // Migrate old entries that lack new fields
@@ -28,7 +29,7 @@ const readTemplates = (): TemplateRule[] => {
 };
 
 const writeTemplates = (templates: TemplateRule[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+  localStorage.setItem(companyStorageKey(STORAGE_KEY), JSON.stringify(templates));
 };
 
 export const getTemplates = () => readTemplates();

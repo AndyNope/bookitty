@@ -40,12 +40,13 @@ type BookingFormProps = {
   onCancel?: () => void;
   initialValues?: Partial<BookingDraft>;
   editMode?: boolean;
+  isSaving?: boolean;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFormProps) => {
+const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = false }: BookingFormProps) => {
   const merged: BookingDraft = { ...initialDraft, ...initialValues };
   const [draft, setDraft] = useState<BookingDraft>(merged);
   const [rawAmount, setRawAmount] = useState(String(merged.amount ?? 0));
@@ -87,11 +88,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onSubmit(draft);
-    if (!editMode) {
-      setDraft(initialDraft);
-      setRawAmount('0');
-    }
+    if (!isSaving) onSubmit(draft);
   };
 
   const vatLabel = draft.currency === 'CHF' ? 'MwSt.' : 'USt.';
@@ -455,6 +452,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
           <button
             type="button"
             onClick={onCancel}
+            disabled={isSaving}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
           >
             Abbrechen
@@ -462,7 +460,8 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
         ) : null}
         <button
           type="submit"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          disabled={isSaving}
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
         >
           {editMode ? 'Änderungen speichern' : 'Buchung speichern'}
         </button>

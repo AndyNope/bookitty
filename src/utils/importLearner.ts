@@ -1,5 +1,6 @@
 import type { ColMap } from './importParser';
 import { api } from '../services/api';
+import { companyStorageKey } from './companyStorage';
 
 const MAPPINGS_KEY   = 'bookitty.importMappings';
 const ACCOUNTS_KEY   = 'bookitty.learnedAccounts';
@@ -8,11 +9,11 @@ const OPT_IN_KEY     = 'bookitty.learningOptIn';
 // ── Opt-in helpers ──────────────────────────────────────────────────────────
 
 export const getLearningOptIn = (): boolean => {
-  try { return localStorage.getItem(OPT_IN_KEY) === 'true'; } catch { return false; }
+  try { return localStorage.getItem(companyStorageKey(OPT_IN_KEY)) === 'true'; } catch { return false; }
 };
 
 export const setLearningOptIn = (value: boolean): void => {
-  try { localStorage.setItem(OPT_IN_KEY, value ? 'true' : 'false'); } catch {/**/ }
+  try { localStorage.setItem(companyStorageKey(OPT_IN_KEY), value ? 'true' : 'false'); } catch {/**/ }
 };
 
 export type LearnedMapping = {
@@ -41,7 +42,7 @@ export const getLearnedMapping = (headers: string[]): LearnedMapping | null => {
   if (!headers.length) return null;
   try {
     const fp = fingerprintOf(headers);
-    const stored: LearnedMapping[] = JSON.parse(localStorage.getItem(MAPPINGS_KEY) ?? '[]');
+    const stored: LearnedMapping[] = JSON.parse(localStorage.getItem(companyStorageKey(MAPPINGS_KEY)) ?? '[]');
     return stored.find((m) => m.fingerprint === fp) ?? null;
   } catch {
     return null;
@@ -56,7 +57,7 @@ export const saveLearnedMapping = (headers: string[], colMap: ColMap): void => {
   if (!headers.length) return;
   try {
     const fp = fingerprintOf(headers);
-    const stored: LearnedMapping[] = JSON.parse(localStorage.getItem(MAPPINGS_KEY) ?? '[]');
+    const stored: LearnedMapping[] = JSON.parse(localStorage.getItem(companyStorageKey(MAPPINGS_KEY)) ?? '[]');
     const idx = stored.findIndex((m) => m.fingerprint === fp);
     const entry: LearnedMapping = {
       fingerprint: fp,
@@ -66,7 +67,7 @@ export const saveLearnedMapping = (headers: string[], colMap: ColMap): void => {
     };
     if (idx >= 0) stored[idx] = entry;
     else stored.push(entry);
-    localStorage.setItem(MAPPINGS_KEY, JSON.stringify(stored));
+    localStorage.setItem(companyStorageKey(MAPPINGS_KEY), JSON.stringify(stored));
 
     // Server push (fire & forget, only when opted-in)
     if (getLearningOptIn()) {
@@ -91,7 +92,7 @@ export const saveLearnedMapping = (headers: string[], colMap: ColMap): void => {
 export const learnAccounts = (rows: { code: string; name: string }[]): number => {
   if (!rows.length) return 0;
   try {
-    const stored: LearnedAccount[] = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? '[]');
+    const stored: LearnedAccount[] = JSON.parse(localStorage.getItem(companyStorageKey(ACCOUNTS_KEY)) ?? '[]');
     let newCount = 0;
     const toPush: { type: string; fingerprint: string; payload: object; use_count: number }[] = [];
     for (const { code, name } of rows) {
@@ -108,7 +109,7 @@ export const learnAccounts = (rows: { code: string; name: string }[]): number =>
         toPush.push({ type: 'account', fingerprint: code, payload: { code, name }, use_count: 1 });
       }
     }
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(stored));
+    localStorage.setItem(companyStorageKey(ACCOUNTS_KEY), JSON.stringify(stored));
 
     if (toPush.length > 0) {
       api.learning.push(toPush).catch(() => {/* silently ignore */});
@@ -122,7 +123,7 @@ export const learnAccounts = (rows: { code: string; name: string }[]): number =>
 /** Returns all learned account names as a { code → name } map. */
 export const getLearnedAccounts = (): Record<string, string> => {
   try {
-    const stored: LearnedAccount[] = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? '[]');
+    const stored: LearnedAccount[] = JSON.parse(localStorage.getItem(companyStorageKey(ACCOUNTS_KEY)) ?? '[]');
     return Object.fromEntries(stored.map((a) => [a.code, a.name]));
   } catch {
     return {};
@@ -134,8 +135,8 @@ export const getLearnedAccounts = (): Record<string, string> => {
 export const getLearnerStats = (): { mappings: number; accounts: number } => {
   try {
     return {
-      mappings: (JSON.parse(localStorage.getItem(MAPPINGS_KEY) ?? '[]') as unknown[]).length,
-      accounts: (JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? '[]') as unknown[]).length,
+      mappings: (JSON.parse(localStorage.getItem(companyStorageKey(MAPPINGS_KEY)) ?? '[]') as unknown[]).length,
+      accounts: (JSON.parse(localStorage.getItem(companyStorageKey(ACCOUNTS_KEY)) ?? '[]') as unknown[]).length,
     };
   } catch {
     return { mappings: 0, accounts: 0 };
@@ -143,6 +144,6 @@ export const getLearnerStats = (): { mappings: number; accounts: number } => {
 };
 
 export const clearLearned = (): void => {
-  localStorage.removeItem(MAPPINGS_KEY);
-  localStorage.removeItem(ACCOUNTS_KEY);
+  localStorage.removeItem(companyStorageKey(MAPPINGS_KEY));
+  localStorage.removeItem(companyStorageKey(ACCOUNTS_KEY));
 };

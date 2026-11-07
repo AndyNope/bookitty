@@ -11,6 +11,7 @@ require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/activity_lib.php';
 
 set_cors_headers();
 header('Content-Type: application/json; charset=utf-8');
@@ -20,36 +21,34 @@ $ownId      = (int) $payload['sub'];
 $role       = $payload['role'] ?? 'admin';
 $companyId  = isset($payload['company_id']) ? (int) $payload['company_id'] : $ownId;
 // The "admin" of the company is the one whose id === companyId
-$isAdmin    = ($role === 'admin');
-$pdo        = get_pdo();
+$isAdmin    = ($role === 'admin' && $ownId === $companyId);
+$pdo        = get_db();
+
+if (!$isAdmin) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Nur der Firmeninhaber kann das Team verwalten']);
+    exit;
+}
 
 // ─── GET – list team members ──────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Members are users whose company_id = $companyId, PLUS the owner (company_id IS NULL, id = $companyId)
     $stmt = $pdo->prepare(
-        'SELECT id, name, email, role, company_id, created_at, access_expires_at
-         FROM users
-         WHERE id = :owner OR company_id = :co
-         ORDER BY id ASC'
+        'SELECT u.id, u.name, u.email, m.role, m.custom_role_id, m.created_at, m.access_expires_at
+            FROM company_memberships m JOIN users u ON u.id = m.user_id
+            WHERE m.company_id = ? ORDER BY u.id ASC'
     );
-    $stmt->execute([':owner' => $companyId, ':co' => $companyId]);
+        $stmt->execute([$companyId]);
     $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(array_map(fn($m) => [
         'id'                => (int) $m['id'],
         'name'              => $m['name'],
         'email'             => $m['email'],
-        'role'              => $m['company_id'] ? ($m['role'] ?? 'buchhalter') : 'admin',
+        'role'              => $m['role'],
         'joined_at'         => $m['created_at'],
-        'is_owner'          => $m['company_id'] === null,
+        'is_owner'          => (int) $m['id'] === $companyId,
         'access_expires_at' => $m['access_expires_at'],
+        'custom_role_id'    => $m['custom_role_id'] !== null ? (int) $m['custom_role_id'] : null,
     ], $members));
-    exit;
-}
-
-// All write operations require admin role
-if (!$isAdmin) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Nur Admins können das Team verwalten']);
     exit;
 }
 
@@ -59,6 +58,7 @@ $body = json_decode(file_get_contents('php://input'), true) ?? [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email      = strtolower(trim($body['email'] ?? ''));
     $inviteRole = trim($body['role'] ?? 'buchhalter');
+    $customRoleId = isset($body['custom_role_id']) ? (int) $body['custom_role_id'] : null;
     $accessDays = (int) ($body['access_days'] ?? 0); // 0 = unlimited
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -67,14 +67,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($inviteRole, ['buchhalter', 'readonly'], true)) {
         http_response_code(400); echo json_encode(['error' => 'Ungültige Rolle']); exit;
     }
+    if ($customRoleId !== null) {
+        $roleStmt = $pdo->prepare('SELECT base_role FROM company_roles WHERE id = ? AND company_id = ?');
+        $roleStmt->execute([$customRoleId, $companyId]);
+        $inviteRole = $roleStmt->fetchColumn();
+        if (!$inviteRole) { http_response_code(400); echo json_encode(['error' => 'Firmenrolle nicht gefunden']); exit; }
+    }
 
     // Check not already in team
-    $check = $pdo->prepare('SELECT id FROM users WHERE email = ? AND (id = ? OR company_id = ?)');
-    $check->execute([$email, $companyId, $companyId]);
+    $check = $pdo->prepare('SELECT u.id FROM users u JOIN company_memberships m ON m.user_id = u.id WHERE u.email = ? AND m.company_id = ?');
+    $check->execute([$email, $companyId]);
     if ($check->fetch()) {
         http_response_code(409); echo json_encode(['error' => 'Benutzer ist bereits im Team']); exit;
     }
 
+    $pdo->beginTransaction();
     $pdo->prepare('DELETE FROM invitations WHERE email = ? AND company_id = ? AND used = 0')
         ->execute([$email, $companyId]);
 
@@ -83,9 +90,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accessExpiresAt   = $accessDays > 0 ? date('Y-m-d H:i:s', strtotime("+{$accessDays} days")) : null;
 
     $pdo->prepare(
-        'INSERT INTO invitations (token, email, role, invited_by, company_id, access_expires_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)'
-    )->execute([$token, $email, $inviteRole, $ownId, $companyId, $accessExpiresAt, $expires]);
+           'INSERT INTO invitations (token, email, role, invited_by, company_id, custom_role_id, access_expires_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$token, $email, $inviteRole, $ownId, $companyId, $customRoleId, $accessExpiresAt, $expires]);
+    log_company_activity($pdo, $companyId, $ownId, 'invitation_created', 'invitation', (string) $pdo->lastInsertId());
+    $pdo->commit();
 
     // Send invite email
     $appName   = defined('APP_NAME') ? APP_NAME : 'Bookitty';
@@ -121,17 +130,32 @@ HTML;
 if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $memberId  = (int) ($body['id'] ?? 0);
     $newRole   = trim($body['role'] ?? '');
+    $customRoleId = isset($body['custom_role_id']) ? (int) $body['custom_role_id'] : null;
     if (!in_array($newRole, ['buchhalter', 'readonly'], true) || $memberId <= 0) {
         http_response_code(400); echo json_encode(['error' => 'Ungültige Daten']); exit;
     }
     if ($memberId === $companyId) {
         http_response_code(400); echo json_encode(['error' => 'Eigene Admin-Rolle kann nicht geändert werden']); exit;
     }
-    $r = $pdo->prepare('UPDATE users SET role = ? WHERE id = ? AND company_id = ?');
-    $r->execute([$newRole, $memberId, $companyId]);
-    if ($r->rowCount() === 0) {
+    if ($customRoleId !== null) {
+        $roleStmt = $pdo->prepare('SELECT base_role FROM company_roles WHERE id = ? AND company_id = ?');
+        $roleStmt->execute([$customRoleId, $companyId]);
+        $newRole = $roleStmt->fetchColumn();
+        if (!$newRole) { http_response_code(400); echo json_encode(['error' => 'Firmenrolle nicht gefunden']); exit; }
+    }
+    $pdo->beginTransaction();
+    $member = $pdo->prepare('SELECT role FROM company_memberships WHERE user_id = ? AND company_id = ? FOR UPDATE');
+    $member->execute([$memberId, $companyId]);
+    if (!$member->fetch()) {
+        $pdo->rollBack();
         http_response_code(404); echo json_encode(['error' => 'Mitglied nicht gefunden']); exit;
     }
+    $pdo->prepare('UPDATE company_memberships SET role = ?, custom_role_id = ? WHERE user_id = ? AND company_id = ?')
+        ->execute([$newRole, $customRoleId, $memberId, $companyId]);
+    $pdo->prepare('UPDATE users SET role = ? WHERE id = ? AND company_id = ?')
+        ->execute([$newRole, $memberId, $companyId]);
+    log_company_activity($pdo, $companyId, $ownId, 'member_role_changed', 'user', (string) $memberId);
+    $pdo->commit();
     echo json_encode(['ok' => true]);
     exit;
 }
@@ -143,8 +167,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         http_response_code(400); echo json_encode(['error' => 'Ungültige ID oder eigenes Konto']); exit;
     }
     // Set company_id = NULL, reset role to admin so they become standalone
-    $pdo->prepare('UPDATE users SET company_id = NULL, role = ? WHERE id = ? AND company_id = ?')
+    $pdo->beginTransaction();
+    $remove = $pdo->prepare('DELETE FROM company_memberships WHERE user_id = ? AND company_id = ?');
+    $remove->execute([$memberId, $companyId]);
+    if ($remove->rowCount() === 0) {
+        $pdo->rollBack();
+        http_response_code(404); echo json_encode(['error' => 'Mitglied nicht gefunden']); exit;
+    }
+    $pdo->prepare('UPDATE users SET company_id = NULL, role = ?, access_expires_at = NULL WHERE id = ? AND company_id = ?')
         ->execute(['admin', $memberId, $companyId]);
+    log_company_activity($pdo, $companyId, $ownId, 'member_removed', 'user', (string) $memberId);
+    $pdo->commit();
     echo json_encode(['ok' => true]);
     exit;
 }

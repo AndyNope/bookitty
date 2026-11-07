@@ -7,16 +7,18 @@ import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { Invoice, InvoiceLineItem } from '../types';
 import { getCompany } from './companyStore';
+import type { InvoiceTemplate } from './invoiceTemplateStore';
 
 // ─── Calculations ─────────────────────────────────────────────────────────────
-export function calcInvoiceTotals(items: InvoiceLineItem[]) {
+export function calcInvoiceTotals(items: InvoiceLineItem[], vatIncluded = false) {
   let subtotal = 0;
   let vatTotal = 0;
   const vatMap: Record<number, number> = {};
 
   for (const item of items) {
-    const lineNet = item.quantity * item.unitPrice;
-    const lineVat = lineNet * (item.vatRate / 100);
+    const lineAmount = item.quantity * item.unitPrice;
+    const lineNet = vatIncluded ? lineAmount / (1 + item.vatRate / 100) : lineAmount;
+    const lineVat = vatIncluded ? lineAmount - lineNet : lineNet * (item.vatRate / 100);
     subtotal += lineNet;
     vatTotal += lineVat;
     vatMap[item.vatRate] = (vatMap[item.vatRate] ?? 0) + lineVat;
@@ -80,17 +82,27 @@ function buildSpcPayload(inv: Invoice, total: number, companyIban: string): stri
 }
 
 // ─── PDF Export ───────────────────────────────────────────────────────────────
-export async function exportInvoicePDF(inv: Invoice): Promise<void> {
+export async function exportInvoicePDF(inv: Invoice, template?: InvoiceTemplate): Promise<void> {
   const company = getCompany();
-  const { subtotal, total, vatMap } = calcInvoiceTotals(inv.items);
+  const activeTemplate = template ?? {
+    id: 'standard', name: 'Standard', layout: 'classic' as const,
+    accentColor: '#16253d', footerText: '', isDefault: true,
+  };
+  const { subtotal, total, vatMap } = calcInvoiceTotals(inv.items, inv.vatIncluded);
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   const PAGE_W = 210;
   const MARGIN = 20;
   const RIGHT  = PAGE_W - MARGIN;
   const COL2   = 120; // right-aligned column
+  const accent = hexToRgb(activeTemplate.accentColor);
 
   let y = 20;
+
+  if (activeTemplate.layout === 'modern') {
+    doc.setFillColor(...accent);
+    doc.rect(0, 0, PAGE_W, 4, 'F');
+  }
 
   // ── Helper fns ──────────────────────────────────────────────────────────────
   const text  = (t: string, x: number, yy: number, opts?: Parameters<typeof doc.text>[3]) =>
@@ -130,7 +142,7 @@ export async function exportInvoicePDF(inv: Invoice): Promise<void> {
   // ── Invoice title ────────────────────────────────────────────────────────
   y = Math.max(y, ry) + 14;
   setFont('bold', 16);
-  setColor(22, 25, 43);
+  setColor(...(activeTemplate.layout === 'modern' ? accent : [22, 25, 43] as [number, number, number]));
   text('Rechnung', MARGIN, y);
 
   y += 7;
@@ -139,39 +151,69 @@ export async function exportInvoicePDF(inv: Invoice): Promise<void> {
   text(`Rechnungsnr.:  ${inv.number}`,      MARGIN, y); y += 5;
   text(`Datum:         ${formatDate(inv.date)}`, MARGIN, y); y += 5;
   text(`Zahlbar bis:   ${formatDate(inv.dueDate)}`, MARGIN, y); y += 8;
+  text(inv.vatIncluded ? 'Preise inkl. MwSt.' : 'Preise exkl. MwSt.', MARGIN, y);
+  y += 6;
 
   // ── Line items table header ──────────────────────────────────────────────
-  doc.setFillColor(240, 235, 229);
-  doc.rect(MARGIN, y, RIGHT - MARGIN, 7, 'F');
-  setFont('bold', 8);
-  setColor(22, 25, 43);
-  text('Beschreibung',  MARGIN + 2, y + 5);
-  text('Menge',         112, y + 5, { align: 'right' });
-  text('Einheit',       120, y + 5);
-  text('Preis',         152, y + 5, { align: 'right' });
-  text('MwSt.',         165, y + 5, { align: 'right' });
-  text('Betrag',        RIGHT - 1, y + 5, { align: 'right' });
-  y += 9;
+  const tableWidth = RIGHT - MARGIN;
+  const descriptionX = MARGIN + 2;
+  const quantityRight = 96;
+  const unitX = 99;
+  const priceRight = 142;
+  const vatRight = 162;
+  const amountRight = RIGHT - 1;
+  const contentBottom = 277;
+  const newPage = () => { doc.addPage(); y = 20; };
+  const ensureSpace = (height: number) => { if (y + height > contentBottom) newPage(); };
+  const drawTableHeader = () => {
+    if (activeTemplate.layout === 'modern') doc.setFillColor(...accent);
+    else doc.setFillColor(240, 235, 229);
+    doc.rect(MARGIN, y, tableWidth, 8, 'F');
+    setFont('bold', 8);
+    if (activeTemplate.layout === 'modern') doc.setTextColor(255, 255, 255);
+    else setColor(22, 25, 43);
+    text('Beschreibung', descriptionX, y + 5);
+    text('Menge', quantityRight, y + 5, { align: 'right' });
+    text('Einheit', unitX, y + 5);
+    text('Preis', priceRight, y + 5, { align: 'right' });
+    text('MwSt.', vatRight, y + 5, { align: 'right' });
+    text('Betrag', amountRight, y + 5, { align: 'right' });
+    y += 10;
+    setFont('normal', 8);
+  };
+  drawTableHeader();
 
   // ── Line items ───────────────────────────────────────────────────────────
-  setFont('normal', 8);
   for (const [i, item] of inv.items.entries()) {
-    const net = item.quantity * item.unitPrice;
-    if (i % 2 === 0) {
-      doc.setFillColor(250, 250, 252);
-      doc.rect(MARGIN, y - 4.5, RIGHT - MARGIN, 7, 'F');
+    const descriptionLines: string[] = doc.splitTextToSize(item.description || '', 58);
+    let remainingLines = descriptionLines.length ? descriptionLines : [''];
+    let firstPart = true;
+    while (remainingLines.length) {
+      if (y + 7 > contentBottom) { newPage(); drawTableHeader(); }
+      const lineCount = Math.max(1, Math.floor((contentBottom - y) / 4));
+      const lines = remainingLines.slice(0, lineCount);
+      remainingLines = remainingLines.slice(lineCount);
+      const rowHeight = Math.max(7, lines.length * 4);
+      if (i % 2 === 0) {
+        doc.setFillColor(250, 250, 252);
+        doc.rect(MARGIN, y - 4, tableWidth, rowHeight, 'F');
+      }
+      setColor(40, 40, 40);
+      doc.text(lines, descriptionX, y);
+      if (firstPart) {
+        text(String(item.quantity), quantityRight, y, { align: 'right' });
+        text(item.unit || 'Stk.', unitX, y);
+        text(fmtCHF(item.unitPrice), priceRight, y, { align: 'right' });
+        text(`${item.vatRate}%`, vatRight, y, { align: 'right' });
+        text(fmtCHF(item.quantity * item.unitPrice), amountRight, y, { align: 'right' });
+      }
+      firstPart = false;
+      y += rowHeight;
     }
-    setColor(40, 40, 40);
-    text(item.description,                    MARGIN + 2, y);
-    text(String(item.quantity),               112, y, { align: 'right' });
-    text(item.unit || 'Stk.',                 122, y);
-    text(fmtCHF(item.unitPrice),              152, y, { align: 'right' });
-    text(`${item.vatRate}%`,                  165, y, { align: 'right' });
-    text(fmtCHF(net),                         RIGHT - 1, y, { align: 'right' });
-    y += 7;
   }
 
   // ── Totals ───────────────────────────────────────────────────────────────
+  ensureSpace(28 + Object.keys(vatMap).length * 5);
   y += 4;
   doc.setDrawColor(200, 200, 200);
   line(COL2, y, RIGHT, y);
@@ -200,6 +242,7 @@ export async function exportInvoicePDF(inv: Invoice): Promise<void> {
   // ── IBAN ─────────────────────────────────────────────────────────────────
   const payIban = (inv.iban ?? company.iban ?? '').replace(/\s+/g, '');
   if (payIban) {
+    ensureSpace(5);
     setFont('normal', 9);
     setColor(80, 80, 80);
     text(`Bitte überweisen an IBAN: ${formatIBAN(payIban)}`, MARGIN, y);
@@ -211,18 +254,45 @@ export async function exportInvoicePDF(inv: Invoice): Promise<void> {
     y += 3;
     setFont('normal', 8.5);
     setColor(90, 90, 90);
-    const noteLines = doc.splitTextToSize(inv.notes, RIGHT - MARGIN);
-    doc.text(noteLines, MARGIN, y);
-    y += noteLines.length * 5;
+    let noteLines: string[] = doc.splitTextToSize(inv.notes, RIGHT - MARGIN);
+    while (noteLines.length) {
+      ensureSpace(5);
+      const lineCount = Math.max(1, Math.floor((contentBottom - y) / 5));
+      const lines = noteLines.slice(0, lineCount);
+      noteLines = noteLines.slice(lineCount);
+      doc.text(lines, MARGIN, y);
+      y += lines.length * 5;
+    }
+  }
+
+  if (activeTemplate.footerText.trim()) {
+    const footerLines = doc.splitTextToSize(activeTemplate.footerText.trim(), RIGHT - MARGIN).slice(0, 2);
+    ensureSpace(3 + footerLines.length * 4);
+    y += 3;
+    setFont('normal', 8);
+    setColor(90, 90, 90);
+    doc.text(footerLines, MARGIN, y);
+    y += footerLines.length * 4;
   }
 
   // ── Swiss QR-Rechnung section (bottom ~105mm) ────────────────────────────
   // Only generate if IBAN is present
   if (payIban) {
+    if (y > 190) newPage();
     await addSwissQR(doc, inv, total, payIban);
   }
 
   doc.save(`Rechnung-${inv.number}.pdf`);
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return [22, 37, 61];
+  return [
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16),
+  ];
 }
 
 // ─── Swiss QR section on last page ───────────────────────────────────────────

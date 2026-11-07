@@ -13,7 +13,7 @@ const faqs = [
   },
   {
     q: 'Was kostet Bookitty?',
-    a: 'Bookitty ist aktuell kostenlos nutzbar. Keine Kreditkarte, kein Risiko. Premium-Funktionen (Lohnbuchhaltung, automatische Mahnungen, Steuerexport) folgen schrittweise.',
+    a: 'Die Abos kosten CHF 12 (Solo), CHF 29 (Team) und CHF 59 (Business) pro Monat. Alle enthalten die Buchhaltungsfunktionen; der Unterschied ist vor allem das monatliche KI-Tokenkontingent. Es gibt keine Abrechnung pro Benutzerplatz.',
   },
   {
     q: 'Wie funktioniert der Demo-Modus?',
@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: 'Wie sicher sind meine Daten?',
-    a: 'Jedes Unternehmen hat einen isolierten Workspace. Daten werden verschlüsselt übertragen und in der Schweiz gehostet. Ohne Konto verlassen keine Daten deinen Browser.',
+    a: 'Passwörter werden als Hash gespeichert und die Verbindung zu Bookitty erfolgt über HTTPS. Bei aktivierter Zwei-Faktor-Authentifizierung schützt zusätzlich ein Code aus deiner Authenticator-App. Wir verbessern unsere Sicherheitsmassnahmen laufend; einen absoluten Schutz kann kein Online-Dienst garantieren.',
   },
   {
     q: 'Kann ich eigene Konten definieren?',
@@ -29,7 +29,15 @@ const faqs = [
   },
   {
     q: 'Was kann Kitty, der KI-Assistent?',
-    a: 'Kitty beantwortet Fragen zu Buchungen, Kontenrahmen, MwSt und Bookitty-Funktionen – auch offline. Bei komplexeren Fragen greift Kitty auf ein Netzwerk von KI-Modellen zurück.',
+    a: 'Kitty beantwortet Buchhaltungsfragen und hilft bei Buchungsvorschlägen. Häufige Fragen beantwortet die lokale Wissensbasis; für komplexere Fragen nutzt Bookitty Infomaniak AI Services mit Mistral Small 4. Cloud-Antworten benötigen ein Konto und KI-Guthaben.',
+  },
+  {
+    q: 'Wie erreiche ich Kontakt oder Support?',
+    a: 'Allgemeine Anfragen gehen an contact@bookitty.ch. Für technische Hilfe erreichst du uns unter support@bookitty.ch.',
+  },
+  {
+    q: 'Gibt es verschiedene KI-Modelle?',
+    a: 'Kitty nutzt für Cloud-Antworten aktuell Mistral Small 4 über Infomaniak AI Services. Die Offline-Wissensbasis beantwortet viele häufige Fragen ohne Cloud-Anfrage.',
   },
 ];
 
@@ -235,14 +243,14 @@ const Landing = () => {
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-[520px]" aria-label="Bookitty Dashboard Vorschau">
+        <div className="relative mx-auto w-full max-w-[520px]" aria-label="Bookitty Dashboard Beispielansicht">
           <div className="overflow-hidden border border-slate-200 bg-[#f9faf8] shadow-[0_24px_70px_-35px_rgba(15,23,42,0.4)]">
             <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
               <div className="flex items-center gap-2">
                 <img src="/logo.svg" alt="" className="h-6 w-6" />
                 <span className="text-sm font-bold text-slate-900">Bookitty</span>
               </div>
-              <span className="text-[10px] font-medium text-slate-500">Übersicht · Oktober</span>
+              <span className="text-[10px] font-medium text-slate-500">Beispielansicht</span>
             </div>
             <div className="grid grid-cols-2 gap-px bg-slate-200">
               <div className="bg-white p-4 sm:p-5">
@@ -274,7 +282,7 @@ const Landing = () => {
               </div>
             </div>
             <div className="flex items-center gap-3 border-t border-slate-200 bg-[#f4f7f3] px-4 py-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white">K</span>
+              <img src="/logo.svg" alt="" className="h-7 w-7 shrink-0 rounded-full bg-white p-0.5" />
               <p className="text-xs text-slate-700"><strong>Kitty:</strong> Beleg erkannt und Kontierung vorbereitet.</p>
               <span className="ml-auto text-[10px] font-semibold text-emerald-800">Bereit zur Prüfung</span>
             </div>
@@ -429,13 +437,7 @@ const Landing = () => {
           {/* Right: chat mockup */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-lg p-4 space-y-3 max-w-sm mx-auto w-full">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0">
-                <svg className="h-4 w-4 text-white" viewBox="0 0 32 32" fill="currentColor">
-                  <path d="M6 4 L2 12 L6 11 Q8 18 16 18 Q24 18 26 11 L30 12 L26 4 L22 8 Q19 6 16 6 Q13 6 10 8 Z" />
-                  <circle cx="11" cy="13" r="1.5" fill="#0f172a" />
-                  <circle cx="21" cy="13" r="1.5" fill="#0f172a" />
-                </svg>
-              </div>
+              <img src="/logo.svg" alt="" className="h-8 w-8 shrink-0 rounded-full bg-white p-1" />
               <span className="text-sm font-semibold text-slate-900">Kitty</span>
               <span className="ml-auto text-[10px] font-medium text-emerald-600">Online</span>
             </div>
@@ -537,6 +539,8 @@ const Landing = () => {
         </div>
         <div className="flex gap-5">
           <a href="#ueber-uns" className="hover:text-slate-600 transition">Über uns</a>
+          <Link to="/kontakt" className="hover:text-slate-600 transition">Kontakt</Link>
+          <Link to="/support" className="hover:text-slate-600 transition">Support</Link>
           <Link to="/demo"     className="hover:text-slate-600 transition">Demo</Link>
           <Link to="/register" className="hover:text-slate-600 transition">Registrieren</Link>
           <Link to="/login"    className="hover:text-slate-600 transition">Anmelden</Link>

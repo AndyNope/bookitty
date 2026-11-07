@@ -35,6 +35,7 @@ try {
 
 $done  = [];
 $skipped = [];
+$errors = [];
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 function columnExists(PDO $pdo, string $table, string $col): bool {
@@ -48,11 +49,13 @@ function tableExists(PDO $pdo, string $table): bool {
 }
 
 function run(PDO $pdo, string $sql, string $desc, array &$done, array &$skipped): void {
+    global $errors;
     try {
         $pdo->exec($sql);
         $done[] = $desc;
     } catch (Exception $e) {
         $skipped[] = "$desc: " . $e->getMessage();
+        $errors[] = "$desc: " . $e->getMessage();
     }
 }
 
@@ -81,6 +84,129 @@ if (!columnExists($pdo, 'users', 'role')) {
         'users.role added', $done, $skipped);
 } else { $skipped[] = 'users.role already exists'; }
 
+if (!columnExists($pdo, 'users', 'session_version')) {
+    run($pdo, 'ALTER TABLE users ADD COLUMN session_version INT UNSIGNED NOT NULL DEFAULT 0',
+        'users.session_version added', $done, $skipped);
+} else { $skipped[] = 'users.session_version already exists'; }
+
+if (!tableExists($pdo, 'company_roles')) {
+    run($pdo, "
+        CREATE TABLE company_roles (
+            id INT NOT NULL AUTO_INCREMENT,
+            company_id INT NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            base_role VARCHAR(20) NOT NULL,
+            permissions_json TEXT NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_company_role_name (company_id, name),
+            CONSTRAINT fk_company_roles_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'company_roles table created', $done, $skipped);
+} else { $skipped[] = 'company_roles already exists'; }
+
+run($pdo, "CREATE TABLE IF NOT EXISTS migration_markers (
+    marker VARCHAR(100) NOT NULL,
+    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (marker)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'migration_markers table ready', $done, $skipped);
+
+if (!tableExists($pdo, 'company_memberships')) {
+    run($pdo, "
+        CREATE TABLE company_memberships (
+            company_id        INT         NOT NULL,
+            user_id           INT         NOT NULL,
+            role              VARCHAR(20) NOT NULL DEFAULT 'buchhalter',
+            permissions_json  TEXT        DEFAULT NULL,
+            access_expires_at TIMESTAMP   NULL DEFAULT NULL,
+            created_at        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (company_id, user_id),
+            KEY idx_memberships_user (user_id),
+            CONSTRAINT fk_memberships_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE,
+            CONSTRAINT fk_memberships_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'company_memberships table created', $done, $skipped);
+} else { $skipped[] = 'company_memberships already exists'; }
+
+if (tableExists($pdo, 'company_memberships') && tableExists($pdo, 'migration_markers')) {
+    $marker = $pdo->prepare('SELECT 1 FROM migration_markers WHERE marker = ?');
+    $marker->execute(['company_memberships_v1']);
+    if (!$marker->fetchColumn()) {
+        try {
+            $pdo->beginTransaction();
+            $pdo->exec("INSERT INTO company_memberships (company_id, user_id, role, access_expires_at)
+                SELECT COALESCE(company_id, id), id, CASE WHEN company_id IS NULL THEN 'admin' ELSE role END, access_expires_at FROM users
+                ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)");
+            $pdo->prepare('INSERT INTO migration_markers (marker) VALUES (?)')->execute(['company_memberships_v1']);
+            $pdo->commit();
+            $done[] = 'existing company memberships imported';
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            $message = 'existing company memberships import failed: ' . $error->getMessage();
+            $skipped[] = $message;
+            $errors[] = $message;
+        }
+    } else { $skipped[] = 'existing company memberships already imported'; }
+}
+
+if (tableExists($pdo, 'company_memberships') && !columnExists($pdo, 'company_memberships', 'custom_role_id')) {
+    run($pdo, 'ALTER TABLE company_memberships ADD COLUMN custom_role_id INT DEFAULT NULL, ADD CONSTRAINT fk_memberships_role FOREIGN KEY (custom_role_id) REFERENCES company_roles (id)',
+        'company_memberships.custom_role_id added', $done, $skipped);
+} else { $skipped[] = 'company_memberships.custom_role_id already handled'; }
+
+if (!tableExists($pdo, 'user_two_factor')) {
+    run($pdo, "
+        CREATE TABLE user_two_factor (
+            user_id           INT NOT NULL,
+            encrypted_secret  TEXT NOT NULL,
+            enabled           TINYINT(1) NOT NULL DEFAULT 0,
+            pending_since     DATETIME DEFAULT NULL,
+            failed_attempts   INT NOT NULL DEFAULT 0,
+            locked_until      DATETIME DEFAULT NULL,
+            last_step         BIGINT NOT NULL DEFAULT -1,
+            recovery_hashes   TEXT DEFAULT NULL,
+            PRIMARY KEY (user_id),
+            CONSTRAINT fk_two_factor_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'user_two_factor table created', $done, $skipped);
+} else { $skipped[] = 'user_two_factor already exists'; }
+
+if (!tableExists($pdo, 'auth_attempts')) {
+    run($pdo, "
+        CREATE TABLE auth_attempts (
+            limiter_key CHAR(64) NOT NULL,
+            failures INT NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL,
+            locked_until DATETIME DEFAULT NULL,
+            PRIMARY KEY (limiter_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'auth_attempts table created', $done, $skipped);
+} else { $skipped[] = 'auth_attempts already exists'; }
+
+if (!tableExists($pdo, 'company_activity')) {
+    run($pdo, "
+        CREATE TABLE company_activity (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            company_id INT NOT NULL,
+            actor_id INT DEFAULT NULL,
+            action VARCHAR(48) NOT NULL,
+            target_type VARCHAR(32) NOT NULL,
+            target_id VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_activity_company_created (company_id, created_at, id),
+            CONSTRAINT fk_activity_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE,
+            CONSTRAINT fk_activity_actor FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'company_activity table created', $done, $skipped);
+} else { $skipped[] = 'company_activity already exists'; }
+
+if (tableExists($pdo, 'bookings') && !columnExists($pdo, 'bookings', 'pdf_url')) {
+    run($pdo, 'ALTER TABLE bookings ADD COLUMN pdf_url VARCHAR(500) DEFAULT NULL', 'bookings.pdf_url added', $done, $skipped);
+} else { $skipped[] = 'bookings.pdf_url already handled'; }
+if (tableExists($pdo, 'bookings') && !columnExists($pdo, 'bookings', 'due_date')) {
+    run($pdo, 'ALTER TABLE bookings ADD COLUMN due_date VARCHAR(20) DEFAULT NULL', 'bookings.due_date added', $done, $skipped);
+} else { $skipped[] = 'bookings.due_date already handled'; }
+
 // ── 2. invitations ────────────────────────────────────────────────────────────
 if (!tableExists($pdo, 'invitations')) {
     run($pdo, "
@@ -102,6 +228,11 @@ if (!tableExists($pdo, 'invitations')) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ", 'invitations table created', $done, $skipped);
 } else { $skipped[] = 'invitations already exists'; }
+
+if (tableExists($pdo, 'invitations') && !columnExists($pdo, 'invitations', 'custom_role_id')) {
+    run($pdo, 'ALTER TABLE invitations ADD COLUMN custom_role_id INT DEFAULT NULL, ADD CONSTRAINT fk_inv_role FOREIGN KEY (custom_role_id) REFERENCES company_roles (id)',
+        'invitations.custom_role_id added', $done, $skipped);
+} else { $skipped[] = 'invitations.custom_role_id already handled'; }
 
 // ── 3. invoices ───────────────────────────────────────────────────────────────
 if (!tableExists($pdo, 'invoices')) {
@@ -315,8 +446,9 @@ run($pdo, "
 
 // ── Result ────────────────────────────────────────────────────────────────────
 echo json_encode([
-    'status'  => 'done',
+    'status'  => $errors ? 'partial' : 'done',
     'applied' => $done,
     'skipped' => $skipped,
+    'errors'  => $errors,
     'note'    => 'DELETE this file from the server now!',
 ], JSON_PRETTY_PRINT);

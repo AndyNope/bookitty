@@ -14,6 +14,7 @@ export default function Invite() {
   const [sending,  setSending]  = useState(false);
   const [name,     setName]     = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [pwError,  setPwError]  = useState('');
 
   const ROLE_LABELS: Record<string, string> = { buchhalter: 'Buchhalter', readonly: 'Nur-Lesen', admin: 'Admin' };
@@ -29,19 +30,19 @@ export default function Invite() {
   const handleAccept = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwError('');
-    if (!invite?.user_exists && password.length < 8) {
+    if (password.length < 8) {
       setPwError('Passwort muss mindestens 8 Zeichen haben.');
       return;
     }
     setSending(true);
     try {
-      const { token: jwt, user } = await api.invite.accept(token, name, password);
+      const { token: jwt, user } = await api.invite.accept(token, name, password, code);
       tokenStore.set(jwt);
       // Reload so AuthContext picks up the new user
       window.location.href = '/app';
       void user;
     } catch (e: unknown) {
-      setError((e as Error).message ?? 'Fehler beim Annehmen der Einladung.');
+      setPwError((e as Error).message ?? 'Fehler beim Annehmen der Einladung.');
       setSending(false);
     }
   };
@@ -112,20 +113,26 @@ export default function Invite() {
                   <input value={name} onChange={e => setName(e.target.value)} required
                     placeholder="Vorname Nachname" className={inputCls} />
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Passwort (mind. 8 Zeichen)</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                    placeholder="••••••••" className={inputCls} />
-                  {pwError && <p className="mt-1 text-xs text-red-600">{pwError}</p>}
-                </div>
               </>
             )}
 
             {invite?.user_exists && (
               <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                Du hast bereits ein Bookitty-Konto. Mit «Annehmen» wird dein Konto mit diesem Team verknüpft.
+                Bestätige die Einladung mit deinem bestehenden Passwort und, falls aktiviert, deinem 2FA-Code.
               </div>
             )}
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Passwort (mind. 8 Zeichen)</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                placeholder="••••••••" className={inputCls} />
+              {pwError && <p className="mt-1 text-xs text-red-600">{pwError}</p>}
+            </div>
+
+            {invite?.requires_two_factor && <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Authenticator- oder Wiederherstellungscode</label>
+              <input value={code} onChange={(event) => setCode(event.target.value)} required autoComplete="one-time-code" className={inputCls} />
+            </div>}
 
             {error && <p className="text-xs text-red-600">{error}</p>}
 

@@ -14,6 +14,7 @@ dist-ssr
 
 # PHP – keep config.example.php but not the real config with credentials
 api/config.php
+api/vendor/
 
 # User-uploaded files
 api/uploads/*

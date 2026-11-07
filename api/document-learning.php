@@ -14,7 +14,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/jwt.php';
+require_once __DIR__ . '/auth.php';
 
 set_cors_headers();
 
@@ -28,15 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Auth is optional – try to extract user_id from JWT if present
 $userId = null;
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-if (str_starts_with($authHeader, 'Bearer ')) {
-    $token = substr($authHeader, 7);
-    try {
-        $payload = jwt_decode($token);
-        $userId  = (int)($payload['sub'] ?? 0) ?: null;
-    } catch (\Exception $e) {
-        // invalid token – continue as anonymous
-    }
+if (_get_bearer_token() !== '') {
+    $payload = get_auth_payload();
+    $userId = (int) $payload['sub'];
 }
 
 $body    = json_decode(file_get_contents('php://input'), true) ?? [];

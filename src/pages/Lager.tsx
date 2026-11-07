@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import NumberInput from '../components/NumberInput';
+import { companyStorageKey } from '../utils/companyStorage';
 
 /* ── Types ────────────────────────────────────────────────────────── */
 interface StockItem {
@@ -40,14 +41,14 @@ const fmt = (n: number) => n.toLocaleString('de-CH', { style: 'currency', curren
 /* ── Component ───────────────────────────────────────────────────── */
 export default function Lager() {
   const [items, setItems] = useState<StockItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem(ITEMS_KEY) ?? '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(companyStorageKey(ITEMS_KEY)) ?? '[]'); } catch { return []; }
   });
   const [movements, setMovements] = useState<StockMovement[]>(() => {
-    try { return JSON.parse(localStorage.getItem(MOVEMENTS_KEY) ?? '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(companyStorageKey(MOVEMENTS_KEY)) ?? '[]'); } catch { return []; }
   });
 
-  useEffect(() => { localStorage.setItem(ITEMS_KEY, JSON.stringify(items)); }, [items]);
-  useEffect(() => { localStorage.setItem(MOVEMENTS_KEY, JSON.stringify(movements)); }, [movements]);
+  useEffect(() => { localStorage.setItem(companyStorageKey(ITEMS_KEY), JSON.stringify(items)); }, [items]);
+  useEffect(() => { localStorage.setItem(companyStorageKey(MOVEMENTS_KEY), JSON.stringify(movements)); }, [movements]);
 
   const [tab, setTab] = useState<'artikel' | 'bewegungen' | 'neu'>('artikel');
   const [search, setSearch] = useState('');

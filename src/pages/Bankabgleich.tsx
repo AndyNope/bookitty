@@ -80,6 +80,7 @@ export default function Bankabgleich() {
   const [matches,      setMatches]        = useState<MatchResult[]>([]);
   const [txState,      setTxState]        = useState<TxState>({});
   const [loading,      setLoading]        = useState(false);
+  const [applying,     setApplying]       = useState(false);
   const [notification, setNotification]   = useState<{ type: 'success' | 'error'; title: string; message: string } | null>(null);
   const [filterMode,   setFilterMode]     = useState<'Alle' | 'Offen' | 'Bezahlt' | 'Ignoriert'>('Alle');
   const [fileName,     setFileName]       = useState('');
@@ -166,10 +167,13 @@ export default function Bankabgleich() {
 
   // ── Apply decisions ────────────────────────────────────────────────────────
   const handleApply = async () => {
+    if (applying) return;
+    setApplying(true);
     let applied = 0;
     let created = 0;
+    const completed: string[] = [];
 
-    for (const tx of transactions) {
+    try { for (const tx of transactions) {
       const state = txState[tx.id];
       if (!state) continue;
 
@@ -178,7 +182,7 @@ export default function Bankabgleich() {
         if (bookingId) {
           const booking = bookings.find(b => b.id === bookingId);
           if (booking && booking.paymentStatus !== 'Bezahlt') {
-            updateBooking(booking.id, { ...booking, paymentStatus: 'Bezahlt' });
+            await updateBooking(booking.id, { ...booking, paymentStatus: 'Bezahlt' });
             applied++;
           }
         }
@@ -198,9 +202,10 @@ export default function Bankabgleich() {
           paymentStatus: 'Bezahlt',
           type:          tx.amount > 0 ? 'Einnahme' : 'Ausgabe',
         };
-        addBooking(draft);
+        await addBooking(draft);
         created++;
       }
+      if (state.decision === 'accept' || state.decision === 'new') completed.push(tx.id);
     }
 
     setNotification({
@@ -211,6 +216,11 @@ export default function Bankabgleich() {
     setTransactions([]);
     setTxState({});
     setFileName('');
+    } catch (error) {
+      setTransactions((current) => current.filter((tx) => !completed.includes(tx.id)));
+      setTxState((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !completed.includes(id))));
+      setNotification({ type: 'error', title: 'Abgleich unterbrochen', message: `${(error as Error).message}. Bereits gespeichert: ${applied} Änderungen und ${created} neue Buchungen.` });
+    } finally { setApplying(false); }
   };
 
   const canApply = Object.values(txState).some(s => s.decision === 'accept' || s.decision === 'new');
@@ -249,11 +259,11 @@ export default function Bankabgleich() {
         action={
           transactions.length > 0 ? (
             <div className="flex items-center gap-2">
-              <button onClick={() => { setTransactions([]); setTxState({}); setFileName(''); }}
+              <button onClick={() => { setTransactions([]); setTxState({}); setFileName(''); }} disabled={applying}
                 className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50">
                 Neue Datei
               </button>
-              <button onClick={handleApply} disabled={!canApply}
+              <button onClick={handleApply} disabled={!canApply || applying}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40">
                 Abgleich übernehmen
               </button>
@@ -514,7 +524,7 @@ export default function Bankabgleich() {
                   <span className="font-bold">{stats.accepted}</span> als bezahlt markieren ·{' '}
                   <span className="font-bold">{stats.newBk}</span> neue Buchungen erstellen
                 </div>
-                <button onClick={handleApply}
+                <button onClick={handleApply} disabled={applying}
                   className="rounded-xl bg-white px-5 py-2 text-sm font-bold text-slate-900 hover:bg-slate-100">
                   Abgleich übernehmen
                 </button>

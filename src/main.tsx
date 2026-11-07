@@ -6,6 +6,8 @@ import './i18n';
 import App from './App.tsx';
 import { AuthProvider } from './store/AuthContext';
 
+if ('caches' in window) void caches.delete('api-cache').catch(() => {});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>

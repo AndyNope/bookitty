@@ -26,6 +26,7 @@ const Buchungen = () => {
   });
   const highlightBtn = useKittyHighlight('btn-neue-buchung');
   const [autoDismissed, setAutoDismissed] = useState(false);
+  const [savingBooking, setSavingBooking] = useState(false);
 
   // Bookings that could be auto-categorized (uncategorized = default account 4000/6xxx and generic)
   const autoSuggestions = useMemo(() => {
@@ -36,12 +37,22 @@ const Buchungen = () => {
       .filter(x => x.draft !== null) as { booking: Booking; draft: BookingDraft }[];
   }, [bookings, autoDismissed]);
 
-  const applyAllSuggestions = () => {
-    for (const { booking, draft } of autoSuggestions) {
-      updateBooking(booking.id, draft);
+  const applyAllSuggestions = async () => {
+    if (savingBooking) return;
+    setSavingBooking(true);
+    let updated = 0;
+    try {
+      for (const { booking, draft } of autoSuggestions) {
+        await updateBooking(booking.id, draft);
+        updated++;
+      }
+      setAutoDismissed(true);
+      setNotify({ open: true, type: 'success', title: 'Auto-Kategorisierung', message: `${updated} Buchung${updated !== 1 ? 'en' : ''} automatisch kategorisiert.` });
+    } catch (error) {
+      setNotify({ open: true, type: 'error', title: 'Kategorisierung fehlgeschlagen', message: `${(error as Error).message}. Bereits gespeichert: ${updated}.` });
+    } finally {
+      setSavingBooking(false);
     }
-    setAutoDismissed(true);
-    setNotify({ open: true, type: 'success', title: 'Auto-Kategorisierung', message: `${autoSuggestions.length} Buchung${autoSuggestions.length !== 1 ? 'en' : ''} automatisch kategorisiert.` });
   };
 
   const pendingDeleteBooking = bookings.find((b) => b.id === pendingDeleteId);
@@ -68,7 +79,6 @@ const Buchungen = () => {
       if (searchParams.get('kitty_amount')) partial.amount        = parseFloat(searchParams.get('kitty_amount')!);
       if (searchParams.get('kitty_type'))   partial.type          = searchParams.get('kitty_type') as BookingType;
       if (searchParams.get('kitty_status')) partial.paymentStatus = searchParams.get('kitty_status') as PaymentStatus;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPrefilledDraft(partial);
       setIsModalOpen(true);
       setSearchParams({}, { replace: true }); // URL bereinigen
@@ -81,15 +91,23 @@ const Buchungen = () => {
     setEditingBooking(null);
   };
 
-  const handleSubmit = (draft: Parameters<typeof addBooking>[0]) => {
-    if (editingBooking) {
-      updateBooking(editingBooking.id, draft);
-      setNotify({ open: true, type: 'success', title: 'Buchung gespeichert', message: `„${draft.description}“ wurde erfolgreich aktualisiert.` });
-    } else {
-      addBooking(draft);
-      setNotify({ open: true, type: 'success', title: 'Buchung erstellt', message: `„${draft.description}“ wurde erfolgreich erfasst.` });
+  const handleSubmit = async (draft: Parameters<typeof addBooking>[0]) => {
+    if (savingBooking) return;
+    setSavingBooking(true);
+    try {
+      if (editingBooking) {
+        await updateBooking(editingBooking.id, draft);
+        setNotify({ open: true, type: 'success', title: 'Buchung gespeichert', message: `„${draft.description}“ wurde erfolgreich aktualisiert.` });
+      } else {
+        await addBooking(draft);
+        setNotify({ open: true, type: 'success', title: 'Buchung erstellt', message: `„${draft.description}“ wurde erfolgreich erfasst.` });
+      }
+      closeModal();
+    } catch (error) {
+      setNotify({ open: true, type: 'error', title: 'Buchung nicht gespeichert', message: (error as Error).message });
+    } finally {
+      setSavingBooking(false);
     }
-    closeModal();
   };
 
   const openEdit = (id: string) => {
@@ -191,7 +209,7 @@ const Buchungen = () => {
             </ul>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={applyAllSuggestions}
+            <button onClick={applyAllSuggestions} disabled={savingBooking}
               className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">
               Alle übernehmen
             </button>
@@ -236,7 +254,17 @@ const Buchungen = () => {
               </button>
               <button
                 type="button"
-                onClick={() => { removeBooking(pendingDeleteBooking.id); setPendingDeleteId(null); setNotify({ open: true, type: 'success', title: 'Buchung gelöscht', message: `„${pendingDeleteBooking.description}“ wurde gelöscht.` }); }}
+                disabled={savingBooking}
+                onClick={async () => {
+                  setSavingBooking(true);
+                  try {
+                    await removeBooking(pendingDeleteBooking.id);
+                    setPendingDeleteId(null);
+                    setNotify({ open: true, type: 'success', title: 'Buchung gelöscht', message: `„${pendingDeleteBooking.description}“ wurde gelöscht.` });
+                  } catch (error) {
+                    setNotify({ open: true, type: 'error', title: 'Löschen fehlgeschlagen', message: (error as Error).message });
+                  } finally { setSavingBooking(false); }
+                }}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
               >
                 Löschen bestätigen
@@ -343,6 +371,7 @@ const Buchungen = () => {
               onCancel={closeModal}
               initialValues={editingBooking ?? prefilledDraft}
               editMode={!!editingBooking}
+              isSaving={savingBooking}
             />
           </div>
         </div>

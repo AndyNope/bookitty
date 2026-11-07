@@ -10,7 +10,7 @@ import { parseEml } from '../utils/emlParser';
 import { addTemplate } from '../utils/templateStore';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
-import { api } from '../services/api';
+import { api, isPrivateDocumentUrl, openPrivateDocument } from '../services/api';
 import { useAuth } from '../store/AuthContext';
 import NumberInput from '../components/NumberInput';
 import {
@@ -28,12 +28,13 @@ const Dokumente = () => {
     confirmDocument,
     removeDocument,
   } = useBookkeeping();
-  const { user } = useAuth();
+  const { user, isReadonly } = useAuth();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(
     documents[0]?.id ?? null,
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deletingDocument, setDeletingDocument] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [imapStatus, setImapStatus] = useState<string | null>(null);
   const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
@@ -50,6 +51,19 @@ const Dokumente = () => {
     (doc) => doc.id === pendingDeleteId,
   );
 
+  const handleRemoveDocument = async (doc: typeof documents[number]) => {
+    if (deletingDocument) return;
+    setDeletingDocument(true);
+    try {
+      await removeDocument(doc.id);
+      if (selectedId === doc.id) setSelectedId(documents.find((item) => item.id !== doc.id)?.id ?? null);
+      setPendingDeleteId(null);
+      showNotify('success', 'Beleg entfernt', `„${doc.fileName}“ wurde aus der Liste entfernt.`);
+    } catch (error) {
+      showNotify('error', 'Beleg nicht entfernt', (error as Error).message);
+    } finally { setDeletingDocument(false); }
+  };
+
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -58,12 +72,13 @@ const Dokumente = () => {
 
     try {
       setIsProcessing(true);
-      const { draft, detection, templateApplied, vendorPattern } = await processDocument(file);
-      addDocument(file, draft, detection, templateApplied, vendorPattern, true);
-      showNotify('success', 'Beleg erkannt', `„${file.name}“ wurde erfolgreich verarbeitet und ist bereit zur Buchung.`);
-    } catch {
-      addDocument(file, undefined, undefined, undefined, undefined, true);
-      showNotify('error', 'Erkennung fehlgeschlagen', 'Beleg wurde hinzugefügt, konnte aber nicht automatisch erkannt werden.');
+      let result: Awaited<ReturnType<typeof processDocument>> | undefined;
+      try { result = await processDocument(file); } catch { result = undefined; }
+      await addDocument(file, result?.draft, result?.detection, result?.templateApplied, result?.vendorPattern, true);
+      if (result) showNotify('success', 'Beleg erkannt', `„${file.name}“ wurde erfolgreich verarbeitet und ist bereit zur Buchung.`);
+      else showNotify('error', 'Erkennung fehlgeschlagen', 'Beleg wurde gespeichert, konnte aber nicht automatisch erkannt werden.');
+    } catch (error) {
+      showNotify('error', 'Beleg nicht gespeichert', (error as Error).message || 'Der Upload ist fehlgeschlagen.');
     } finally {
       setIsProcessing(false);
     }
@@ -76,6 +91,7 @@ const Dokumente = () => {
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    let savedCount = 0;
     try {
       setIsProcessing(true);
       const rawText = await file.text();
@@ -85,15 +101,11 @@ const Dokumente = () => {
         // Process each PDF attachment through the full pipeline
         for (const att of email.attachments) {
           const pdfFile = new File([att.data.buffer as ArrayBuffer], att.filename, { type: 'application/pdf' });
-          try {
-            const { draft, detection, templateApplied, vendorPattern } = await processDocument(pdfFile);
-            if (email.subject && !draft.description.startsWith('Rechnung')) {
-              draft.description = email.subject;
-            }
-            addDocument(pdfFile, draft, `E-Mail+${detection}`, templateApplied, vendorPattern);
-          } catch {
-            addDocument(pdfFile, undefined, 'E-Mail');
-          }
+          let result: Awaited<ReturnType<typeof processDocument>> | undefined;
+          try { result = await processDocument(pdfFile); } catch { result = undefined; }
+          if (result && email.subject && !result.draft.description.startsWith('Rechnung')) result.draft.description = email.subject;
+          await addDocument(pdfFile, result?.draft, result ? `E-Mail+${result.detection}` : 'E-Mail', result?.templateApplied, result?.vendorPattern);
+          savedCount++;
         }
       } else {
         // No PDF attachment: derive draft from email body + subject
@@ -107,10 +119,12 @@ const Dokumente = () => {
           `${baseName}.txt`,
           { type: 'text/plain' },
         );
-        addDocument(textFile, draft, 'E-Mail+Text');
+        await addDocument(textFile, draft, 'E-Mail+Text');
+        savedCount++;
       }
+      showNotify('success', 'E-Mail importiert', `${savedCount} Beleg${savedCount === 1 ? '' : 'e'} gespeichert.`);
     } catch (err) {
-      console.error('E-Mail Import Fehler:', err);
+      showNotify('error', 'E-Mail-Import fehlgeschlagen', `${(err as Error).message}. Bereits gespeichert: ${savedCount}.`);
     } finally {
       setIsProcessing(false);
     }
@@ -118,6 +132,7 @@ const Dokumente = () => {
   };
 
   const handleImapFetch = async () => {
+    let count = 0;
     try {
       setIsProcessing(true);
       setImapStatus('E-Mails werden abgerufen…');
@@ -127,21 +142,19 @@ const Dokumente = () => {
         setTimeout(() => setImapStatus(null), 4000);
         return;
       }
-      let count = 0;
-      for (const email of emails) {
-        const bytes = Uint8Array.from(atob(email.data), (c) => c.charCodeAt(0));
-        const pdfFile = new File([bytes.buffer as ArrayBuffer], email.filename, { type: 'application/pdf' });
-        try {
-          const { draft, detection, templateApplied, vendorPattern } = await processDocument(pdfFile);
-          if (email.subject && !draft.description.startsWith('Rechnung')) {
-            draft.description = email.subject;
-          }
-          addDocument(pdfFile, draft, `IMAP+${detection}`, templateApplied, vendorPattern);
-          count++;
-        } catch {
-          addDocument(pdfFile, undefined, 'IMAP');
+      const messages = new Map<string, typeof emails>();
+      for (const email of emails) messages.set(email.messageId, [...(messages.get(email.messageId) ?? []), email]);
+      for (const [messageId, attachments] of messages) {
+        for (const email of attachments) {
+          const bytes = Uint8Array.from(atob(email.data), (c) => c.charCodeAt(0));
+          const pdfFile = new File([bytes.buffer as ArrayBuffer], email.filename, { type: 'application/pdf' });
+          let result: Awaited<ReturnType<typeof processDocument>> | undefined;
+          try { result = await processDocument(pdfFile); } catch { result = undefined; }
+          if (result && email.subject && !result.draft.description.startsWith('Rechnung')) result.draft.description = email.subject;
+          await addDocument(pdfFile, result?.draft, result ? `IMAP+${result.detection}` : 'IMAP', result?.templateApplied, result?.vendorPattern);
           count++;
         }
+        await api.imap.acknowledge(messageId);
       }
       setImapStatus(`${count} neue${count === 1 ? '' : ' '} Belege importiert.`);
       setTimeout(() => setImapStatus(null), 5000);
@@ -150,7 +163,7 @@ const Dokumente = () => {
       const msg = e instanceof Error ? e.message : 'Unbekannter Fehler';
       setImapStatus(`Fehler: ${msg}`);
       setTimeout(() => setImapStatus(null), 6000);
-      showNotify('error', 'IMAP-Abruf fehlgeschlagen', msg);
+      showNotify('error', 'IMAP-Abruf fehlgeschlagen', `${msg}. Bereits gespeichert: ${count}. Vor erneutem Abruf bitte auf doppelte Belege prüfen.`);
     } finally {
       setIsProcessing(false);
     }
@@ -158,21 +171,21 @@ const Dokumente = () => {
 
   const updateDraft = (patch: Partial<BookingDraft>) => {
     if (!selectedDocument) return;
-    updateDocumentDraft(selectedDocument.id, {
+    void updateDocumentDraft(selectedDocument.id, {
       ...selectedDocument.draft,
       ...patch,
-    });
+    }).catch((error: Error) => showNotify('error', 'Entwurf nicht gespeichert', `${error.message}. Bitte die Änderung erneut vornehmen oder den Beleg bestätigen.`));
   };
 
   const updateDraftWithContra = (patch: Partial<BookingDraft>) => {
     if (!selectedDocument) return;
     const next = { ...selectedDocument.draft, ...patch };
     const suggestedAcct = suggestAccount(next.type, next.paymentStatus);
-    updateDocumentDraft(selectedDocument.id, {
+    void updateDocumentDraft(selectedDocument.id, {
       ...next,
       account: suggestedAcct ?? next.account,
       contraAccount: suggestContraAccount(next.type, next.paymentStatus),
-    });
+    }).catch((error: Error) => showNotify('error', 'Entwurf nicht gespeichert', `${error.message}. Bitte die Änderung erneut vornehmen oder den Beleg bestätigen.`));
   };
 
   return (
@@ -273,7 +286,13 @@ const Dokumente = () => {
                         href={doc.previewUrl}
                         target="_blank"
                         rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (isPrivateDocumentUrl(doc.previewUrl!)) {
+                            event.preventDefault();
+                            void openPrivateDocument(doc.previewUrl!).catch((error: Error) => showNotify('error', 'Beleg', error.message));
+                          }
+                        }}
                         className="block truncate font-medium text-slate-900 hover:underline hover:text-slate-700"
                       >
                         {doc.fileName}
@@ -332,15 +351,13 @@ const Dokumente = () => {
                     </span>
                     <button
                       type="button"
+                      disabled={deletingDocument || isReadonly}
                       onClick={(event) => {
                         event.stopPropagation();
                         if (doc.status === 'Gebucht') {
                           setPendingDeleteId(doc.id);
                         } else {
-                          removeDocument(doc.id);
-                          if (selectedId === doc.id) {
-                            setSelectedId(documents[0]?.id ?? null);
-                          }
+                          void handleRemoveDocument(doc);
                         }
                       }}
                       className="text-xs font-semibold text-rose-600 hover:text-rose-700"
@@ -663,6 +680,12 @@ const Dokumente = () => {
                     href={selectedDocument.previewUrl}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={(event) => {
+                      if (isPrivateDocumentUrl(selectedDocument.previewUrl!)) {
+                        event.preventDefault();
+                        void openPrivateDocument(selectedDocument.previewUrl!).catch((error: Error) => showNotify('error', 'Beleg', error.message));
+                      }
+                    }}
                     className="text-sm font-medium text-slate-900"
                   >
                     Öffnen
@@ -698,11 +721,17 @@ const Dokumente = () => {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      confirmDocument(selectedDocument.id);
-                      showNotify('success', 'Buchung bestätigt!', `„${selectedDocument.draft.description}“ wurde erfolgreich als Buchung erfasst.`);
+                    disabled={isProcessing || isReadonly || (!!user?.permissions && !user.permissions.includes('buchhaltung'))}
+                    onClick={async () => {
+                      setIsProcessing(true);
+                      try {
+                        await confirmDocument(selectedDocument.id);
+                        showNotify('success', 'Buchung bestätigt!', `„${selectedDocument.draft.description}“ wurde erfolgreich als Buchung erfasst.`);
+                      } catch (error) {
+                        showNotify('error', 'Buchung fehlgeschlagen', (error as Error).message);
+                      } finally { setIsProcessing(false); }
                     }}
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
                   >
                     Buchung bestätigen
                   </button>
@@ -744,14 +773,8 @@ const Dokumente = () => {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  removeDocument(pendingDeleteDocument.id);
-                  if (selectedId === pendingDeleteDocument.id) {
-                    setSelectedId(documents[0]?.id ?? null);
-                  }
-                  setPendingDeleteId(null);
-                  showNotify('success', 'Beleg entfernt', `„${pendingDeleteDocument.fileName}“ wurde aus der Liste entfernt.`);
-                }}
+                disabled={deletingDocument}
+                onClick={() => void handleRemoveDocument(pendingDeleteDocument)}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
               >
                 Entfernen bestätigen

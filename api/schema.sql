@@ -17,10 +17,80 @@ CREATE TABLE IF NOT EXISTS users (
     role                VARCHAR(20)    NOT NULL DEFAULT 'admin',
     company_id          INT            DEFAULT NULL,
     access_expires_at   TIMESTAMP      NULL DEFAULT NULL,
+    session_version     INT UNSIGNED   NOT NULL DEFAULT 0,
     created_at          TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_email (email),
     CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS company_roles (
+    id               INT NOT NULL AUTO_INCREMENT,
+    company_id       INT NOT NULL,
+    name             VARCHAR(100) NOT NULL,
+    base_role        VARCHAR(20) NOT NULL,
+    permissions_json TEXT NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_company_role_name (company_id, name),
+    CONSTRAINT fk_company_roles_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS company_memberships (
+    company_id        INT          NOT NULL,
+    user_id           INT          NOT NULL,
+    role              VARCHAR(20)  NOT NULL DEFAULT 'buchhalter',
+    permissions_json  TEXT         DEFAULT NULL,
+    custom_role_id    INT          DEFAULT NULL,
+    access_expires_at TIMESTAMP    NULL DEFAULT NULL,
+    created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (company_id, user_id),
+    KEY idx_memberships_user (user_id),
+    CONSTRAINT fk_memberships_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_memberships_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_memberships_role FOREIGN KEY (custom_role_id) REFERENCES company_roles (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS migration_markers (
+    marker VARCHAR(100) NOT NULL,
+    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (marker)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT IGNORE INTO migration_markers (marker)
+SELECT 'company_memberships_v1' WHERE NOT EXISTS (SELECT 1 FROM users);
+
+CREATE TABLE IF NOT EXISTS user_two_factor (
+    user_id           INT NOT NULL,
+    encrypted_secret  TEXT NOT NULL,
+    enabled           TINYINT(1) NOT NULL DEFAULT 0,
+    pending_since     DATETIME DEFAULT NULL,
+    failed_attempts   INT NOT NULL DEFAULT 0,
+    locked_until      DATETIME DEFAULT NULL,
+    last_step         BIGINT NOT NULL DEFAULT -1,
+    recovery_hashes   TEXT DEFAULT NULL,
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_two_factor_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS auth_attempts (
+    limiter_key  CHAR(64) NOT NULL,
+    failures     INT NOT NULL DEFAULT 0,
+    updated_at   DATETIME NOT NULL,
+    locked_until DATETIME DEFAULT NULL,
+    PRIMARY KEY (limiter_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS company_activity (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    company_id INT NOT NULL,
+    actor_id INT DEFAULT NULL,
+    action VARCHAR(48) NOT NULL,
+    target_type VARCHAR(32) NOT NULL,
+    target_id VARCHAR(64) DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_activity_company_created (company_id, created_at, id),
+    CONSTRAINT fk_activity_company FOREIGN KEY (company_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_activity_actor FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── billing_accounts ─────────────────────────────────────────────────────────
@@ -79,6 +149,7 @@ CREATE TABLE IF NOT EXISTS invitations (
     role        VARCHAR(20)    NOT NULL DEFAULT 'buchhalter',
     invited_by  INT            NOT NULL,
     company_id  INT            NOT NULL,
+    custom_role_id INT         DEFAULT NULL,
     access_expires_at TIMESTAMP  NULL DEFAULT NULL,
     used        TINYINT(1)     NOT NULL DEFAULT 0,
     expires_at  TIMESTAMP      NOT NULL,
@@ -86,7 +157,8 @@ CREATE TABLE IF NOT EXISTS invitations (
     PRIMARY KEY (id),
     UNIQUE KEY uq_inv_token (token),
     KEY idx_inv_email (email),
-    CONSTRAINT fk_inv_inviter FOREIGN KEY (invited_by) REFERENCES users (id) ON DELETE CASCADE
+    CONSTRAINT fk_inv_inviter FOREIGN KEY (invited_by) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_inv_role FOREIGN KEY (custom_role_id) REFERENCES company_roles (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── bookings ─────────────────────────────────────────────────────────────────
@@ -104,6 +176,8 @@ CREATE TABLE IF NOT EXISTS bookings (
     currency        VARCHAR(10)    NOT NULL DEFAULT 'CHF',
     payment_status  VARCHAR(20)    NOT NULL DEFAULT 'Offen',
     type            VARCHAR(20)    NOT NULL DEFAULT 'Ausgabe',
+    pdf_url         VARCHAR(500)   DEFAULT NULL,
+    due_date        VARCHAR(20)    DEFAULT NULL,
     created_at      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_bookings_user   (user_id),

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Booking } from '../types';
+import { isPrivateDocumentUrl, openPrivateDocument } from '../services/api';
 
 const sendToKitty = (booking: Booking) =>
   window.dispatchEvent(new CustomEvent('kitty:context', { detail: booking }));
@@ -163,6 +164,12 @@ const BookingTable = ({
                       href={booking.pdfUrl}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(event) => {
+                        if (isPrivateDocumentUrl(booking.pdfUrl!)) {
+                          event.preventDefault();
+                          void openPrivateDocument(booking.pdfUrl!).catch((error: Error) => window.alert(error.message));
+                        }
+                      }}
                       title="Beleg öffnen"
                       className="shrink-0 text-slate-300 hover:text-slate-600 transition"
                     >

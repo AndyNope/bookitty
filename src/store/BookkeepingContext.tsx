@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
   useEffect,
+  useRef,
   type ReactNode,
 } from 'react';
 import type { Booking, BookingDraft, DocumentImport } from '../types';
@@ -74,7 +75,8 @@ const loadDocuments = () => {
 type BookkeepingContextValue = {
   bookings: Booking[];
   documents: DocumentImport[];
-  addBooking: (draft: BookingDraft) => void;
+  addBooking: (draft: BookingDraft) => Promise<void>;
+  addBookings: (drafts: BookingDraft[]) => Promise<void>;
   addDocument: (
     file: File,
     draftOverride?: BookingDraft,
@@ -82,12 +84,12 @@ type BookkeepingContextValue = {
     templateApplied?: boolean,
     vendorPattern?: string,
     isDirectUpload?: boolean,
-  ) => void;
-  updateDocumentDraft: (id: string, draft: BookingDraft) => void;
-  confirmDocument: (id: string) => void;
-  removeDocument: (id: string) => void;
-  removeBooking: (id: string) => void;
-  updateBooking: (id: string, draft: BookingDraft) => void;
+  ) => Promise<void>;
+  updateDocumentDraft: (id: string, draft: BookingDraft) => Promise<void>;
+  confirmDocument: (id: string) => Promise<void>;
+  removeDocument: (id: string) => Promise<void>;
+  removeBooking: (id: string) => Promise<void>;
+  updateBooking: (id: string, draft: BookingDraft) => Promise<void>;
 };
 
 const BookkeepingContext = createContext<BookkeepingContextValue | undefined>(
@@ -103,6 +105,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
   const [documents, setDocuments] = useState<DocumentImport[]>(() =>
     isDemo ? loadDocuments() : []
   );
+  const draftWrites = useRef(new Map<string, Promise<void>>());
 
   // ── Sync data from API when logged in ────────────────────────────────────
   useEffect(() => {
@@ -127,22 +130,24 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(sanitized));
   }, [documents, isDemo]);
 
-  const addBooking = (draft: BookingDraft) => {
+  const addBooking = async (draft: BookingDraft) => {
     const booking: Booking = { id: createId(), ...draft };
+    if (!isDemo) await api.bookings.create(booking);
     setBookings((prev) => [booking, ...prev]);
     const onboardingScope = getOnboardingScope(user?.id, isDemo);
-    if (isDemo) {
-      if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
-    } else {
-      api.bookings.create(booking)
-        .then(() => {
-          if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
-        })
-        .catch(console.error);
-    }
+    if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
   };
 
-  const addDocument = (
+  const addBookings = async (drafts: BookingDraft[]) => {
+    if (!drafts.length) return;
+    const entries = drafts.map((draft) => ({ id: createId(), ...draft }));
+    if (!isDemo) await api.bookings.createBatch(entries);
+    setBookings((prev) => [...entries.reverse(), ...prev]);
+    const onboardingScope = getOnboardingScope(user?.id, isDemo);
+    if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
+  };
+
+  const addDocument = async (
     file: File,
     draftOverride?: BookingDraft,
     detection?: string,
@@ -152,7 +157,6 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
   ) => {
     const baseName = file.name.replace(/\.[^/.]+$/, '');
     const today = new Date().toISOString().split('T')[0];
-    const blobUrl = URL.createObjectURL(file);
 
     const draft: BookingDraft = draftOverride ?? {
       date: today,
@@ -160,8 +164,8 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
       account: 'Bürobedarf',
       contraAccount: '2000 VLL Kreditoren',
       category: 'Bürobedarf',
-      amount: Number((Math.random() * 400 + 80).toFixed(2)),
-      vatRate: 19,
+      amount: 0,
+      vatRate: 0,
       currency: 'CHF',
       paymentStatus: 'Offen',
       type: 'Ausgabe',
@@ -175,63 +179,67 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
       status: 'In Prüfung',
       draft,
       originalDraft: { ...draft },
-      previewUrl: blobUrl,
+      previewUrl: isDemo ? URL.createObjectURL(file) : undefined,
       detection,
       templateApplied,
       vendorPattern,
     };
 
-    setDocuments((prev) => [docData, ...prev]);
-
     const onboardingScope = getOnboardingScope(user?.id, isDemo);
-    if (isDemo) {
-      if (isDirectUpload && onboardingScope) completeOnboardingTask('document', onboardingScope);
-    } else {
-      // Fire-and-forget: upload file → save metadata with permanent URL
-      (async () => {
-        try {
-          const { url } = await api.upload(file);
-          const docWithUrl = { ...docData, previewUrl: url };
-          await api.documents.create(docWithUrl);
-          setDocuments((prev) =>
-            prev.map((d) => (d.id === tempId ? { ...d, previewUrl: url } : d)),
-          );
-          if (isDirectUpload && onboardingScope) completeOnboardingTask('document', onboardingScope);
-        } catch (e) {
-          console.error('Document upload failed:', e);
-        }
-      })();
+    if (!isDemo) {
+      const { url } = await api.upload(file);
+      docData.previewUrl = url;
+      await api.documents.create(docData);
     }
+    setDocuments((prev) => [docData, ...prev]);
+    if (isDirectUpload && onboardingScope) completeOnboardingTask('document', onboardingScope);
   };
 
-  const updateDocumentDraft = (id: string, draft: BookingDraft) => {
+  const updateDocumentDraft = (id: string, draft: BookingDraft): Promise<void> => {
     setDocuments((prev) =>
       prev.map((doc) => (doc.id === id ? { ...doc, draft } : doc)),
     );
-    if (!isDemo) {
-      api.documents.update(id, { draft }).catch(console.error);
-    }
+    if (isDemo) return Promise.resolve();
+    const previous = draftWrites.current.get(id) ?? Promise.resolve();
+    const pending = previous.catch(() => {}).then(async () => { await api.documents.update(id, { draft }); });
+    draftWrites.current.set(id, pending);
+    void pending.then(
+      () => { if (draftWrites.current.get(id) === pending) draftWrites.current.delete(id); },
+      () => { if (draftWrites.current.get(id) === pending) draftWrites.current.delete(id); },
+    );
+    return pending;
   };
 
-  const confirmDocument = (id: string) => {
+  const confirmDocument = async (id: string) => {
     const doc = documents.find((item) => item.id === id);
-    if (!doc) return;
+    if (!doc) throw new Error('Beleg nicht gefunden.');
 
-    addBooking({ ...doc.draft, pdfUrl: doc.previewUrl });
+    const booking: Booking = { id: createId(), ...doc.draft, pdfUrl: doc.previewUrl };
+    if (!isDemo) {
+      await draftWrites.current.get(id)?.catch(() => {});
+      await api.documents.confirm(id, booking.id, doc.draft);
+    }
+    setBookings((prev) => [booking, ...prev]);
+    const onboardingScope = getOnboardingScope(user?.id, isDemo);
+    if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
 
     const pattern =
       doc.vendorPattern ??
       doc.fileName.replace(/\.[^/.]+$/, '').slice(0, 30).toLowerCase();
 
-    upsertTemplate(pattern, {
-      account:       doc.draft.account,
-      contraAccount: doc.draft.contraAccount,
-      category:      doc.draft.category,
-      vatRate:       doc.draft.vatRate,
-      currency:      doc.draft.currency,
-      type:          doc.draft.type,
-      paymentStatus: doc.draft.paymentStatus,
-    });
+    try {
+      upsertTemplate(pattern, {
+        account:       doc.draft.account,
+        contraAccount: doc.draft.contraAccount,
+        category:      doc.draft.category,
+        vatRate:       doc.draft.vatRate,
+        currency:      doc.draft.currency,
+        type:          doc.draft.type,
+        paymentStatus: doc.draft.paymentStatus,
+      });
+    } catch (error) {
+      console.error('Belegvorlage konnte nicht lokal gespeichert werden:', error);
+    }
 
     setDocuments((prev) =>
       prev.map((item) =>
@@ -240,7 +248,6 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     );
 
     if (!isDemo) {
-      api.documents.update(id, { status: 'Gebucht' }).catch(console.error);
       api.templates.upsert(pattern, {
         account: doc.draft.account, contraAccount: doc.draft.contraAccount,
         category: doc.draft.category,
@@ -250,27 +257,21 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     }
   };
 
-  const removeDocument = (id: string) => {
+  const removeDocument = async (id: string) => {
+    if (!isDemo) await api.documents.remove(id);
     setDocuments((prev) => prev.filter((item) => item.id !== id));
-    if (!isDemo) {
-      api.documents.remove(id).catch(console.error);
-    }
   };
 
-  const removeBooking = (id: string) => {
+  const removeBooking = async (id: string) => {
+    if (!isDemo) await api.bookings.remove(id);
     setBookings((prev) => prev.filter((item) => item.id !== id));
-    if (!isDemo) {
-      api.bookings.remove(id).catch(console.error);
-    }
   };
 
-  const updateBooking = (id: string, draft: BookingDraft) => {
+  const updateBooking = async (id: string, draft: BookingDraft) => {
+    if (!isDemo) await api.bookings.update(id, draft);
     setBookings((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...draft } : item)),
     );
-    if (!isDemo) {
-      api.bookings.update(id, draft).catch(console.error);
-    }
   };
 
   const value = useMemo(
@@ -278,6 +279,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
       bookings,
       documents,
       addBooking,
+      addBookings,
       addDocument,
       updateDocumentDraft,
       confirmDocument,

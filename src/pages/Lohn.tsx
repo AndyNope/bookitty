@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import SectionHeader from '../components/SectionHeader';
 import NumberInput from '../components/NumberInput';
+import { companyStorageKey } from '../utils/companyStorage';
 
 // ── Swiss payroll rates 2025 ─────────────────────────────────────────────────
 const RATES = {
@@ -29,11 +30,11 @@ type Employee = {
 
 const STORE_KEY = 'bookitty.employees';
 const loadEmployees = (): Employee[] => {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem(companyStorageKey(STORE_KEY)) ?? '[]'); }
   catch { return []; }
 };
 const saveEmployees = (list: Employee[]) =>
-  localStorage.setItem(STORE_KEY, JSON.stringify(list));
+  localStorage.setItem(companyStorageKey(STORE_KEY), JSON.stringify(list));
 
 const newId = () => crypto.randomUUID();
 

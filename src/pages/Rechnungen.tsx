@@ -11,6 +11,7 @@ import { useForex, toCHF } from '../hooks/useForex';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import { loadStockItems, deductStock } from '../utils/stockStore';
 import type { StockItem } from '../utils/stockStore';
+import { getDefaultInvoiceTemplate, getInvoiceTemplate, getInvoiceTemplateScope, getInvoiceTemplates } from '../utils/invoiceTemplateStore';
 
 // ─── Demo localStorage ────────────────────────────────────────────────────────
 const STORAGE_KEY = 'bookitty.invoices';
@@ -162,12 +163,14 @@ const InvoiceForm = ({
   initial,
   contacts,
   existingInvoices,
+  templateScope,
   onSave,
   onClose,
 }: {
   initial: Partial<Invoice> | null;
   contacts: Contact[];
   existingInvoices: Invoice[];
+  templateScope: string;
   onSave: (inv: Omit<Invoice, 'id'>, id?: string) => void;
   onClose: () => void;
 }) => {
@@ -189,15 +192,19 @@ const InvoiceForm = ({
     reference:      initial?.reference,
     items:          initial?.items?.length ? initial.items : [{ ...EMPTY_ITEM }],
     currency:       initial?.currency  ?? 'CHF',
+    vatIncluded:    initial?.vatIncluded ?? false,
+    templateId:     initial?.templateId ?? getDefaultInvoiceTemplate(templateScope).id,
     notes:          initial?.notes,
   });
 
   const [showStockPicker, setShowStockPicker] = useState(false);
+  const invoiceTemplates = useMemo(() => getInvoiceTemplates(templateScope), [templateScope]);
+  const customerContacts = contacts.filter((contact) => contact.type !== 'Lieferant');
 
   const set = <K extends keyof typeof form>(k: K) => (v: typeof form[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));
 
-  const { subtotal, vatTotal, total } = useMemo(() => calcInvoiceTotals(form.items), [form.items]);
+  const { subtotal, vatTotal, total } = useMemo(() => calcInvoiceTotals(form.items, form.vatIncluded), [form.items, form.vatIncluded]);
 
   // Auto-fill from contact
   const handleContactSelect = (id: string) => {
@@ -282,21 +289,21 @@ const InvoiceForm = ({
           {/* ── Empfänger ── */}
           <div>
             <h3 className="mb-3 text-sm font-semibold text-slate-700">Empfänger</h3>
-            {contacts.length > 0 && (
-              <div className="mb-3">
-                <label className="mb-1 block text-xs font-medium text-slate-600">Aus Kontakten wählen</label>
-                <select
-                  onChange={e => handleContactSelect(e.target.value)}
-                  defaultValue=""
-                  className={inputCls}
-                >
-                  <option value="">— Kontakt auswählen —</option>
-                  {contacts.filter(c => c.type !== 'Lieferant').map(c => (
-                    <option key={c.id} value={c.id}>{c.name}{c.company ? ` (${c.company})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-slate-600">Kundendaten aus Kontakten übernehmen</label>
+              <select
+                value={form.contactId ?? ''}
+                onChange={(event) => handleContactSelect(event.target.value)}
+                disabled={customerContacts.length === 0}
+                className={`${inputCls} disabled:bg-slate-50 disabled:text-slate-400`}
+              >
+                <option value="">{customerContacts.length ? '— Kundenkontakt auswählen —' : 'Noch keine Kundenkontakte erfasst'}</option>
+                {customerContacts.map((contact) => (
+                  <option key={contact.id} value={contact.id}>{contact.name}{contact.company ? ` (${contact.company})` : ''}</option>
+                ))}
+              </select>
+              {customerContacts.length === 0 && <p className="mt-1 text-[10px] text-slate-400">Kundenkontakte kannst du zuerst unter Kontakte erfassen.</p>}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Name / Kontaktperson *</label>
@@ -325,9 +332,21 @@ const InvoiceForm = ({
 
           {/* ── Positionen ── */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-slate-700">Positionen</h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-slate-700">Positionen</h3>
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                Vorlage
+                <select value={form.templateId ?? getDefaultInvoiceTemplate(templateScope).id} onChange={(event) => set('templateId')(event.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs">
+                  {invoiceTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                <input type="checkbox" checked={!!form.vatIncluded} onChange={(event) => set('vatIncluded')(event.target.checked)} className="h-4 w-4 accent-emerald-700" />
+                Preise inkl. MwSt.
+              </label>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[700px] text-sm">
                 <thead className="border-b border-slate-100 text-xs font-medium text-slate-500">
                   <tr>
                     <th className="pb-2 text-left">Beschreibung</th>
@@ -604,7 +623,7 @@ const BezahltConfirmDialog = ({
   onConfirm: () => void;
   onClose: () => void;
 }) => {
-  const { total } = calcInvoiceTotals(invoice.items);
+  const { total } = calcInvoiceTotals(invoice.items, invoice.vatIncluded);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
@@ -723,7 +742,8 @@ const AdminUnlockDialog = ({
 export default function Rechnungen() {
   const location = useLocation();
   const isDemo   = location.pathname.startsWith('/demo');
-  const { isReadonly, isAdmin } = useAuth();
+  const { isReadonly, isAdmin, user } = useAuth();
+  const invoiceTemplateScope = getInvoiceTemplateScope(user?.id, isDemo);
   const { rates } = useForex();
   const { addBooking } = useBookkeeping();
 
@@ -740,6 +760,7 @@ export default function Rechnungen() {
   // Kursdifferenz dialog
   const [kursDiffFor, setKursDiffFor] = useState<Invoice | null>(null);
   const [kursActualCHF, setKursActualCHF] = useState('');
+  const [savingKurs, setSavingKurs] = useState(false);
   const [portalLink, setPortalLink] = useState<string | null>(null);
   // Bezahlt confirmation + admin unlock
   const [pendingBezahlt, setPendingBezahlt] = useState<Invoice | null>(null);
@@ -763,7 +784,7 @@ export default function Rechnungen() {
     }
     try {
       await api.invoices.send(inv.id);
-      handleStatusChange(inv.id, 'Versendet');
+      setInvoices(prev => prev.map(item => item.id === inv.id && item.status === 'Entwurf' ? { ...item, status: 'Versendet' } : item));
       setNotification({ type: 'success', title: 'Rechnung versendet', message: `${inv.number} wurde an ${inv.contactEmail} gesendet.` });
     } catch {
       setNotification({ type: 'error', title: 'Fehler', message: 'E-Mail konnte nicht versendet werden.' });
@@ -800,6 +821,7 @@ export default function Rechnungen() {
           number: inv.number, date: inv.date, dueDate: inv.dueDate,
           status: inv.status, contactName: inv.contactName ?? '',
           items: inv.items, currency: inv.currency ?? 'CHF',
+          vatIncluded: inv.vatIncluded,
           notes: inv.notes, iban: inv.iban, reference: inv.reference,
           paymentLink: inv.paymentLink,
           issuerCompany: 'Bookitty Demo',
@@ -855,7 +877,7 @@ export default function Rechnungen() {
   // ── Stats ─────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const offen     = invoices.filter(i => i.status === 'Versendet' || i.status === 'Überfällig');
-    const total     = offen.reduce((s, i) => s + (calcInvoiceTotals(i.items).total), 0);
+    const total     = offen.reduce((s, i) => s + (calcInvoiceTotals(i.items, i.vatIncluded).total), 0);
     const overdue   = invoices.filter(i => i.status === 'Überfällig');
     return { offen: offen.length, total, overdue: overdue.length };
   }, [invoices]);
@@ -868,25 +890,27 @@ export default function Rechnungen() {
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
   const handleSave = async (form: Omit<Invoice, 'id'>, id?: string) => {
-    if (id) {
-      const updated = { ...form, id };
-      setInvoices(prev => prev.map(i => i.id === id ? updated : i));
-      if (!isDemo) await api.invoices.update(updated).catch(console.error);
-      setNotification({ type: 'success', title: 'Gespeichert', message: `${form.number} wurde aktualisiert.` });
-    } else {
-      const newId = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2);
-      const created: Invoice = { ...form, id: newId };
-      setInvoices(prev => [created, ...prev]);
-      if (!isDemo) await api.invoices.create(created).catch(console.error);
-      // Reduce stock for items picked from Lager
-      form.items.forEach(item => {
-        if (item.stockItemId) {
-          deductStock(item.stockItemId, item.quantity, form.number);
-        }
-      });
-      setNotification({ type: 'success', title: 'Rechnung erstellt', message: `${form.number} wurde erstellt.` });
+    try {
+      if (id) {
+        const updated = { ...form, id };
+        if (!isDemo) await api.invoices.update(updated);
+        setInvoices(prev => prev.map(i => i.id === id ? updated : i));
+        setNotification({ type: 'success', title: 'Gespeichert', message: `${form.number} wurde aktualisiert.` });
+      } else {
+        const newId = typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
+        const created: Invoice = { ...form, id: newId };
+        if (!isDemo) await api.invoices.create(created);
+        setInvoices(prev => [created, ...prev]);
+        form.items.forEach(item => {
+          if (item.stockItemId) deductStock(item.stockItemId, item.quantity, form.number);
+        });
+        setNotification({ type: 'success', title: 'Rechnung erstellt', message: `${form.number} wurde erstellt.` });
+      }
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Speichern fehlgeschlagen', message: (error as Error).message });
+      return;
     }
     setModal(null);
     setEditing(null);
@@ -895,24 +919,37 @@ export default function Rechnungen() {
   const handleDelete = async () => {
     if (!deleting) return;
     const num = deleting.number;
+    try {
+      if (!isDemo) await api.invoices.remove(deleting.id);
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Löschen fehlgeschlagen', message: (error as Error).message });
+      return;
+    }
     setInvoices(prev => prev.filter(i => i.id !== deleting.id));
-    if (!isDemo) await api.invoices.remove(deleting.id).catch(console.error);
     setDeleting(null);
     setNotification({ type: 'success', title: 'Gelöscht', message: `${num} wurde entfernt.` });
   };
 
-  const handleStatusChange = (id: string, status: InvoiceStatus) => {
-    setInvoices(prev => prev.map(i => {
-      if (i.id !== id) return i;
-      const updated = { ...i, status };
-      if (!isDemo) api.invoices.update(updated).catch(console.error);
-      return updated;
-    }));
+  const handleStatusChange = async (id: string, status: InvoiceStatus) => {
+    const invoice = invoices.find(item => item.id === id);
+    if (!invoice) return;
+    const updated = { ...invoice, status };
+    try {
+      if (!isDemo) await api.invoices.update(updated);
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Status nicht gespeichert', message: (error as Error).message });
+      return;
+    }
+    setInvoices(prev => prev.map(item => item.id === id ? updated : item));
     // Kursdifferenz prompt when paying a foreign-currency invoice
     if (status === 'Bezahlt') {
       const inv = invoices.find(i => i.id === id);
       if (inv && inv.currency && inv.currency !== 'CHF') {
-        const { total } = calcInvoiceTotals(inv.items);
+        if (!isDemo && user?.permissions && !user.permissions.includes('buchhaltung')) {
+          setNotification({ type: 'success', title: 'Status gespeichert', message: 'Für eine Kursdifferenzbuchung ist Buchhaltungszugriff erforderlich.' });
+          return;
+        }
+        const { total } = calcInvoiceTotals(inv.items, inv.vatIncluded);
         const chfEquiv = toCHF(total, inv.currency, rates).toFixed(2);
         setKursActualCHF(chfEquiv);
         setKursDiffFor(inv);
@@ -920,15 +957,16 @@ export default function Rechnungen() {
     }
   };
 
-  const handleKursDiff = () => {
-    if (!kursDiffFor) return;
-    const { total } = calcInvoiceTotals(kursDiffFor.items);
+  const handleKursDiff = async () => {
+    if (!kursDiffFor || savingKurs) return;
+    const { total } = calcInvoiceTotals(kursDiffFor.items, kursDiffFor.vatIncluded);
     const expectedCHF = toCHF(total, kursDiffFor.currency, rates);
     const actualCHF   = parseFloat(kursActualCHF) || expectedCHF;
     const diff        = actualCHF - expectedCHF;
     if (Math.abs(diff) > 0.01) {
       const isGain = diff > 0;
-      addBooking({
+      setSavingKurs(true);
+      try { await addBooking({
         date:          new Date().toISOString().split('T')[0],
         description:   `Kursdifferenz ${kursDiffFor.number} (${kursDiffFor.currency})`,
         account:       isGain ? '1020 Bankguthaben'      : '3901 Kursdifferenzen',
@@ -941,6 +979,10 @@ export default function Rechnungen() {
         type:          isGain ? 'Einnahme'               : 'Ausgabe',
       });
       setNotification({ type: 'success', title: 'Kursdifferenz gebucht', message: `${isGain ? 'Kursgewinn' : 'Kursverlust'} CHF ${Math.abs(diff).toFixed(2)} wurde automatisch gebucht.` });
+      } catch (error) {
+        setNotification({ type: 'error', title: 'Kursdifferenz nicht gebucht', message: (error as Error).message });
+        return;
+      } finally { setSavingKurs(false); }
     }
     setKursDiffFor(null);
   };
@@ -978,7 +1020,7 @@ export default function Rechnungen() {
   const handleExportPDF = async (inv: Invoice) => {
     setExporting(inv.id);
     try {
-      await exportInvoicePDF(inv);
+      await exportInvoicePDF(inv, getInvoiceTemplate(invoiceTemplateScope, inv.templateId));
     } catch (e) {
       setNotification({ type: 'error', title: 'PDF-Fehler', message: 'Der PDF-Export ist fehlgeschlagen.' });
       console.error(e);
@@ -1069,7 +1111,7 @@ export default function Rechnungen() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map(inv => {
-                const { total } = calcInvoiceTotals(inv.items);
+                const { total } = calcInvoiceTotals(inv.items, inv.vatIncluded);
                 const overdue   = isOverdue(inv) || inv.status === 'Überfällig';
                 return (
                   <tr key={inv.id} className="group hover:bg-slate-50">
@@ -1209,6 +1251,7 @@ export default function Rechnungen() {
           initial={modal === 'edit' ? editing : (editing ?? null)}
           contacts={contacts}
           existingInvoices={invoices}
+          templateScope={invoiceTemplateScope}
           onSave={handleSave}
           onClose={() => { setModal(null); setEditing(null); }}
         />
@@ -1272,7 +1315,7 @@ export default function Rechnungen() {
 
       {/* ── Kursdifferenz Dialog ──────────────────────────────────── */}
       {kursDiffFor && (() => {
-        const { total } = calcInvoiceTotals(kursDiffFor.items);
+        const { total } = calcInvoiceTotals(kursDiffFor.items, kursDiffFor.vatIncluded);
         const expectedCHF = toCHF(total, kursDiffFor.currency, rates);
         const actualVal   = parseFloat(kursActualCHF) || expectedCHF;
         const diff        = actualVal - expectedCHF;
@@ -1312,11 +1355,11 @@ export default function Rechnungen() {
                 )}
               </div>
               <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
-                <button onClick={() => setKursDiffFor(null)}
+                <button onClick={() => setKursDiffFor(null)} disabled={savingKurs}
                   className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
                   Überspringen
                 </button>
-                <button onClick={handleKursDiff}
+                <button onClick={handleKursDiff} disabled={savingKurs}
                   className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">
                   Buchen
                 </button>

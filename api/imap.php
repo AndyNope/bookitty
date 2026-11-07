@@ -3,12 +3,13 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/imap_security.php';
 
 set_cors_headers();
 
 set_exception_handler(function (Throwable $e) {
     if (!headers_sent()) http_response_code(500);
-    echo json_encode(['error' => 'Server-Fehler: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'IMAP-Serverfehler']);
 });
 set_error_handler(function (int $errno, string $errstr) {
     throw new ErrorException($errstr, $errno);
@@ -66,12 +67,37 @@ if ($method === 'PUT') {
     $ssl      = (int)(bool)($d['ssl'] ?? true);
     $folder   = trim($d['folder']   ?? 'INBOX');
 
-    // Don't overwrite password if placeholder sent
-    if ($password === '••••••••') {
+    if (!$ssl) {
+        http_response_code(400);
+        echo json_encode(['error' => 'IMAP benötigt eine verschlüsselte Verbindung mit gültigem Zertifikat.']);
+        exit;
+    }
+    if (!imap_server_allowed($host, $port)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Dieser IMAP-Server und Port sind nicht freigegeben.']);
+        exit;
+    }
+    try { imap_secret_key(); } catch (RuntimeException $error) {
+        http_response_code(503); echo json_encode(['error' => 'IMAP-Verschlüsselung ist nicht konfiguriert.']); exit;
+    }
+
+    $preservePassword = $password === '••••••••';
+    if ($preservePassword) {
         $stmt = $pdo->prepare('SELECT `password` FROM imap_settings WHERE user_id = ?');
         $stmt->execute([$userId]);
         $existing = $stmt->fetch();
         $password = $existing['password'] ?? '';
+    }
+    if (!is_string($password) || $password === '' || strlen($password) > 400) {
+        http_response_code(400); echo json_encode(['error' => 'IMAP-Passwort fehlt oder ist zu lang.']); exit;
+    }
+    if ($preservePassword && str_starts_with($password, 'v1:')) {
+        imap_decrypt_password($password);
+    } else {
+        if (strlen($password) > 300) {
+            http_response_code(400); echo json_encode(['error' => 'IMAP-Passwort ist zu lang.']); exit;
+        }
+        $password = imap_encrypt_password($password);
     }
 
     $pdo->prepare(
@@ -88,6 +114,20 @@ if ($method === 'PUT') {
 
 // ─── POST – fetch emails via IMAP and return new ones ────────────────────────
 if ($method === 'POST') {
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $action = $body['action'] ?? 'fetch';
+    if ($action === 'ack') {
+        $messageId = trim((string) ($body['messageId'] ?? ''));
+        if ($messageId === '' || mb_strlen($messageId) > 500) {
+            http_response_code(400); echo json_encode(['error' => 'Ungültige Nachrichten-ID.']); exit;
+        }
+        $pdo->prepare('INSERT IGNORE INTO email_imports (user_id, message_id) VALUES (?, ?)')->execute([$userId, $messageId]);
+        echo json_encode(['ok' => true]);
+        exit;
+    }
+    if ($action !== 'fetch') {
+        http_response_code(400); echo json_encode(['error' => 'Ungültige Aktion.']); exit;
+    }
     if (!function_exists('imap_open')) {
         http_response_code(501);
         echo json_encode(['error' => 'IMAP extension (php-imap) nicht aktiviert auf diesem Server.']);
@@ -104,7 +144,23 @@ if ($method === 'POST') {
         exit;
     }
 
-    $proto  = $cfg['ssl'] ? 'ssl/novalidate-cert' : 'notls';
+    if (!$cfg['ssl']) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Bitte IMAP mit verschlüsselter Verbindung und gültigem Zertifikat konfigurieren.']);
+        exit;
+    }
+    if (!imap_server_allowed($cfg['host'], (int) $cfg['port'])) {
+        http_response_code(403); echo json_encode(['error' => 'Dieser IMAP-Server und Port sind nicht freigegeben.']); exit;
+    }
+    try { imap_secret_key(); } catch (RuntimeException $error) {
+        http_response_code(503); echo json_encode(['error' => 'IMAP-Verschlüsselung ist nicht konfiguriert.']); exit;
+    }
+    $password = imap_decrypt_password($cfg['password']);
+    if (!str_starts_with($cfg['password'], 'v1:')) {
+        $pdo->prepare('UPDATE imap_settings SET `password` = ? WHERE user_id = ? AND `password` = ?')
+            ->execute([imap_encrypt_password($password), $userId, $cfg['password']]);
+    }
+    $proto = 'ssl/validate-cert';
 
     // Auto-derive host from username if not set: mail.<domain>
     $host = $cfg['host'];
@@ -119,23 +175,26 @@ if ($method === 'POST') {
 
     $mbox = sprintf('{%s:%d/imap/%s}%s', $host, $cfg['port'], $proto, $cfg['folder']);
 
-    $conn = @imap_open($mbox, $cfg['username'], $cfg['password'], 0, 1);
+    $conn = @imap_open($mbox, $cfg['username'], $password, 0, 1);
     if (!$conn) {
         http_response_code(502);
-        $errors = imap_errors() ?: [];
-        $last   = imap_last_error() ?: 'Verbindung fehlgeschlagen';
-        echo json_encode([
-            'error'   => "IMAP: $last",
-            'details' => $errors,
-            'mbox'    => $mbox,  // shows the connection string for debugging
-        ]);
+        echo json_encode(['error' => 'IMAP-Verbindung fehlgeschlagen. Bitte Server, Zugangsdaten und Zertifikat prüfen.']);
         exit;
     }
 
     // Fetch last 50 messages, newest first
     $count = imap_num_msg($conn);
+    if ($count === 0) {
+        imap_close($conn);
+        echo json_encode(['ok' => true, 'emails' => []]);
+        exit;
+    }
     $start = max(1, $count - 49);
     $uids  = imap_fetch_overview($conn, "$start:$count", 0);
+    if ($uids === false) {
+        imap_close($conn);
+        http_response_code(502); echo json_encode(['error' => 'E-Mails konnten nicht abgerufen werden.']); exit;
+    }
 
     $results = [];
 
@@ -161,9 +220,6 @@ if ($method === 'POST') {
         _extract_pdf_parts($conn, $msg->msgno, $structure, $attachments);
 
         if (empty($attachments)) continue; // no PDF → skip
-
-        // Mark as imported
-        $pdo->prepare('INSERT IGNORE INTO email_imports (user_id, message_id) VALUES (?,?)')->execute([$userId, $messageId]);
 
         foreach ($attachments as $att) {
             $results[] = [

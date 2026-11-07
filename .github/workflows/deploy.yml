@@ -18,6 +18,18 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+
+      - name: Install PHP dependencies
+        run: composer install --working-dir=api --no-dev --no-interaction --prefer-dist
+
+      - name: Test PHP security primitives
+        run: composer run --working-dir=api test
+
       - name: Install dependencies
         run: npm ci
 
@@ -28,8 +40,8 @@ jobs:
       # FTP Deploy
       #
       # Deploys ./dist/ to the web root defined in FTP_SERVER_DIR.
-      # dangerous-clean-slate: false  → never deletes remote files; only
-      #   uploads new/changed files (tracked via .ftp-deploy-sync on server).
+      # dangerous-clean-slate: false avoids deleting the entire remote directory.
+      # The sync can still remove previously deployed files unless excluded.
       #
       # Protected on server (will never be touched):
       #   • api/config.php        – credentials (gitignored, not in dist)
@@ -43,6 +55,8 @@ jobs:
           username:    ${{ secrets.FTP_USERNAME }}
           password:    ${{ secrets.FTP_PASSWORD }}
           port:        21
+          protocol:    ftps
+          security:    strict
           server-dir:  ${{ secrets.FTP_SERVER_DIR }}
           local-dir:   ./dist/
           exclude: |
