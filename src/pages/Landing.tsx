@@ -120,6 +120,12 @@ const founders = [
   },
 ];
 
+const pricingPlans = [
+  { name: 'Solo', price: 12, tokens: '250’000', audience: 'Für Einzelunternehmen' },
+  { name: 'Team', price: 29, tokens: '750’000', audience: 'Für kleine Teams' },
+  { name: 'Business', price: 59, tokens: '2 Mio.', audience: 'Für wachsende KMU' },
+];
+
 const stepIcons = [
   // 1 – Person/register
   <svg key="1" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -155,6 +161,7 @@ const partners = [
 
 const Landing = () => {
   const showStartupNight = isStartupNightActive();
+  const visiblePartners = partners.filter((partner) => partner.name !== 'Startup Night' || showStartupNight);
 
   return (
   <div className="min-h-screen bg-[#f6f7f5] text-slate-950">
@@ -291,7 +298,7 @@ const Landing = () => {
           <div className="partner-marquee-track">
             {[0, 1].map((copy) => (
               <div key={copy} className="flex shrink-0 items-center gap-14 pr-14 sm:gap-20 sm:pr-20" role="list" aria-hidden={copy === 1}>
-                {partners.map((item) => (
+                {visiblePartners.map((item) => (
                   <a
                     key={item.name}
                     href={item.href}
@@ -331,6 +338,31 @@ const Landing = () => {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+
+    {/* ── Pricing ── */}
+    <section id="preise" className="border-y border-slate-200 bg-[#f6f7f5] py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase text-emerald-800">Preise</p>
+            <h2 className="mt-2 text-3xl font-bold text-slate-950">Einfach. Monatlich. Transparent.</h2>
+          </div>
+          <p className="text-xs text-slate-500">Alle Preise in CHF pro Monat</p>
+        </div>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {pricingPlans.map((plan) => (
+            <article key={plan.name} className="flex min-w-0 flex-col border border-slate-200 bg-white p-5 sm:p-6">
+              <p className="text-sm font-semibold text-slate-900">{plan.name}</p>
+              <p className="mt-1 text-xs text-slate-500">{plan.audience}</p>
+              <p className="mt-5 text-3xl font-bold text-slate-950">CHF {plan.price}<span className="ml-1 text-xs font-medium text-slate-500">/ Monat</span></p>
+              <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-600">{plan.tokens} KI-Tokens pro Monat</p>
+              <Link to="/register" className="mt-5 inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Tarif wählen</Link>
+            </article>
+          ))}
+        </div>
+        <p className="mt-4 text-[11px] leading-relaxed text-slate-500">Zusätzliche KI-Tokens können separat gekauft werden. Die Abrechnung und der aktuelle Tarif werden vor dem Checkout angezeigt.</p>
       </div>
     </section>
 
