@@ -537,7 +537,7 @@ const Landing = () => {
           <img src="/logo.svg" alt="" className="h-5 w-5 opacity-40" />
           <span>© 2026 Bookitty – Finanzbuchhaltung für Schweizer KMU</span>
         </div>
-        <div className="flex gap-5">
+        <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
           <a href="#ueber-uns" className="hover:text-slate-600 transition">Über uns</a>
           <Link to="/kontakt" className="hover:text-slate-600 transition">Kontakt</Link>
           <Link to="/support" className="hover:text-slate-600 transition">Support</Link>
