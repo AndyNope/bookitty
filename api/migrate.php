@@ -130,6 +130,8 @@ if (!tableExists($pdo, 'invoices')) {
             mahnung_date     VARCHAR(20)  DEFAULT NULL,
             portal_token     VARCHAR(64)  DEFAULT NULL,
             payment_link     VARCHAR(500) DEFAULT NULL,
+            vat_included     TINYINT(1)   NOT NULL DEFAULT 0,
+            template_id      VARCHAR(36)  DEFAULT NULL,
             created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY idx_invoices_user   (user_id),
@@ -229,6 +231,18 @@ if (tableExists($pdo, 'invoices') && !columnExists($pdo, 'invoices', 'payment_li
         "ALTER TABLE invoices ADD COLUMN payment_link VARCHAR(500) DEFAULT NULL AFTER portal_token",
         'invoices.payment_link added', $done, $skipped);
 } else { $skipped[] = 'invoices.payment_link already handled'; }
+
+if (tableExists($pdo, 'invoices') && !columnExists($pdo, 'invoices', 'vat_included')) {
+    run($pdo,
+        "ALTER TABLE invoices ADD COLUMN vat_included TINYINT(1) NOT NULL DEFAULT 0 AFTER currency",
+        'invoices.vat_included added', $done, $skipped);
+} else { $skipped[] = 'invoices.vat_included already handled'; }
+
+if (tableExists($pdo, 'invoices') && !columnExists($pdo, 'invoices', 'template_id')) {
+    run($pdo,
+        "ALTER TABLE invoices ADD COLUMN template_id VARCHAR(36) DEFAULT NULL AFTER vat_included",
+        'invoices.template_id added', $done, $skipped);
+} else { $skipped[] = 'invoices.template_id already handled'; }
 
 // ── 8. Billing, AI token ledger and Stripe event idempotency ─────────────────
 run($pdo, "

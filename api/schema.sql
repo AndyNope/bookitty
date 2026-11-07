@@ -161,6 +161,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     reference        VARCHAR(100)   DEFAULT NULL,
     items_json       TEXT           NOT NULL DEFAULT '[]',
     currency         VARCHAR(10)    NOT NULL DEFAULT 'CHF',
+    vat_included     TINYINT(1)     NOT NULL DEFAULT 0,
+    template_id      VARCHAR(36)    DEFAULT NULL,
     notes            TEXT           DEFAULT NULL,
     mahnung_level    TINYINT UNSIGNED DEFAULT NULL,
     mahnung_date     VARCHAR(20)    DEFAULT NULL,
