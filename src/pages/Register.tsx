@@ -64,7 +64,7 @@ const Register = () => {
         <div className="flex flex-col items-center mb-8">
           <img src="/logo.svg" alt="Bookitty" className="h-14 w-14 mb-3" />
           <h1 className="text-2xl font-bold text-slate-900">Bookitty</h1>
-          <p className="text-sm text-slate-500 mt-1">Kostenlos registrieren</p>
+          <p className="text-sm text-slate-500 mt-1">Registrieren · Nutzung mit Abo ab CHF 12 pro Monat</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">

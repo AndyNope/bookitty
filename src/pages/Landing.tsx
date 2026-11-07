@@ -209,7 +209,7 @@ const Landing = () => {
             to="/register"
             className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition sm:px-4 sm:py-2 sm:text-sm"
           >
-            <span className="hidden xs:inline">Kostenlos </span>starten
+            Registrieren
           </Link>
         </div>
       </div>
@@ -230,7 +230,7 @@ const Landing = () => {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link to="/register" className="inline-flex items-center justify-center rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800">
-              Kostenlos starten <span aria-hidden="true" className="ml-2">→</span>
+              Konto erstellen <span aria-hidden="true" className="ml-2">→</span>
             </Link>
             <Link to="/demo" className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
               Demo ansehen
@@ -238,7 +238,7 @@ const Landing = () => {
           </div>
           <div className="mt-9 flex flex-wrap gap-x-6 gap-y-2 border-t border-slate-200 pt-5 text-xs text-slate-500">
             <span>Schweizer KMU-Kontenrahmen</span>
-            <span>Keine Kreditkarte nötig</span>
+            <span>Demo ohne Kreditkarte</span>
             <span>Offline-Demo verfügbar</span>
           </div>
         </div>
@@ -512,7 +512,7 @@ const Landing = () => {
     <section className="bg-slate-900 py-20">
       <div className="mx-auto max-w-3xl px-6 text-center">
         <h2 className="text-3xl font-bold text-white mb-4">Bereit loszulegen?</h2>
-        <p className="text-slate-400 mb-8">Starte kostenlos – keine Kreditkarte, kein Risiko.</p>
+        <p className="text-slate-400 mb-8">Teste die Demo kostenlos oder starte mit einem Abo ab CHF 12 pro Monat.</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             to="/register"

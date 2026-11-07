@@ -29,17 +29,19 @@ $pdo->prepare("INSERT IGNORE INTO billing_accounts (company_id, plan_code) VALUE
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare(
         'SELECT plan_code, subscription_status, monthly_tokens_remaining,
-            purchased_tokens_remaining, current_period_end, stripe_customer_id
+            purchased_tokens_remaining, current_period_end, stripe_customer_id, stripe_subscription_id
          FROM billing_accounts WHERE company_id = ?'
     );
     $stmt->execute([$companyId]);
     $account = $stmt->fetch();
-    $billingEnabled = defined('BILLING_ENABLED') && BILLING_ENABLED
+    $stripeEnabled = defined('BILLING_ENABLED') && BILLING_ENABLED
         && defined('STRIPE_SECRET_KEY') && STRIPE_SECRET_KEY !== ''
-        && defined('STRIPE_WEBHOOK_SECRET') && STRIPE_WEBHOOK_SECRET !== ''
+        && defined('STRIPE_WEBHOOK_SECRET') && STRIPE_WEBHOOK_SECRET !== '';
+    $billingEnabled = $stripeEnabled
         && defined('STRIPE_PRICE_PLAN_SOLO') && STRIPE_PRICE_PLAN_SOLO !== ''
         && defined('STRIPE_PRICE_PLAN_TEAM') && STRIPE_PRICE_PLAN_TEAM !== ''
-        && defined('STRIPE_PRICE_PLAN_BUSINESS') && STRIPE_PRICE_PLAN_BUSINESS !== ''
+        && defined('STRIPE_PRICE_PLAN_BUSINESS') && STRIPE_PRICE_PLAN_BUSINESS !== '';
+    $tokenPurchasesEnabled = $stripeEnabled
         && defined('STRIPE_PRICE_TOKEN_SMALL') && STRIPE_PRICE_TOKEN_SMALL !== ''
         && defined('STRIPE_PRICE_TOKEN_MEDIUM') && STRIPE_PRICE_TOKEN_MEDIUM !== ''
         && defined('STRIPE_PRICE_TOKEN_LARGE') && STRIPE_PRICE_TOKEN_LARGE !== '';
@@ -51,7 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'purchasedTokens' => (int) $account['purchased_tokens_remaining'],
         'periodEnd' => $account['current_period_end'],
         'billingEnabled' => $billingEnabled,
-        'portalEnabled' => $billingEnabled && !empty($account['stripe_customer_id']),
+        'tokenPurchasesEnabled' => $tokenPurchasesEnabled,
+        'portalEnabled' => $stripeEnabled && !empty($account['stripe_customer_id']),
+        'hasSubscription' => !empty($account['stripe_subscription_id'])
+            && in_array($account['subscription_status'], ['active', 'trialing', 'past_due', 'pending', 'unpaid', 'paused'], true),
         'plans' => $plans,
         'tokenPacks' => $tokenPacks,
     ]);

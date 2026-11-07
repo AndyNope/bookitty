@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import type { BookingDraft, BookingType } from '../types';
 import {
   accountCategories,
+  accountKey,
   formatAccount,
   getCategoryLabel,
+  resolveAccount,
   type Account,
 } from '../data/chAccounts';
 import AccountCombobox from './AccountCombobox';
@@ -51,10 +53,11 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
   const [draft, setDraft] = useState<BookingDraft>(merged);
   const [rawAmount, setRawAmount] = useState(String(merged.amount ?? 0));
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
-  const { accounts } = useAccounts();
+  const { accounts, loadError, loading: accountsLoading } = useAccounts();
   const [kittySuggestion, setKittySuggestion] = useState<KittySuggestion | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { rates } = useForex();
+  const favoriteFor = (value: string) => favorites.find((favorite) => accountKey(favorite) === accountKey(value));
 
   // Proactive Kitty feedback – debounced 700 ms after user stops typing
   useEffect(() => {
@@ -88,7 +91,11 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isSaving) onSubmit(draft);
+    if (!isSaving && !accountsLoading) onSubmit({
+      ...draft,
+      account: resolveAccount(draft.account, accounts),
+      contraAccount: resolveAccount(draft.contraAccount, accounts),
+    });
   };
 
   const vatLabel = draft.currency === 'CHF' ? 'MwSt.' : 'USt.';
@@ -114,6 +121,8 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
         </h3>
       </div>
       <div className="flex-1 overflow-y-auto px-6 py-4">
+      {accountsLoading && <p role="status" className="mb-4 text-sm text-slate-500">Konten werden geladen…</p>}
+      {loadError && <p role="alert" className="mb-4 text-sm text-rose-700">{loadError}</p>}
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm text-slate-600">
           Datum
@@ -141,11 +150,11 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
             <span>Konto (Soll)</span>
             <button
               type="button"
-              onClick={() => setFavorites(toggleFavorite(draft.account))}
-              title={favorites.includes(draft.account) ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
+              onClick={() => setFavorites(toggleFavorite(favoriteFor(draft.account) ?? resolveAccount(draft.account, accounts)))}
+              title={favoriteFor(draft.account) ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
               className="text-amber-400 hover:text-amber-500 transition"
             >
-              {favorites.includes(draft.account) ? (
+              {favoriteFor(draft.account) ? (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd"/></svg>
               ) : (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"/></svg>
@@ -158,19 +167,19 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
                 <button
                   key={fav}
                   type="button"
-                  title={fav}
+                  title={resolveAccount(fav, accounts)}
                   onClick={() => {
-                    const sel = accounts.find((a) => formatAccount(a) === fav);
-                    updateField('account', fav);
+                    const sel = accounts.find((a) => a.code === accountKey(fav));
+                    updateField('account', resolveAccount(fav, accounts));
                     if (sel) updateField('category', getCategoryLabel(sel.categoryCode));
                   }}
                   className={`rounded-full border px-2 py-0.5 text-xs transition ${
-                    draft.account === fav
+                    accountKey(draft.account) === accountKey(fav)
                       ? 'border-slate-900 bg-slate-900 text-white'
                       : 'border-slate-200 text-slate-600 hover:border-slate-400'
                   }`}
                 >
-                  {fav.slice(0, 20)}
+                  {resolveAccount(fav, accounts).slice(0, 20)}
                 </button>
               ))}
             </div>
@@ -191,11 +200,11 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
             <span>Gegenkonto (Haben)</span>
             <button
               type="button"
-              onClick={() => setFavorites(toggleFavorite(draft.contraAccount))}
-              title={favorites.includes(draft.contraAccount) ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
+              onClick={() => setFavorites(toggleFavorite(favoriteFor(draft.contraAccount) ?? resolveAccount(draft.contraAccount, accounts)))}
+              title={favoriteFor(draft.contraAccount) ? 'Aus Stammkonten entfernen' : 'Als Stammkonto merken'}
               className="text-amber-400 hover:text-amber-500 transition"
             >
-              {favorites.includes(draft.contraAccount) ? (
+              {favoriteFor(draft.contraAccount) ? (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd"/></svg>
               ) : (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"/></svg>
@@ -208,15 +217,15 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
                 <button
                   key={fav}
                   type="button"
-                  title={fav}
-                  onClick={() => updateField('contraAccount', fav)}
+                  title={resolveAccount(fav, accounts)}
+                  onClick={() => updateField('contraAccount', resolveAccount(fav, accounts))}
                   className={`rounded-full border px-2 py-0.5 text-xs transition ${
-                    draft.contraAccount === fav
+                    accountKey(draft.contraAccount) === accountKey(fav)
                       ? 'border-slate-900 bg-slate-900 text-white'
                       : 'border-slate-200 text-slate-600 hover:border-slate-400'
                   }`}
                 >
-                  {fav.slice(0, 20)}
+                  {resolveAccount(fav, accounts).slice(0, 20)}
                 </button>
               ))}
             </div>
@@ -460,7 +469,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
         ) : null}
         <button
           type="submit"
-          disabled={isSaving}
+          disabled={isSaving || accountsLoading}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
         >
           {editMode ? 'Änderungen speichern' : 'Buchung speichern'}

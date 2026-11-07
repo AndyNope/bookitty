@@ -156,8 +156,17 @@ try {
                 ? $object['status'] : 'inactive';
             $periodEnd = isset($object['current_period_end'])
                 ? gmdate('Y-m-d H:i:s', (int) $object['current_period_end']) : null;
-            $pdo->prepare('UPDATE billing_accounts SET subscription_status = ?, current_period_end = ? WHERE stripe_subscription_id = ?')
-                ->execute([$status, $periodEnd, $subscriptionId]);
+            $priceId = $object['items']['data'][0]['price']['id'] ?? null;
+            $pricePlans = [];
+            foreach (['solo' => 'STRIPE_PRICE_PLAN_SOLO', 'team' => 'STRIPE_PRICE_PLAN_TEAM', 'business' => 'STRIPE_PRICE_PLAN_BUSINESS'] as $plan => $constant) {
+                if (defined($constant) && constant($constant) !== '') $pricePlans[constant($constant)] = $plan;
+            }
+            $plan = is_string($priceId) ? ($pricePlans[$priceId] ?? null) : null;
+            if ($plan === null && in_array($status, ['active', 'trialing'], true)) {
+                throw new RuntimeException('Unknown subscription price');
+            }
+            $pdo->prepare('UPDATE billing_accounts SET plan_code = COALESCE(?, plan_code), subscription_status = ?, current_period_end = ? WHERE stripe_subscription_id = ?')
+                ->execute([$plan, $status, $periodEnd, $subscriptionId]);
         }
     }
 

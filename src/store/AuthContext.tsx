@@ -24,6 +24,8 @@ const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user,      setUser]      = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const activeUserId = user?.id;
+  const activeCompanyId = user?.company_id;
 
   // On mount – restore session from stored JWT
   useEffect(() => {
@@ -78,6 +80,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       events.forEach((event) => window.removeEventListener(event, resetTimer));
     };
   }, [user]);
+
+  useEffect(() => {
+    const requireSubscription = () => setUser((current) => current ? { ...current, subscriptionActive: false } : current);
+    window.addEventListener('bookitty:subscription-required', requireSubscription);
+    return () => window.removeEventListener('bookitty:subscription-required', requireSubscription);
+  }, []);
+
+  useEffect(() => {
+    if (activeUserId === undefined) return;
+    const refresh = () => {
+      api.auth.me().then((fresh) => setUser((current) => {
+        if (!current || current.id !== activeUserId || current.company_id !== activeCompanyId || current.subscriptionActive === fresh.subscriptionActive) return current;
+        return { ...current, subscriptionActive: fresh.subscriptionActive };
+      })).catch(() => {});
+    };
+    const interval = window.setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(interval); window.removeEventListener('focus', refresh); };
+  }, [activeUserId, activeCompanyId]);
 
   const register = async (name: string, email: string, password: string) => {
     const res = await api.auth.register(name, email, password);

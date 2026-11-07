@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test FER preview
+        run: npm run test:fer
+
       - name: Build
         run: npm run build
 

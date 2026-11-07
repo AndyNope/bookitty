@@ -33,4 +33,5 @@ echo json_encode([
     'role'       => $payload['role'],
     'company_id' => isset($payload['company_id']) ? (int) $payload['company_id'] : null,
     'permissions' => $payload['permissions'],
+    'subscriptionActive' => $payload['subscription_active'],
 ]);

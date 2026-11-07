@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
-import { accountCategories, accounts, formatAccount } from '../data/chAccounts';
+import { accountCategories, accountKey, findAccount, formatAccount, resolveAccount, type Account } from '../data/chAccounts';
+import { useAccounts } from '../hooks/useAccounts';
 
 const fmt = (value: number, cur: string) =>
   new Intl.NumberFormat('de-CH', { style: 'currency', currency: cur }).format(value);
@@ -17,6 +18,7 @@ const categoryLabel = (code: string) =>
 
 // Helper: account name contains "ertrag" → revenue (credit side)
 const isErtragByName = (name: string) => name.toLowerCase().includes('ertrag');
+const isErtrag = (account: Account) => isErtragByName(findAccount(account.code)?.name ?? account.name);
 
 // Bilanz sub-groups (Slide 12)
 const BILANZ_GROUPS = {
@@ -26,7 +28,7 @@ const BILANZ_GROUPS = {
   ],
   passiv: [
     { label: 'Kurzfristiges Fremdkapital', min: 2000, max: 2399 },
-    { label: 'Langfristiges Fremdkapital', min: 2400, max: 2699 },
+    { label: 'Langfristiges Fremdkapital', min: 2400, max: 2799 },
     { label: 'Eigenkapital', min: 2800, max: 2999 },
   ],
 };
@@ -168,6 +170,16 @@ const SubtotalRow = ({ label, value, cur, highlight = false }: {
 // ── Main component ─────────────────────────────────────────────────────────
 const Bilanz = () => {
   const { bookings } = useBookkeeping();
+  const { accounts: configuredAccounts, loadError, loading: accountsLoading } = useAccounts();
+  const accounts = [...configuredAccounts];
+  for (const booking of bookings) {
+    for (const value of [booking.account, booking.contraAccount]) {
+      const code = accountKey(value);
+      if (/^\d+$/.test(code) && accountCategories.some((category) => category.code === code[0]) && !accounts.some((account) => account.code === code)) {
+        accounts.push({ code, name: value.trim().slice(code.length).trim() || 'Konto', categoryCode: code[0] });
+      }
+    }
+  }
   const location = useLocation();
   const base = location.pathname.startsWith('/demo') ? '/demo' : '/app';
   const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'steuern'>('erfolg');
@@ -176,20 +188,24 @@ const Bilanz = () => {
 
   // Soll (Debit) → Aktiven (1xxx) and Aufwand (4–8 Aufwand accounts)
   const byDebit = bookings.reduce<Record<string, number>>((acc, b) => {
-    acc[b.account] = (acc[b.account] ?? 0) + b.amount;
+    const key = accountKey(b.account);
+    acc[key] = (acc[key] ?? 0) + b.amount;
     return acc;
   }, {});
 
   // Haben (Credit) → Passiven (2xxx) and Ertrag (3xxx, and Ertrag in 7/8)
   const byCredit = bookings.reduce<Record<string, number>>((acc, b) => {
-    acc[b.contraAccount] = (acc[b.contraAccount] ?? 0) + b.amount;
+    const key = accountKey(b.contraAccount);
+    acc[key] = (acc[key] ?? 0) + b.amount;
     return acc;
   }, {});
+  const unassigned = [...new Set([...Object.keys(byDebit), ...Object.keys(byCredit)])]
+    .filter((key) => !accounts.some((account) => account.code === key));
 
   // byCat: Aktiven/Aufwand-pure (1,4,5,6) → debit; Ertrag/Passiven (2,3) → credit
   const DEBIT_CATS = new Set(['1', '4', '5', '6']);
   const byCat = accounts.reduce<Record<string, number>>((acc, acct) => {
-    const code = formatAccount(acct);
+    const code = acct.code;
     const val = DEBIT_CATS.has(acct.categoryCode)
       ? (byDebit[code] ?? 0)
       : (byCredit[code] ?? 0);
@@ -199,31 +215,31 @@ const Bilanz = () => {
 
   // Cat 7 – Betrieblicher Nebenerfolg (mixed)
   const cat7 = accounts.filter((a) => a.categoryCode === '7');
-  const ertrag7 = cat7.filter((a) => isErtragByName(a.name))
-    .reduce((s, a) => s + (byCredit[formatAccount(a)] ?? 0), 0);
-  const aufwand7 = cat7.filter((a) => !isErtragByName(a.name))
-    .reduce((s, a) => s + (byDebit[formatAccount(a)] ?? 0), 0);
+  const ertrag7 = cat7.filter(isErtrag)
+    .reduce((s, a) => s + (byCredit[a.code] ?? 0), 0);
+  const aufwand7 = cat7.filter((a) => !isErtrag(a))
+    .reduce((s, a) => s + (byDebit[a.code] ?? 0), 0);
   const netto7 = ertrag7 - aufwand7;
   const hasAny7 = cat7.some((a) => {
-    const fk = formatAccount(a);
+    const fk = a.code;
     return (byDebit[fk] ?? 0) + (byCredit[fk] ?? 0) > 0;
   });
 
   // Cat 8 – Betriebsfremder Erfolg (excl. 8900)
   const cat8noTax = accounts.filter((a) => a.categoryCode === '8' && a.code !== '8900');
-  const ertrag8 = cat8noTax.filter((a) => isErtragByName(a.name))
-    .reduce((s, a) => s + (byCredit[formatAccount(a)] ?? 0), 0);
-  const aufwand8 = cat8noTax.filter((a) => !isErtragByName(a.name))
-    .reduce((s, a) => s + (byDebit[formatAccount(a)] ?? 0), 0);
+  const ertrag8 = cat8noTax.filter(isErtrag)
+    .reduce((s, a) => s + (byCredit[a.code] ?? 0), 0);
+  const aufwand8 = cat8noTax.filter((a) => !isErtrag(a))
+    .reduce((s, a) => s + (byDebit[a.code] ?? 0), 0);
   const netto8 = ertrag8 - aufwand8;
   const hasAny8 = cat8noTax.some((a) => {
-    const fk = formatAccount(a);
+    const fk = a.code;
     return (byDebit[fk] ?? 0) + (byCredit[fk] ?? 0) > 0;
   });
 
   // Direkte Steuern 8900
   const konto8900 = accounts.find((a) => a.code === '8900');
-  const steuern = konto8900 ? (byDebit[formatAccount(konto8900)] ?? 0) : 0;
+  const steuern = konto8900 ? (byDebit[konto8900.code] ?? 0) : 0;
 
   // Intermediate Erfolgsrechnung (Slide 14)
   // totalBetriebsertrag: type-based for robustness – handles any account assignment
@@ -251,7 +267,7 @@ const Bilanz = () => {
 
   const sumGroup = (min: number, max: number, side: 'debit' | 'credit') =>
     accountsInGroup(min, max).reduce((s, a) => {
-      const v = side === 'debit' ? (byDebit[formatAccount(a)] ?? 0) : (byCredit[formatAccount(a)] ?? 0);
+      const v = side === 'debit' ? (byDebit[a.code] ?? 0) : (byCredit[a.code] ?? 0);
       return s + v;
     }, 0);
 
@@ -259,7 +275,7 @@ const Bilanz = () => {
   const mwstRows = bookings
     .filter((b) => (b.vatAmount ?? 0) > 0)
     .map((b) => ({
-      date: b.date, description: b.description, account: b.account,
+      date: b.date, description: b.description, account: resolveAccount(b.account, accounts),
       rate: b.vatRate, vatAmount: b.vatAmount ?? 0, type: b.type, currency: b.currency,
     }));
   const vorsteuer       = mwstRows.filter((r) => r.type === 'Ausgabe').reduce((s, r) => s + r.vatAmount, 0);
@@ -312,44 +328,62 @@ const Bilanz = () => {
 
     section('Erfolgsrechnung');
     doc.setFontSize(10); doc.text(categoryLabel('3'), mX, y); y += 5;
-    accounts.filter((a) => a.categoryCode === '3' && (byCredit[formatAccount(a)] ?? 0) !== 0)
-      .forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
+    accounts.filter((a) => a.categoryCode === '3' && (byCredit[a.code] ?? 0) !== 0)
+      .forEach((a) => row(formatAccount(a), byCredit[a.code]));
+    if (materialaufwand > 0) {
+      doc.setFontSize(10); doc.text(categoryLabel('4'), mX, y); y += 5;
+      accounts.filter((a) => a.categoryCode === '4' && (byDebit[a.code] ?? 0) !== 0)
+        .forEach((a) => row(formatAccount(a), byDebit[a.code]));
+    }
     subtotal('Bruttogewinn I', bruttogewinnI);
 
     if (personalaufwand > 0) {
       doc.setFontSize(10); doc.text(categoryLabel('5'), mX, y); y += 5;
-      accounts.filter((a) => a.categoryCode === '5' && (byDebit[formatAccount(a)] ?? 0) !== 0)
-        .forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
+      accounts.filter((a) => a.categoryCode === '5' && (byDebit[a.code] ?? 0) !== 0)
+        .forEach((a) => row(formatAccount(a), byDebit[a.code]));
       subtotal('Bruttogewinn II', bruttogewinnII);
     }
 
     if (uebrBetriebsaufwand > 0) {
       doc.setFontSize(10); doc.text(categoryLabel('6'), mX, y); y += 5;
-      accounts.filter((a) => a.categoryCode === '6' && (byDebit[formatAccount(a)] ?? 0) !== 0)
-        .forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
+      accounts.filter((a) => a.categoryCode === '6' && (byDebit[a.code] ?? 0) !== 0)
+        .forEach((a) => row(formatAccount(a), byDebit[a.code]));
       subtotal('Betriebsergebnis (EBIT)', ebit);
     }
 
+    for (const account of [...cat7, ...cat8noTax]) {
+      const value = isErtrag(account) ? byCredit[account.code] : byDebit[account.code];
+      if (value) row(formatAccount(account), value);
+    }
+    if (konto8900 && steuern !== 0) row(formatAccount(konto8900), steuern);
     subtotal('Jahresergebnis', jahresergebnis);
     y += 4;
 
     section('Bilanz – Aktiven');
     BILANZ_GROUPS.aktiv.forEach(({ label, min, max }) => {
-      const grpAccts = accountsInGroup(min, max).filter((a) => (byDebit[formatAccount(a)] ?? 0) !== 0);
+      const grpAccts = accountsInGroup(min, max).filter((a) => (byDebit[a.code] ?? 0) !== 0);
       if (grpAccts.length === 0) return;
       doc.setFontSize(10); doc.setTextColor(40); doc.text(label, mX, y); y += 5; doc.setTextColor(0);
-      grpAccts.forEach((a) => row(formatAccount(a), byDebit[formatAccount(a)]));
+      grpAccts.forEach((a) => row(formatAccount(a), byDebit[a.code]));
     });
     subtotal('Total Aktiven', totalAktiv);
 
     section('Bilanz – Passiven');
     BILANZ_GROUPS.passiv.forEach(({ label, min, max }) => {
-      const grpAccts = accountsInGroup(min, max).filter((a) => (byCredit[formatAccount(a)] ?? 0) !== 0);
+      const grpAccts = accountsInGroup(min, max).filter((a) => (byCredit[a.code] ?? 0) !== 0);
       if (grpAccts.length === 0) return;
       doc.setFontSize(10); doc.setTextColor(40); doc.text(label, mX, y); y += 5; doc.setTextColor(0);
-      grpAccts.forEach((a) => row(formatAccount(a), byCredit[formatAccount(a)]));
+      grpAccts.forEach((a) => row(formatAccount(a), byCredit[a.code]));
     });
     subtotal('Total Passiven', totalPassiv);
+
+    if (unassigned.length > 0) {
+      section('Nicht zugeordnete Konten');
+      unassigned.forEach((key) => {
+        if (byDebit[key]) row(`${key} (Soll)`, byDebit[key]);
+        if (byCredit[key]) row(`${key} (Haben)`, byCredit[key]);
+      });
+    }
 
     doc.setFontSize(8); doc.setTextColor(150);
     doc.text('Bookitty · Finanzbuchhaltung', mX, pH - 10);
@@ -385,8 +419,8 @@ const Bilanz = () => {
         title="Auswertungen"
         subtitle="Erfolgsrechnung und Bilanz auf Basis aller Buchungen."
         action={
-          <button type="button" onClick={exportPdf}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+          <button type="button" onClick={exportPdf} disabled={accountsLoading}
+            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40">
             PDF herunterladen
           </button>
         }
@@ -430,6 +464,19 @@ const Bilanz = () => {
           </Link>
       </div>
 
+      {accountsLoading && <p role="status" className="text-sm text-slate-500">Konten werden geladen…</p>}
+      {loadError && <p role="alert" className="text-sm text-rose-700">{loadError}</p>}
+      {unassigned.length > 0 && (
+        <details className="overflow-hidden rounded-xl border border-amber-200">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-amber-800">Nicht zugeordnete Konten</summary>
+          <p className="px-8 py-2 text-xs text-amber-700">Diese Konten sind nicht in den kontobasierten Summen enthalten.</p>
+          {unassigned.flatMap((key) => [
+            byDebit[key] ? <AccountRow key={`${key}-debit`} label={`${key} (Soll)`} value={byDebit[key]} cur={cur} /> : null,
+            byCredit[key] ? <AccountRow key={`${key}-credit`} label={`${key} (Haben)`} value={byCredit[key]} cur={cur} /> : null,
+          ])}
+        </details>
+      )}
+
       {/* ── Erfolgsrechnung (Slide 14) ── */}
       {tab === 'erfolg' && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-2">
@@ -444,7 +491,7 @@ const Bilanz = () => {
             const groups = bookings
               .filter((b) => b.type === 'Einnahme')
               .reduce<Record<string, number>>((acc, b) => {
-                const key = b.contraAccount || b.account;
+                const key = resolveAccount(b.contraAccount || b.account, accounts);
                 acc[key] = (acc[key] ?? 0) + b.amount;
                 return acc;
               }, {});
@@ -470,7 +517,7 @@ const Bilanz = () => {
                 {(() => {
                   // Account-code match first; fall back to Ausgabe bookings whose account is 4xxx
                   const matched = accounts.filter((a) => a.categoryCode === '4')
-                    .map((a) => ({ label: formatAccount(a), v: byDebit[formatAccount(a)] ?? 0 }))
+                    .map((a) => ({ label: formatAccount(a), v: byDebit[a.code] ?? 0 }))
                     .filter((x) => x.v !== 0);
                   if (matched.length > 0) {
                     return matched.map(({ label, v }) => <AccountRow key={label} label={label} value={v} cur={cur} />);
@@ -499,7 +546,7 @@ const Bilanz = () => {
               <Section title={categoryLabel('5')} total={personalaufwand} cur={cur}>
                 {(() => {
                   const matched = accounts.filter((a) => a.categoryCode === '5')
-                    .map((a) => ({ label: formatAccount(a), v: byDebit[formatAccount(a)] ?? 0 }))
+                    .map((a) => ({ label: formatAccount(a), v: byDebit[a.code] ?? 0 }))
                     .filter((x) => x.v !== 0);
                   if (matched.length > 0)
                     return matched.map(({ label, v }) => <AccountRow key={label} label={label} value={v} cur={cur} />);
@@ -528,7 +575,7 @@ const Bilanz = () => {
               <Section title={categoryLabel('6')} total={uebrBetriebsaufwand} cur={cur}>
                 {(() => {
                   const matched = accounts.filter((a) => a.categoryCode === '6')
-                    .map((a) => ({ label: formatAccount(a), v: byDebit[formatAccount(a)] ?? 0 }))
+                    .map((a) => ({ label: formatAccount(a), v: byDebit[a.code] ?? 0 }))
                     .filter((x) => x.v !== 0);
                   if (matched.length > 0)
                     return matched.map(({ label, v }) => <AccountRow key={label} label={label} value={v} cur={cur} />);
@@ -557,8 +604,8 @@ const Bilanz = () => {
               <NettoSection title={categoryLabel('7')} netto={netto7} cur={cur}>
                 {cat7.map((a) => {
                   const fk = formatAccount(a);
-                  const isErt = isErtragByName(a.name);
-                  const v = isErt ? (byCredit[fk] ?? 0) : (byDebit[fk] ?? 0);
+                  const isErt = isErtrag(a);
+                  const v = isErt ? (byCredit[a.code] ?? 0) : (byDebit[a.code] ?? 0);
                   return v !== 0 ? <AccountRow key={a.code} label={fk} value={v} cur={cur} tag={isErt ? 'Ert' : 'Aufw'} /> : null;
                 })}
               </NettoSection>
@@ -573,8 +620,8 @@ const Bilanz = () => {
               <NettoSection title="Betriebsfremder / ausserordentlicher Erfolg" netto={netto8} cur={cur}>
                 {cat8noTax.map((a) => {
                   const fk = formatAccount(a);
-                  const isErt = isErtragByName(a.name);
-                  const v = isErt ? (byCredit[fk] ?? 0) : (byDebit[fk] ?? 0);
+                  const isErt = isErtrag(a);
+                  const v = isErt ? (byCredit[a.code] ?? 0) : (byDebit[a.code] ?? 0);
                   return v !== 0 ? <AccountRow key={a.code} label={fk} value={v} cur={cur} tag={isErt ? 'Ert' : 'Aufw'} /> : null;
                 })}
               </NettoSection>
@@ -586,7 +633,7 @@ const Bilanz = () => {
           {steuern > 0 && (
             <>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 px-1 pt-3">Direkte Steuern</p>
-              <Section title="8900 Direkte Steuern" total={steuern} cur={cur} />
+              <Section title={konto8900 ? formatAccount(konto8900) : '8900 Direkte Steuern'} total={steuern} cur={cur} />
             </>
           )}
 
@@ -615,7 +662,7 @@ const Bilanz = () => {
             return (
               <Section key={label} title={label} total={grpTotal} cur={cur} positive>
                 {accountsInGroup(min, max).map((a) => {
-                  const v = byDebit[formatAccount(a)] ?? 0;
+                  const v = byDebit[a.code] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>
@@ -634,7 +681,7 @@ const Bilanz = () => {
             return (
               <Section key={label} title={label} total={grpTotal} cur={cur}>
                 {accountsInGroup(min, max).map((a) => {
-                  const v = byCredit[formatAccount(a)] ?? 0;
+                  const v = byCredit[a.code] ?? 0;
                   return v !== 0 ? <AccountRow key={a.code} label={formatAccount(a)} value={v} cur={cur} /> : null;
                 })}
               </Section>

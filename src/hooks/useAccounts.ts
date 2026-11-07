@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { accounts as STD_ACCOUNTS, type Account } from '../data/chAccounts';
-import { getCustomAccounts, saveCustomAccounts } from '../utils/customAccountStore';
+import { customAccountsChangeEvent, customAccountsRevision, getCustomAccounts, saveCustomAccounts } from '../utils/customAccountStore';
 import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
 
@@ -12,19 +13,36 @@ import { api } from '../services/api';
  */
 export const useAccounts = () => {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const useServer = Boolean(user) && pathname.startsWith('/app');
+  const scope = useServer ? `${user?.id}:${user?.company_id ?? user?.id}` : null;
   const [custom, setCustom] = useState<Account[]>(getCustomAccounts);
+  const [loadError, setLoadError] = useState('');
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
 
   // Load from API when logged in and sync to localStorage
   useEffect(() => {
-    if (!user) return;
-    api.customAccounts.list()
-      .then((list) => {
-        saveCustomAccounts(list);
-        setCustom(list);
-      })
-      .catch(() => {/* keep localStorage state */});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+    let active = true;
+    const sync = () => setCustom(getCustomAccounts());
+    window.addEventListener(customAccountsChangeEvent, sync);
+    if (useServer) {
+      const startRevision = customAccountsRevision();
+      api.customAccounts.list()
+        .then((list) => {
+          if (active && customAccountsRevision() === startRevision) saveCustomAccounts(list);
+        })
+        .catch(() => {
+          if (active) setLoadError('Eigene Konten konnten nicht vom Server geladen werden. Angezeigt wird der lokale Stand.');
+        })
+        .finally(() => {
+          if (active) setLoadedScope(scope);
+        });
+    }
+    return () => {
+      active = false;
+      window.removeEventListener(customAccountsChangeEvent, sync);
+    };
+  }, [useServer, scope]);
 
   /** Standard accounts with names overridden where a custom entry exists for the same code */
   const merged: Account[] = [
@@ -37,26 +55,16 @@ export const useAccounts = () => {
   ].sort((a, b) => Number(a.code) - Number(b.code));
 
   /** Add or update a custom account (identified by code) */
-  const upsert = useCallback((account: Account) => {
-    setCustom((prev) => {
-      const next = [...prev.filter((c) => c.code !== account.code), account];
-      saveCustomAccounts(next);
-      return next;
-    });
-    if (user) api.customAccounts.upsert(account).catch(console.error);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  const upsert = useCallback(async (account: Account) => {
+    if (useServer) await api.customAccounts.upsert(account);
+    saveCustomAccounts([...getCustomAccounts().filter((item) => item.code !== account.code), account]);
+  }, [useServer]);
 
   /** Remove a custom account (restores standard name if it was an override) */
-  const remove = useCallback((code: string) => {
-    setCustom((prev) => {
-      const next = prev.filter((c) => c.code !== code);
-      saveCustomAccounts(next);
-      return next;
-    });
-    if (user) api.customAccounts.remove(code).catch(console.error);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  const remove = useCallback(async (code: string) => {
+    if (useServer) await api.customAccounts.remove(code);
+    saveCustomAccounts(getCustomAccounts().filter((item) => item.code !== code));
+  }, [useServer]);
 
-  return { accounts: merged, customAccounts: custom, upsert, remove };
+  return { accounts: merged, customAccounts: custom, upsert, remove, loadError, loading: scope !== null && loadedScope !== scope };
 };

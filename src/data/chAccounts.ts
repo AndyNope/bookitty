@@ -117,6 +117,14 @@ export const accounts: Account[] = [
 export const formatAccount = (account: Account) =>
   `${account.code} ${account.name}`;
 
+export const accountKey = (value: string) =>
+  value.match(/^\s*(\d+)(?:\s|$)/)?.[1] ?? value;
+
+export const resolveAccount = (value: string, accountList: Account[]) => {
+  const account = accountList.find((item) => item.code === accountKey(value));
+  return account ? formatAccount(account) : value;
+};
+
 export const findAccount = (code?: string) =>
   accounts.find((account) => account.code === code);
 

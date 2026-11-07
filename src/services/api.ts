@@ -30,6 +30,7 @@ export const fetchDocument = async (url: string): Promise<Blob> => {
     headers: name && token ? { Authorization: `Bearer ${token}` } : {},
     cache: 'no-store',
   });
+  if (response.status === 402) window.dispatchEvent(new Event('bookitty:subscription-required'));
   if (!response.ok) throw new Error('Beleg konnte nicht geöffnet werden.');
   return response.blob();
 };
@@ -60,12 +61,15 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     },
   });
   const json = await res.json().catch(() => null);
+  if ((json as { code?: string } | null)?.code === 'subscription_required') {
+    window.dispatchEvent(new Event('bookitty:subscription-required'));
+  }
   if (!res.ok) throw new Error((json as { error?: string })?.error ?? `HTTP ${res.status}`);
   return json as T;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type AuthUser = { id: number; email: string; name: string; role: import('../types').UserRole; company_id: number | null; permissions?: CompanyPermission[] | null };
+export type AuthUser = { id: number; email: string; name: string; role: import('../types').UserRole; company_id: number | null; permissions?: CompanyPermission[] | null; subscriptionActive: boolean };
 export type CompanyMembership = { id: number; name: string; role: UserRole };
 export type CompanyRole = { id: number; name: string; baseRole: 'buchhalter' | 'readonly'; permissions: CompanyPermission[] };
 export type CompanyActivity = { id: number; action: string; targetType: string; targetId: string | null; createdAt: string; actorName: string };
@@ -76,7 +80,9 @@ export type BillingSummary = {
   purchasedTokens: number;
   periodEnd: string | null;
   billingEnabled: boolean;
+  tokenPurchasesEnabled: boolean;
   portalEnabled: boolean;
+  hasSubscription: boolean;
   plans: Record<string, { name: string; price: number; monthly_tokens: number }>;
   tokenPacks: Record<string, { name: string; price: number; tokens: number }>;
 };

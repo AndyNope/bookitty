@@ -1,3 +1,5 @@
+import Papa from 'papaparse';
+
 /**
  * bankParser.ts – Parses Swiss bank statement files
  * Supports:
@@ -41,35 +43,20 @@ function toISO(raw: string): string {
 }
 
 function parseNum(s: string): number {
-  return parseFloat(
-    s.replace(/['''`\s]/g, '').replace(',', '.')
-  ) || 0;
+  let value = s.replace(/['’`\s]/g, '');
+  if (!value) return 0;
+  if (value.includes(',') && value.includes('.')) {
+    value = value.lastIndexOf(',') > value.lastIndexOf('.')
+      ? value.replace(/\./g, '').replace(',', '.')
+      : value.replace(/,/g, '');
+  } else {
+    value = value.replace(',', '.');
+  }
+  if (!/^[+-]?\d+(?:\.\d+)?$/.test(value)) throw new Error('Ein Betrag im Kontoauszug ist ungültig oder nicht eindeutig.');
+  return Number(value);
 }
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
-
-/**
- * Detect the separator (;  ,  \t) most likely used in a CSV string.
- */
-function detectSep(firstLine: string): string {
-  const counts: Record<string, number> = { ';': 0, ',': 0, '\t': 0 };
-  for (const ch of firstLine) if (ch in counts) counts[ch]++;
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-}
-
-function splitCSV(line: string, sep: string): string[] {
-  const result: string[] = [];
-  let cur = '';
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') { inQ = !inQ; continue; }
-    if (ch === sep && !inQ) { result.push(cur.trim()); cur = ''; continue; }
-    cur += ch;
-  }
-  result.push(cur.trim());
-  return result;
-}
 
 type ColIndices = {
   date: number;
@@ -79,44 +66,51 @@ type ColIndices = {
   debit: number;   // Lastschrift / Ausgabe (positive)
   amount: number;  // Combined amount column (may be signed)
   ref: number;
+  currency: number;
 };
 
 function detectCols(headers: string[]): ColIndices {
   const h = headers.map(s => s.toLowerCase().replace(/[^a-z0-9äöü]/g, ''));
   const idx = (pats: string[]) => h.findIndex(c => pats.some(p => c.includes(p)));
   return {
-    date:        Math.max(idx(['buchungsdatum', 'datum', 'date', 'bdate']), 0),
+    date:        Math.max(idx(['completeddate']) >= 0 ? idx(['completeddate']) : idx(['buchungsdatum', 'datum', 'date', 'bdate']), 0),
     valuta:      idx(['valutadatum', 'valuta', 'value']),
     description: idx(['buchungstext', 'text', 'beschreibung', 'description', 'details', 'verwendungszweck', 'info', 'betreff']),
     credit:      idx(['gutschrift', 'credit', 'einnahme', 'eingang', 'haben']),
     debit:       idx(['lastschrift', 'debit', 'ausgabe', 'ausgang', 'soll', 'belastung']),
     amount:      idx(['betrag', 'amount', 'summe', 'umsatz']),
     ref:         idx(['referenz', 'reference', 'ref', 'mitteilung', 'beleg']),
+    currency:    idx(['currency', 'währung', 'waehrung', 'devise']),
   };
 }
 
 function parseBankCSV(text: string): BankTransaction[] {
-  const lines = text
-    .split(/\r?\n/)
-    .map(l => l.trim())
-    .filter(Boolean);
+  const parsed = Papa.parse<string[]>(text, { skipEmptyLines: 'greedy' });
+  if (parsed.errors.length) throw new Error('Die CSV-Datei ist fehlerhaft oder das Trennzeichen wurde nicht erkannt.');
+  const rows = parsed.data;
+  if (rows.length < 2) return [];
 
-  if (lines.length < 2) return [];
-
-  const sep = detectSep(lines[0]);
-  const firstCells = splitCSV(lines[0], sep);
+  const firstCells = rows[0];
   const hasHeader = firstCells.some(c => /[a-zA-ZäöüÄÖÜ]/.test(c));
 
   const headers = hasHeader ? firstCells : [];
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const dataRows = hasHeader ? rows.slice(1) : rows;
   const cols = hasHeader ? detectCols(headers) : {
-    date: 0, valuta: -1, description: 1, credit: -1, debit: -1, amount: 2, ref: -1,
+    date: 0, valuta: -1, description: 1, credit: -1, debit: -1, amount: 2, ref: -1, currency: -1,
   };
 
+  const normalizedHeaders = headers.map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const revolutState = normalizedHeaders.indexOf('state');
+  const revolutFee = normalizedHeaders.indexOf('fee');
+  const isRevolutFormat = normalizedHeaders.includes('starteddate') && normalizedHeaders.includes('completeddate') && revolutState >= 0;
+
   const result: BankTransaction[] = [];
-  for (const line of dataLines) {
-    const cells = splitCSV(line, sep);
+  for (const cells of dataRows) {
     if (cells.length < 2) continue;
+    if (isRevolutFormat && (cells[revolutState] ?? '').trim().toUpperCase() !== 'COMPLETED') continue;
+    if (isRevolutFormat && revolutFee >= 0 && parseNum(cells[revolutFee] ?? '') !== 0) {
+      throw new Error('Revolut-Exporte mit separaten Gebühren können noch nicht sicher importiert werden. Bitte einen CAMT-Kontoauszug verwenden.');
+    }
 
     const rawDate = cells[cols.date] ?? '';
     const date = toISO(rawDate);
@@ -136,13 +130,15 @@ function parseBankCSV(text: string): BankTransaction[] {
 
     if (amount === 0) continue;
 
+    const currency = cols.currency >= 0 ? (cells[cols.currency] ?? '').trim().toUpperCase() : 'CHF';
+    if (!/^[A-Z]{3}$/.test(currency)) throw new Error('Die Währung einer Transaktion ist ungültig oder fehlt.');
     result.push({
       id: uid(),
       date,
       valuta: cols.valuta >= 0 ? toISO(cells[cols.valuta] ?? '') : undefined,
       description: description.replace(/\s+/g, ' ').trim(),
       amount,
-      currency: 'CHF',
+      currency,
       reference: cols.ref >= 0 ? (cells[cols.ref] ?? '').trim() || undefined : undefined,
     });
   }
@@ -151,7 +147,7 @@ function parseBankCSV(text: string): BankTransaction[] {
 
 // ─── camt.054 XML Parser ──────────────────────────────────────────────────────
 function txt(el: Element | null | undefined, tag: string): string {
-  return el?.getElementsByTagName(tag)[0]?.textContent?.trim() ?? '';
+  return el?.getElementsByTagNameNS('*', tag)[0]?.textContent?.trim() ?? '';
 }
 
 function parseCamt054(xml: string): BankTransaction[] {
@@ -162,14 +158,18 @@ function parseCamt054(xml: string): BankTransaction[] {
     return [];
   }
 
-  const entries = Array.from(doc.getElementsByTagName('Ntry'));
+  const entries = Array.from(doc.getElementsByTagNameNS('*', 'Ntry'));
   const result: BankTransaction[] = [];
 
   for (const e of entries) {
-    const amtEl   = e.getElementsByTagName('Amt')[0];
+    const amtEl   = e.getElementsByTagNameNS('*', 'Amt')[0];
     const raw     = parseNum(amtEl?.textContent ?? '0');
-    const ccy     = amtEl?.getAttribute('Ccy') ?? 'CHF';
+    const ccy     = (amtEl?.getAttribute('Ccy') ?? '').toUpperCase();
+    if (!/^[A-Z]{3}$/.test(ccy)) throw new Error('Die Währung einer CAMT-Transaktion ist ungültig oder fehlt.');
     const dir     = txt(e, 'CdtDbtInd');            // CRDT | DBIT
+    const status = txt(e, 'Sts');
+    if (status && status !== 'BOOK') continue;
+    if (dir !== 'CRDT' && dir !== 'DBIT') throw new Error('CAMT-Transaktion ohne gültige Soll-/Haben-Kennzeichnung.');
     const amount  = dir === 'DBIT' ? -Math.abs(raw) : Math.abs(raw);
     const date    = txt(e, 'Dt') || txt(e, 'BookgDt');
     const valuta  = txt(e, 'ValDt') || undefined;
@@ -304,11 +304,16 @@ type MatchableBooking = {
   amount: number;
   description?: string;
   paymentStatus?: string;
+  currency?: string;
+  type?: 'Einnahme' | 'Ausgabe';
 };
 
 /** Score a single (transaction, booking) pair. */
 function scoreMatch(tx: BankTransaction, bk: MatchableBooking): number {
   let score = 0;
+
+  if (bk.currency && bk.currency.toUpperCase() !== tx.currency.toUpperCase()) return 0;
+  if (bk.type && (tx.amount > 0) !== (bk.type === 'Einnahme')) return 0;
 
   // ── Amount (mandatory) ──────────────────────────────────────────────────
   const txAmt = Math.abs(tx.amount);

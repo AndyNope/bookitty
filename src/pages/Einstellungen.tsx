@@ -75,9 +75,10 @@ const Einstellungen = () => {
   const [imapError, setImapError] = useState('');
 
   // Custom accounts
-  const { customAccounts, upsert: upsertAccount, remove: removeAccount } = useAccounts();
+  const { customAccounts, upsert: upsertAccount, remove: removeAccount, loadError: acctLoadError, loading: acctLoading } = useAccounts();
   const [acctForm, setAcctForm] = useState({ code: '', name: '', categoryCode: '3' });
   const [acctError, setAcctError] = useState('');
+  const [acctSaving, setAcctSaving] = useState(false);
 
   // Team management
   const [team,           setTeam]          = useState<TeamMember[]>([]);
@@ -334,15 +335,34 @@ const Einstellungen = () => {
     showNotify('success', 'Einstellungen gespeichert', 'Das Unternehmensprofil wurde erfolgreich gespeichert.');
   };
 
-  const handleUpsertAccount = () => {
+  const handleUpsertAccount = async () => {
     const code = acctForm.code.trim();
     const name = acctForm.name.trim();
     if (!code || !name) { setAcctError('Kontonummer und Name sind Pflichtfelder.'); return; }
     if (!/^\d+$/.test(code)) { setAcctError('Kontonummer darf nur Ziffern enthalten.'); return; }
-    upsertAccount({ code, name, categoryCode: acctForm.categoryCode });
-    setAcctForm({ code: '', name: '', categoryCode: '3' });
     setAcctError('');
-    showNotify('success', 'Konto gespeichert', `Konto ${code} „${name}“ wurde erfolgreich gespeichert.`);
+    setAcctSaving(true);
+    try {
+      await upsertAccount({ code, name, categoryCode: acctForm.categoryCode });
+      setAcctForm({ code: '', name: '', categoryCode: '3' });
+      showNotify('success', 'Konto gespeichert', `Konto ${code} „${name}“ wurde erfolgreich gespeichert.`);
+    } catch (error) {
+      setAcctError(error instanceof Error ? error.message : 'Konto konnte nicht gespeichert werden.');
+    } finally {
+      setAcctSaving(false);
+    }
+  };
+
+  const handleRemoveAccount = async (code: string) => {
+    setAcctError('');
+    setAcctSaving(true);
+    try {
+      await removeAccount(code);
+    } catch (error) {
+      setAcctError(error instanceof Error ? error.message : 'Konto konnte nicht entfernt werden.');
+    } finally {
+      setAcctSaving(false);
+    }
   };
 
   if (!isDemo && user?.permissions && !user.permissions.includes('einstellungen')) {
@@ -464,11 +484,11 @@ const Einstellungen = () => {
                       </div>
                       <button
                         type="button"
-                        disabled={!billing.billingEnabled || checkoutBusy !== '' || billing.plan === code || billing.status !== 'inactive'}
-                        onClick={() => startCheckout('subscription', code)}
+                        disabled={!billing.billingEnabled || checkoutBusy !== '' || (billing.hasSubscription && (!billing.portalEnabled || billing.plan === code))}
+                        onClick={() => startCheckout(billing.hasSubscription ? 'portal' : 'subscription', billing.hasSubscription ? '' : code)}
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {checkoutBusy === `subscription:${code}` ? 'Weiter …' : billing.plan === code ? 'Aktueller Tarif' : billing.status !== 'inactive' ? 'Aboanpassung gesperrt' : billing.billingEnabled ? 'Zur Kasse' : 'Derzeit nicht verfügbar'}
+                        {checkoutBusy === `subscription:${code}` ? 'Weiter …' : billing.hasSubscription && billing.plan === code ? 'Aktueller Tarif' : !billing.billingEnabled ? 'Derzeit nicht verfügbar' : billing.hasSubscription ? 'Im Aboportal ändern' : 'Zur Kasse'}
                       </button>
                     </div>
                   ))}
@@ -485,11 +505,11 @@ const Einstellungen = () => {
                       </p>
                       <button
                         type="button"
-                        disabled={!billing.billingEnabled || checkoutBusy !== ''}
+                        disabled={!billing.tokenPurchasesEnabled || checkoutBusy !== ''}
                         onClick={() => startCheckout('tokens', code)}
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {checkoutBusy === `tokens:${code}` ? 'Weiter …' : billing.billingEnabled ? 'Kaufen' : 'Derzeit nicht verfügbar'}
+                        {checkoutBusy === `tokens:${code}` ? 'Weiter …' : billing.tokenPurchasesEnabled ? 'Kaufen' : 'Derzeit nicht verfügbar'}
                       </button>
                     </div>
                   ))}
@@ -552,6 +572,7 @@ const Einstellungen = () => {
           Passe bestehende Kontonamen an oder füge neue Konten hinzu. Deine Anpassungen werden
           in allen Buchungsformularen und Auswertungen verwendet.
         </p>
+        {acctLoadError && <p role="alert" className="mt-3 text-xs text-rose-700">{acctLoadError}</p>}
 
         {/* Existing custom accounts */}
         {customAccounts.length > 0 ? (
@@ -578,8 +599,9 @@ const Einstellungen = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={() => removeAccount(acct.code)}
-                      className="shrink-0 text-xs font-semibold text-rose-500 hover:text-rose-700"
+                      onClick={() => void handleRemoveAccount(acct.code)}
+                      disabled={acctSaving || acctLoading}
+                      className="shrink-0 text-xs font-semibold text-rose-500 hover:text-rose-700 disabled:opacity-50"
                     >
                       Entfernen
                     </button>
@@ -599,7 +621,7 @@ const Einstellungen = () => {
             Konto hinzufügen / überschreiben
           </p>
           {acctError && (
-            <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{acctError}</p>
+            <p role="alert" className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{acctError}</p>
           )}
           <div className="grid gap-3 sm:grid-cols-[100px_1fr_1fr_auto]">
             <label className="flex flex-col gap-1 text-xs text-slate-600">
@@ -650,7 +672,8 @@ const Einstellungen = () => {
               <button
                 type="button"
                 onClick={handleUpsertAccount}
-                className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                disabled={acctSaving || acctLoading}
+                className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               >
                 Speichern
               </button>

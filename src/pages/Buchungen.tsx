@@ -9,12 +9,15 @@ import { useAuth } from '../store/AuthContext';
 import type { Booking, BookingDraft, BookingType, PaymentStatus } from '../types';
 import { useKittyHighlight } from '../hooks/useKittyHighlight';
 import { autoCategorizeDraft } from '../utils/kittySuggester';
+import { resolveAccount } from '../data/chAccounts';
+import { useAccounts } from '../hooks/useAccounts';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 const Buchungen = () => {
   const { bookings, addBooking, removeBooking, updateBooking } = useBookkeeping();
   const { isReadonly } = useAuth();
+  const { accounts } = useAccounts();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [prefilledDraft, setPrefilledDraft] = useState<Partial<BookingDraft> | undefined>();
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -202,7 +205,7 @@ const Buchungen = () => {
                 <li key={booking.id} className="text-xs text-indigo-700">
                   <span className="font-medium">{booking.description}</span>
                   {' → '}
-                  <span className="font-mono">{draft.account}</span>
+                  <span className="font-mono">{resolveAccount(draft.account, accounts)}</span>
                 </li>
               ))}
               {autoSuggestions.length > 3 && <li className="text-xs text-indigo-500">… und {autoSuggestions.length - 3} weitere</li>}
@@ -237,7 +240,7 @@ const Buchungen = () => {
             <p className="mt-1 text-sm text-slate-500">Diese Aktion kann nicht rückgängig gemacht werden.</p>
             <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm space-y-1">
               <p className="font-medium text-slate-900">{pendingDeleteBooking.description}</p>
-              <p className="text-slate-500">{pendingDeleteBooking.date} · {pendingDeleteBooking.account}</p>
+              <p className="text-slate-500">{pendingDeleteBooking.date} · {resolveAccount(pendingDeleteBooking.account, accounts)}</p>
               <p className={`font-semibold tabular-nums ${
                 pendingDeleteBooking.type === 'Einnahme' ? 'text-emerald-600' : 'text-rose-600'
               }`}>
@@ -304,11 +307,11 @@ const Buchungen = () => {
               </div>
               <div>
                 <p className="text-xs text-slate-400">Sollkonto</p>
-                <p className="font-medium text-slate-900">{detailBooking.account}</p>
+                <p className="font-medium text-slate-900">{resolveAccount(detailBooking.account, accounts)}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400">Habenkonto</p>
-                <p className="font-medium text-slate-900">{detailBooking.contraAccount}</p>
+                <p className="font-medium text-slate-900">{resolveAccount(detailBooking.contraAccount, accounts)}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400">Kategorie</p>

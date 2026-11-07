@@ -274,7 +274,7 @@ const KNOWLEDGE: KnowledgeEntry[] = [
  keywords: ['demo', 'test', 'ausprobieren', 'kostenlos', 'gratis', 'ohne', 'registrierung', 'anmeldung', 'beispiel'],
  question: 'Gibt es einen Demo-Modus?',
  answers: [
- 'Ja! Du kannst Bookitty **ohne Registrierung** im Demo-Modus testen.\n\nDer Demo enthält Beispieldaten – Buchungen, Bilanz, Erfolgsrechnung sind bereits befüllt, sodass du sofort siehst, wie alles aussieht.\n\nFür eigene Daten brauchst du ein Konto – die Registrierung dauert unter 1 Minute.',
+ 'Ja! Du kannst Bookitty **ohne Registrierung** im Demo-Modus testen.\n\nDer Demo enthält Beispieldaten – Buchungen, Bilanz, Erfolgsrechnung sind bereits befüllt, sodass du sofort siehst, wie alles aussieht.\n\nFür die angemeldete Nutzung brauchst du ein Konto und ein aktives Abo ab Solo.',
  ],
  tags: ['bookitty', 'demo'],
  followUp: ['Wie registriere ich mich?'],
@@ -284,7 +284,7 @@ const KNOWLEDGE: KnowledgeEntry[] = [
  keywords: ['registrier', 'anmeld', 'konto', 'account', 'erstell', 'signup', 'register', 'neu'],
  question: 'Wie registriere ich mich?',
  answers: [
- 'Registrierung bei Bookitty:\n\n1. Klicke auf **"Registrieren"** auf der Startseite\n2. Gib **Name, E-Mail und Passwort** ein\n3. Fertig – du kannst sofort loslegen!\n\nKeine Kreditkarte, keine versteckten Kosten.',
+ 'Registrierung bei Bookitty:\n\n1. Klicke auf **"Registrieren"** auf der Startseite\n2. Gib **Name, E-Mail und Passwort** ein und bestätige deine E-Mail\n3. Wähle ein Abo ab Solo für die angemeldete Nutzung.\n\nDie Demo ist ohne Abo verfügbar.',
  ],
  tags: ['bookitty', 'account'],
  followUp: ['Was kostet Bookitty?', 'Wie erfasse ich meine erste Buchung?'],
@@ -294,7 +294,7 @@ const KNOWLEDGE: KnowledgeEntry[] = [
  keywords: ['kost', 'preis', 'bezahl', 'abo', 'kostenlos', 'plan', 'tarif', 'chf', 'franken', 'zahlen'],
  question: 'Was kostet Bookitty?',
  answers: [
- 'Bookitty ist aktuell **kostenlos** nutzbar! \n\nIn Zukunft sind Premium-Funktionen geplant (Lohnbuchhaltung, automatische Mahnungen) – der Basis-Plan für Kleinunternehmen bleibt erschwinglich.\n\nJetzt kostenlos starten und von Anfang an dabei sein.',
+ 'Die angemeldete Nutzung benötigt ein aktives Abo: **Solo CHF 12**, **Team CHF 29** oder **Business CHF 59** pro Monat. Die Tarife unterscheiden sich unter anderem beim KI-Tokenkontingent. Die Demo ist kostenlos und ohne Registrierung verfügbar.',
  ],
  tags: ['bookitty', 'kosten'],
  },

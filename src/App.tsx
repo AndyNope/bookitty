@@ -32,6 +32,7 @@ import NotFound from './pages/NotFound';
 import Portal from './pages/Portal';
 import StartupNight from './pages/StartupNight';
 import ContactSupport from './pages/ContactSupport';
+import SubscriptionGate from './components/SubscriptionGate';
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -41,6 +42,7 @@ const RequireAuth = ({ children }: { children: ReactNode }) => {
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
+  if (!user.subscriptionActive) return <SubscriptionGate />;
   return <>{children}</>;
 };
 

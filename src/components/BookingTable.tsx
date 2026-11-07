@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Booking } from '../types';
 import { isPrivateDocumentUrl, openPrivateDocument } from '../services/api';
+import { resolveAccount } from '../data/chAccounts';
+import { useAccounts } from '../hooks/useAccounts';
 
 const sendToKitty = (booking: Booking) =>
   window.dispatchEvent(new CustomEvent('kitty:context', { detail: booking }));
@@ -59,6 +61,7 @@ const BookingTable = ({
   onView?: (id: string) => void;
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const { accounts } = useAccounts();
   const [menuPos, setMenuPos] = useState<{ top: number; left: number; placement: 'bottom' | 'top' } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const hasActions = Boolean(onDelete || onEdit || onView);
@@ -94,7 +97,7 @@ const BookingTable = ({
                   {booking.description}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  {booking.account} → {booking.contraAccount}
+                  {resolveAccount(booking.account, accounts)} → {resolveAccount(booking.contraAccount, accounts)}
                 </p>
               </div>
               <div className="text-right">
@@ -181,13 +184,13 @@ const BookingTable = ({
                 </div>
               </td>
               <td className="px-4 py-3 text-slate-700 text-xs">
-                <span className="block max-w-[220px] truncate" title={booking.account}>
-                  {booking.account}
+                <span className="block max-w-[220px] truncate" title={resolveAccount(booking.account, accounts)}>
+                  {resolveAccount(booking.account, accounts)}
                 </span>
               </td>
               <td className="px-4 py-3 text-slate-400 text-xs">
-                <span className="block max-w-[220px] truncate" title={booking.contraAccount}>
-                  {booking.contraAccount}
+                <span className="block max-w-[220px] truncate" title={resolveAccount(booking.contraAccount, accounts)}>
+                  {resolveAccount(booking.contraAccount, accounts)}
                 </span>
               </td>
               <td className="px-4 py-3 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">

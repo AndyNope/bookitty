@@ -3,6 +3,7 @@ require_once __DIR__ . '/jwt.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/permissions.php';
+require_once __DIR__ . '/subscription.php';
 
 /**
  * Extracts the Bearer token from the Authorization header.
@@ -78,6 +79,16 @@ function get_auth_payload(): array {
         unset($payload['access_expires_at']);
     }
     authorize_company_permissions($permissions);
+    $billing = get_db()->prepare('SELECT plan_code, subscription_status FROM billing_accounts WHERE company_id = ?');
+    $billing->execute([$tokenCompany]);
+    $subscription = $billing->fetch();
+    $payload['subscription_active'] = subscription_has_access($subscription['plan_code'] ?? null, $subscription['subscription_status'] ?? null);
+    $allowedWithoutSubscription = ['me.php', 'billing.php', 'companies.php', 'two-factor.php'];
+    if (!$payload['subscription_active'] && !in_array(basename($_SERVER['SCRIPT_NAME'] ?? ''), $allowedWithoutSubscription, true)) {
+        http_response_code(402);
+        echo json_encode(['error' => 'Für diese Firma ist ein aktives Abo ab Solo erforderlich.', 'code' => 'subscription_required']);
+        exit;
+    }
     return $payload;
 }
 

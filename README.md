@@ -10,6 +10,7 @@ Moderne Finanzbuchhaltungs-WebApp für Schweizer KMU — mit KI-Chatbot, automat
 - **Bilanz** – Aktiven/Passiven nach Schweizer KMU-Kontenrahmen, PDF-Export
 - **Erfolgsrechnung** – Ertrag/Aufwand-Übersicht mit Jahresvergleich
 - **Dokumente** – PDF- und Bildbelegs-Import mit automatischer OCR-Erkennung
+- **Bankabgleich** – Import von CAMT.052/053/054, CSV/TSV und MT940; keine direkte Bankanbindung
 
 ### Kitty – KI-Chatbot
 - **Offline-First Knowledge Base** – 60+ Q&A-Einträge zu Bookitty-Funktionen, Schweizer Buchhaltung, MwSt und mehr
@@ -118,6 +119,20 @@ Lohn, Anlagen, Lager und Zeiterfassung werden weiterhin nur im Browser gespeiche
 Das Zugriffsprotokoll zeigt die letzten 100 erfassten Ereignisse zu Einladungen, Firmenwechseln, Rollen, Zugängen, 2FA, Buchungen und Kundenrechnungen. Es umfasst nicht alle Module, enthält keine vollständigen Änderungswerte und ist kein manipulationssicheres oder zertifiziertes Revisionsarchiv. E-Mail-Versand und Datenbanktransaktion können nicht gemeinsam zurückgerollt werden.
 
 Direkte Zugriffe auf `api/uploads/` müssen auf dem Webserver vollständig gesperrt sein. Die mitgelieferte `.htaccess` gilt nur bei aktivierter Apache-Override-Konfiguration; bei Nginx oder anderen Setups ist eine entsprechende Serverregel erforderlich. Vor der Freigabe mit einer bestehenden Beleg-URL prüfen, dass ein direkter Aufruf abgewiesen wird und der authentifizierte Belegzugriff funktioniert.
+
+### Abos und Stripe
+
+Für die angemeldete Nutzung einer Firma ist ein Solo-, Team- oder Business-Abo im Status `active` oder `trialing` erforderlich. Die Prüfung erfolgt bei authentifizierten API-Anfragen anhand des Abos der aktiven Firma. Ohne Abo bleiben Anmeldung, Firmenwechsel und die Aboverwaltung erreichbar; der Demo-Modus bleibt kostenlos. Bei `past_due`, `unpaid`, `paused` oder nach Kündigung wird die Nutzung gesperrt. Daten werden dabei nicht gelöscht.
+
+Vor der Bereitstellung sicherstellen, dass `billing_accounts` und `stripe_events` migriert sind und Stripe Checkout, alle Preis-IDs und signierte Webhooks für `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated` und `customer.subscription.deleted` funktionieren. Bestehende Firmen ohne aktives Abo werden sofort gesperrt; ihre Abozustände vorab prüfen und betroffene Kunden informieren. Das Stripe-Kundenportal muss Tarifwechsel zwischen Solo, Team und Business sowie Zahlungsverwaltung erlauben. Die Behandlung von Preisunterschieden und Kündigungen wird im Stripe-Portal konfiguriert. Tarifänderungen werden über den konfigurierten Preis aus `customer.subscription.updated` übernommen.
+
+### Bankdateien
+
+CAMT-Auszüge werden lokal im Browser eingelesen. Beim Abgleich müssen Betrag, Währung und Buchungsrichtung übereinstimmen. Fremdwährungstransaktionen können bestehenden Buchungen derselben Währung zugeordnet werden, aber nicht als neue Buchung aus dem Bankabgleich angelegt werden; die Umrechnung für Auswertungen ist noch nicht abgesichert. CSV-Importe mit Revolut-typischen Spalten übernehmen nur abgeschlossene Transaktionen; Dateien mit separat ausgewiesenen Gebühren werden vorsichtshalber abgelehnt. Die Unterstützung einzelner Bankexporte muss mit anonymisierten Originaldateien geprüft werden. Eine direkte Bankverbindung besteht derzeit nicht.
+
+### FER-Arbeitsentwurf
+
+Die Swiss-GAAP-FER-Seite bietet einen ungeprüften PDF-Arbeitsentwurf auf Basis vierstelliger Kontonummern und CHF-Buchungen. Die Bilanz berücksichtigt Buchungen bis zum 31. Dezember, die Erfolgsrechnung das ausgewählte Kalenderjahr ohne Abschlussbuchungen auf Kontenklasse 9. Bei Fremdwährungen oder unvollständigen Buchungsdaten ist der Export gesperrt. Eröffnungsbestände, Kontenzuordnung, Bewertungsgrundlagen und Bilanzdifferenzen müssen geprüft werden. Geldflussrechnung, Eigenkapitalnachweis und Anhang fehlen; das Dokument ist kein vollständiger oder geprüfter FER- oder IFRS-Abschluss. Derzeit gibt es keinen IFRS-Export.
 
 ### IMAP-Sicherheit
 

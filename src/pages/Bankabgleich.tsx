@@ -52,10 +52,10 @@ const UploadZone = ({ onFile }: { onFile: (f: File) => void }) => {
       </svg>
       <div>
         <p className="text-sm font-semibold text-slate-700">Kontoauszug hier ablegen</p>
-        <p className="mt-1 text-xs text-slate-400">CSV · camt.054 XML · MT940</p>
+        <p className="mt-1 text-xs text-slate-400">CSV · CAMT.052/053/054 XML · MT940</p>
       </div>
       <div className="max-w-xs space-y-1 text-xs text-slate-400">
-        <p>Unterstützte Banken: PostFinance, Raiffeisen, ZKB, UBS, Neon, ZAK, BCGE u.v.m.</p>
+        <p>Bankauszüge im unterstützten Format, z.B. von UBS, PostFinance und weiteren Banken.</p>
       </div>
       <input ref={ref} type="file" accept=".csv,.tsv,.txt,.xml,.sta,.mt940" className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
@@ -96,6 +96,8 @@ export default function Bankabgleich() {
       amount:        b.amount,
       description:   b.description,
       paymentStatus: b.paymentStatus,
+      currency:      b.currency,
+      type:          b.type,
     })));
     setMatches(m);
     // Pre-accept high-confidence matches
@@ -151,15 +153,15 @@ export default function Bankabgleich() {
     try {
       const txs = await parseBankFile(file);
       if (!txs.length) {
-        setNotification({ type: 'error', title: 'Keine Transaktionen', message: 'In dieser Datei wurden keine Transaktionen erkannt. CSV, camt.054 XML oder MT940 unterstützt.' });
+        setNotification({ type: 'error', title: 'Keine Transaktionen', message: 'In dieser Datei wurden keine Transaktionen erkannt. CSV, CAMT.052/053/054 XML oder MT940 unterstützt.' });
         return;
       }
       // Sort by date descending
       txs.sort((a, b) => b.date.localeCompare(a.date));
       setTransactions(txs);
       setTxState({});
-    } catch {
-      setNotification({ type: 'error', title: 'Fehler', message: 'Die Datei konnte nicht gelesen werden.' });
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Fehler', message: error instanceof Error ? error.message : 'Die Datei konnte nicht gelesen werden.' });
     } finally {
       setLoading(false);
     }
@@ -189,12 +191,13 @@ export default function Bankabgleich() {
       }
 
       if (state.decision === 'new') {
+        if (tx.currency !== 'CHF') throw new Error('Neue Buchungen aus Fremdwährungs-Kontoauszügen werden noch nicht unterstützt.');
         const draft: Booking = {
           id:            `bk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           date:          tx.date,
           description:   tx.description,
-          account:       tx.amount > 0 ? '1020 Postcheck' : '2000 Kreditoren',
-          contraAccount: tx.amount > 0 ? '3000 Betriebsertrag' : '4000 Betriebsaufwand',
+          account:       tx.amount > 0 ? '1020 Bankguthaben' : '4000 Materialaufwand Produktion',
+          contraAccount: tx.amount > 0 ? '3000 Produktionserlöse' : '1020 Bankguthaben',
           category:      tx.amount > 0 ? 'Ertrag' : 'Aufwand',
           amount:        Math.abs(tx.amount),
           vatRate:       0,
@@ -435,7 +438,9 @@ export default function Bankabgleich() {
                         )}
                         <button
                           onClick={() => setDecision(tx.id, dec === 'new' ? null : 'new')}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          disabled={tx.currency !== 'CHF'}
+                          title={tx.currency !== 'CHF' ? 'Neue Buchungen aus Fremdwährungs-Kontoauszügen werden noch nicht unterstützt.' : undefined}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                             dec === 'new'
                               ? 'bg-blue-600 text-white'
                               : 'border border-blue-200 text-blue-700 hover:bg-blue-50'
@@ -454,6 +459,7 @@ export default function Bankabgleich() {
                       </div>
                     </div>
                   </div>
+                  {tx.currency !== 'CHF' && <p className="mt-2 text-xs text-amber-700">Neue Buchungen aus Fremdwährungs-Kontoauszügen werden noch nicht unterstützt.</p>}
 
                   {/* Matched booking info */}
                   {booking && (
@@ -558,17 +564,17 @@ export default function Bankabgleich() {
             <h3 className="text-sm font-semibold text-slate-800">Open Banking – Direkte Verbindung</h3>
             <p className="text-xs text-slate-400 mt-0.5">Kontoauszüge automatisch einlesen ohne manuellen Export</p>
           </div>
-          <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">Beta</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{isDemo ? 'Demo' : 'Nicht verfügbar'}</span>
         </div>
         <div className="p-5 space-y-4">
           {/* Supported banks */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {[
-              { name: 'PostFinance',     status: isDemo ? 'Verbunden (Demo)' : 'Konfigurieren', connected: isDemo },
-              { name: 'Raiffeisen',      status: 'Konfigurieren', connected: false },
-              { name: 'ZKB',             status: 'Konfigurieren', connected: false },
+              { name: 'PostFinance',     status: isDemo ? 'Verbunden (Demo)' : 'Nicht verfügbar', connected: isDemo },
+              { name: 'Raiffeisen',      status: 'Nicht verfügbar', connected: false },
+              { name: 'ZKB',             status: 'Nicht verfügbar', connected: false },
               { name: 'UBS',             status: 'In Planung',    connected: false, planned: true },
-              { name: 'ZAK (Bank Cler)', status: 'Konfigurieren', connected: false },
+              { name: 'ZAK (Bank Cler)', status: 'Nicht verfügbar', connected: false },
               { name: 'Neon',            status: 'In Planung',    connected: false, planned: true },
             ].map(b => (
               <div key={b.name} className={`rounded-xl border p-3 ${b.connected ? 'border-emerald-200 bg-emerald-50' : b.planned ? 'border-slate-100 bg-slate-50' : 'border-slate-200 bg-white'}`}>
@@ -610,13 +616,10 @@ export default function Bankabgleich() {
             </div>
           ) : (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Konfiguriere deine Bank-API-Verbindung in den <strong>Einstellungen → Integrationen</strong>, um die automatische Synchronisierung zu aktivieren.
+              Eine direkte Bankverbindung ist derzeit nicht verfügbar. Bitte importiere deinen Kontoauszug als Datei.
             </div>
           )}
 
-          <p className="text-[11px] text-slate-400">
-            Open Banking nutzt die offiziellen Bank-APIs (ISO 20022 / PSD2-kompatibel). Deine Zugangsdaten werden verschlüsselt gespeichert und niemals an Dritte weitergegeben.
-          </p>
         </div>
       </div>
     </div>
