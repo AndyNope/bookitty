@@ -406,6 +406,14 @@ const AppLayout = () => {
             </button>
           </div>
           {!isDemo && <CompanySwitcher />}
+          <NavLink
+            to={`${base}/einstellungen`}
+            onClick={() => setMenuOpen(false)}
+            className={({ isActive }) => `mx-4 mb-3 text-sm ${navHighlightClass('einstellungen', isActive)}`}
+          >
+            {navItems.find((item) => item.kittyId === 'einstellungen')?.icon}
+            Einstellungen
+          </NavLink>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <div className="flex flex-col gap-0.5 text-sm">
             {NAV_GROUP_ORDER.map((groupId) => {
