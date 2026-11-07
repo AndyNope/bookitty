@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import NumberInput from '../components/NumberInput';
 
 /* ── Types ────────────────────────────────────────────────────────── */
 interface StockItem {
@@ -288,11 +289,11 @@ export default function Lager() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">EK-Preis (CHF)</label>
-                <input type="number" min="0" step="0.01" value={itemForm.purchasePrice || ''} onChange={(e) => setItemForm({ ...itemForm, purchasePrice: parseFloat(e.target.value) || 0 })} className={inputCls} />
+                <NumberInput min="0" step="0.01" value={itemForm.purchasePrice || null} onValueChange={(value) => setItemForm({ ...itemForm, purchasePrice: value })} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">VK-Preis (CHF)</label>
-                <input type="number" min="0" step="0.01" value={itemForm.salePrice || ''} onChange={(e) => setItemForm({ ...itemForm, salePrice: parseFloat(e.target.value) || 0 })} className={inputCls} />
+                <NumberInput min="0" step="0.01" value={itemForm.salePrice || null} onValueChange={(value) => setItemForm({ ...itemForm, salePrice: value })} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">MwSt-Satz (%)</label>
@@ -305,11 +306,11 @@ export default function Lager() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Anfangsbestand</label>
-                <input type="number" min="0" step="1" value={itemForm.stock || ''} onChange={(e) => setItemForm({ ...itemForm, stock: parseInt(e.target.value) || 0 })} className={inputCls} />
+                <NumberInput min="0" step="1" value={itemForm.stock || null} onValueChange={(value) => setItemForm({ ...itemForm, stock: value })} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Mindestbestand</label>
-                <input type="number" min="0" step="1" value={itemForm.minStock || ''} onChange={(e) => setItemForm({ ...itemForm, minStock: parseInt(e.target.value) || 0 })} className={inputCls} />
+                <NumberInput min="0" step="1" value={itemForm.minStock || null} onValueChange={(value) => setItemForm({ ...itemForm, minStock: value })} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Kategorie</label>

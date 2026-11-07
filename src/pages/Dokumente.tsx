@@ -12,6 +12,7 @@ import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import { api } from '../services/api';
 import { useAuth } from '../store/AuthContext';
+import NumberInput from '../components/NumberInput';
 import {
   accounts,
   accountCategories,
@@ -565,12 +566,11 @@ const Dokumente = () => {
                     ? 'MwSt.'
                     : 'USt.'}
                   <div className="mt-1 flex items-center rounded-lg border border-slate-200 px-3 py-2">
-                    <input
-                      type="number"
+                    <NumberInput
                       step="0.1"
                       value={selectedDocument.draft.vatRate}
-                      onChange={(event) =>
-                        updateDraft({ vatRate: Number(event.target.value) })
+                      onValueChange={(value) =>
+                        updateDraft({ vatRate: value })
                       }
                       className="w-full bg-transparent outline-none"
                     />

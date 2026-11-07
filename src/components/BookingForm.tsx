@@ -7,6 +7,7 @@ import {
   type Account,
 } from '../data/chAccounts';
 import AccountCombobox from './AccountCombobox';
+import NumberInput from './NumberInput';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import { useAccounts } from '../hooks/useAccounts';
@@ -291,14 +292,12 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode }: BookingFor
         <label className="text-sm text-slate-600">
           {vatLabel} (%)
           <div className="mt-1 flex items-center rounded-lg border border-slate-200 px-3 py-2">
-            <input
-              type="number"
+            <NumberInput
               step="0.1"
               min="0"
               value={draft.vatRate}
               onFocus={(e) => e.target.select()}
-              onChange={(e) => {
-                const rate = parseFloat(e.target.value) || 0;
+              onValueChange={(rate) => {
                 setDraft((prev) => ({
                   ...prev,
                   vatRate: rate,

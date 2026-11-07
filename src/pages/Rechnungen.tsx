@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import SectionHeader from '../components/SectionHeader';
 import NotificationModal from '../components/NotificationModal';
+import NumberInput from '../components/NumberInput';
 import { api } from '../services/api';
 import type { Contact, Invoice, InvoiceLineItem, InvoiceStatus } from '../types';
 import { calcInvoiceTotals, exportInvoicePDF } from '../utils/invoicePdf';
@@ -128,16 +129,17 @@ const StockPickerDialog = ({
                     {' · '}CHF {item.salePrice.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
-                <input
-                  type="number" min={0.01} step={0.01}
+                <NumberInput
+                  min={0.01} step={0.01}
                   value={q}
-                  onChange={e => setQty(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 1 }))}
+                  onValueChange={value => setQty(prev => ({ ...prev, [item.id]: value }))}
                   className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-right text-sm outline-none focus:border-slate-400"
                   title="Menge"
                 />
                 <span className="w-8 text-xs text-slate-400">{item.unit}</span>
                 <button
                   onClick={() => pick(item)}
+                  disabled={q <= 0 || insufficient}
                   className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
                 >
                   Übernehmen
@@ -347,8 +349,8 @@ const InvoiceForm = ({
                             placeholder="Dienstleistung / Produkt" className={inputCls} />
                         </td>
                         <td className="py-1.5 px-1">
-                          <input type="number" min={0} step="0.01" value={item.quantity}
-                            onChange={e => setItem(i, 'quantity', parseFloat(e.target.value) || 0)}
+                          <NumberInput min={0} step="0.01" value={item.quantity}
+                            onValueChange={value => setItem(i, 'quantity', value)}
                             className={`${inputCls} text-right`} />
                         </td>
                         <td className="py-1.5 px-1">
@@ -356,8 +358,8 @@ const InvoiceForm = ({
                             placeholder="Stk." className={inputCls} />
                         </td>
                         <td className="py-1.5 px-1">
-                          <input type="number" min={0} step="0.01" value={item.unitPrice}
-                            onChange={e => setItem(i, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          <NumberInput min={0} step="0.01" value={item.unitPrice}
+                            onValueChange={value => setItem(i, 'unitPrice', value)}
                             className={`${inputCls} text-right`} />
                         </td>
                         <td className="py-1.5 px-1">

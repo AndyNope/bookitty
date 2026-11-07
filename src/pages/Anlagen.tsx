@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useBookkeeping } from '../store/BookkeepingContext';
+import NumberInput from '../components/NumberInput';
 
 /* ── Types ────────────────────────────────────────────────────────── */
 type DepreciationMethod = 'linear' | 'degressiv';
@@ -405,11 +406,11 @@ export default function Anlagen() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Kaufwert (CHF) *</label>
-                <input type="number" min="0" step="0.01" value={form.purchaseValue || ''} onChange={(e) => setField('purchaseValue', parseFloat(e.target.value) || 0)} className={inputCls} />
+                <NumberInput min="0" step="0.01" value={form.purchaseValue || null} onValueChange={(value) => setField('purchaseValue', value)} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Aktueller Buchwert (CHF)</label>
-                <input type="number" min="0" step="0.01" value={form.currentBookValue || ''} onChange={(e) => setField('currentBookValue', parseFloat(e.target.value) || 0)} className={inputCls} />
+                <NumberInput min="0" step="0.01" value={form.currentBookValue || null} onValueChange={(value) => setField('currentBookValue', value)} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Abschreibungsmethode</label>
@@ -421,12 +422,12 @@ export default function Anlagen() {
               {form.method === 'linear' ? (
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600">Nutzungsdauer (Jahre)</label>
-                  <input type="number" min="1" step="1" value={form.usefulLife} onChange={(e) => setField('usefulLife', parseInt(e.target.value) || 1)} className={inputCls} />
+                  <NumberInput min="1" step="1" value={form.usefulLife} onValueChange={(value) => setField('usefulLife', value)} className={inputCls} />
                 </div>
               ) : (
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600">Abschreibungssatz (%)</label>
-                  <input type="number" min="1" max="100" step="1" value={form.depreciationRate} onChange={(e) => setField('depreciationRate', parseFloat(e.target.value) || 20)} className={inputCls} />
+                  <NumberInput min="1" max="100" step="1" value={form.depreciationRate} onValueChange={(value) => setField('depreciationRate', value)} className={inputCls} />
                 </div>
               )}
               <div>

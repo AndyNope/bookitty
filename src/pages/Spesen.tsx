@@ -4,6 +4,7 @@ import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
 import SectionHeader from '../components/SectionHeader';
 import type { Expense, ExpenseCategory, ExpenseStatus } from '../types';
+import NumberInput from '../components/NumberInput';
 
 /* ── local mock helper ─────────────────────────────────────────────── */
 const STORAGE_KEY = 'bookitty.expenses';
@@ -336,7 +337,7 @@ export default function Spesen() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600">Betrag (CHF)</label>
-                  <input type="number" min="0" step="0.01" value={form.amount ?? ''} onChange={e => setForm(f => ({ ...f, amount: parseFloat(e.target.value) || 0 }))}
+                  <NumberInput min="0" step="0.01" value={form.amount ?? null} onValueChange={value => setForm(f => ({ ...f, amount: value }))}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import SectionHeader from '../components/SectionHeader';
 import NotificationModal from '../components/NotificationModal';
+import NumberInput from '../components/NumberInput';
 import { api } from '../services/api';
 import type { Contact, Offer, OfferStatus, Invoice, InvoiceLineItem } from '../types';
 import { calcInvoiceTotals } from '../utils/invoicePdf';
@@ -295,16 +296,16 @@ const OfferForm = ({
                           placeholder="Beschreibung" className={inputCls} />
                       </td>
                       <td className="py-1.5 px-1">
-                        <input type="number" min={0} step="0.01" value={item.quantity}
-                          onChange={e => setItem(i, 'quantity', parseFloat(e.target.value) || 0)}
+                        <NumberInput min={0} step="0.01" value={item.quantity}
+                          onValueChange={value => setItem(i, 'quantity', value)}
                           className={`${inputCls} text-right`} />
                       </td>
                       <td className="py-1.5 px-1">
                         <input value={item.unit} onChange={e => setItem(i, 'unit', e.target.value)} className={inputCls} />
                       </td>
                       <td className="py-1.5 px-1">
-                        <input type="number" min={0} step="0.01" value={item.unitPrice}
-                          onChange={e => setItem(i, 'unitPrice', parseFloat(e.target.value) || 0)}
+                        <NumberInput min={0} step="0.01" value={item.unitPrice}
+                          onValueChange={value => setItem(i, 'unitPrice', value)}
                           className={`${inputCls} text-right`} />
                       </td>
                       <td className="py-1.5 px-1">

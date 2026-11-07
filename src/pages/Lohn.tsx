@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import SectionHeader from '../components/SectionHeader';
+import NumberInput from '../components/NumberInput';
 
 // ── Swiss payroll rates 2025 ─────────────────────────────────────────────────
 const RATES = {
@@ -631,46 +632,46 @@ const Lohn = () => {
 
               <label className="text-sm text-slate-600">
                 Bruttolohn / Monat (CHF)
-                <input type="number" min="0" step="100"
+                <NumberInput min="0" step="100"
                   value={editEmp.grossSalary ?? 5000}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setEditEmp((prev) => ({ ...prev, grossSalary: parseFloat(e.target.value) || 0 }))}
+                  onValueChange={(value) => setEditEmp((prev) => ({ ...prev, grossSalary: value }))}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" />
               </label>
 
               <label className="text-sm text-slate-600">
                 NBUV AN (%)
-                <input type="number" min="0" step="0.01"
+                <NumberInput min="0" step="0.01"
                   value={editEmp.nbuv ?? 0.7}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setEditEmp((prev) => ({ ...prev, nbuv: parseFloat(e.target.value) || 0 }))}
+                  onValueChange={(value) => setEditEmp((prev) => ({ ...prev, nbuv: value }))}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" />
               </label>
 
               <label className="text-sm text-slate-600">
                 BVG / PK Anteil AN (%)
-                <input type="number" min="0" step="0.1"
+                <NumberInput min="0" step="0.1"
                   value={editEmp.bvgAN ?? 3}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setEditEmp((prev) => ({ ...prev, bvgAN: parseFloat(e.target.value) || 0 }))}
+                  onValueChange={(value) => setEditEmp((prev) => ({ ...prev, bvgAN: value }))}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" />
               </label>
 
               <label className="text-sm text-slate-600">
                 BVG / PK Anteil AG (%)
-                <input type="number" min="0" step="0.1"
+                <NumberInput min="0" step="0.1"
                   value={editEmp.bvgAG ?? 3}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setEditEmp((prev) => ({ ...prev, bvgAG: parseFloat(e.target.value) || 0 }))}
+                  onValueChange={(value) => setEditEmp((prev) => ({ ...prev, bvgAG: value }))}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" />
               </label>
 
               <label className="text-sm text-slate-600">
                 KK-Prämienanteil AN (CHF/Mt.)
-                <input type="number" min="0" step="1"
+                <NumberInput min="0" step="1"
                   value={editEmp.kkAbzug ?? 0}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setEditEmp((prev) => ({ ...prev, kkAbzug: parseFloat(e.target.value) || 0 }))}
+                  onValueChange={(value) => setEditEmp((prev) => ({ ...prev, kkAbzug: value }))}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" />
               </label>
             </div>

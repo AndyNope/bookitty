@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
+import NumberInput from '../components/NumberInput';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 type TimeEntry = {
@@ -303,8 +304,8 @@ export default function Zeiterfassung() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Stunden</label>
-                <input type="number" min="0.25" step="0.25" value={form.hours}
-                  onChange={e => setForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))} className={inputCls} />
+                <NumberInput min="0.25" step="0.25" value={form.hours}
+                  onValueChange={value => setForm(f => ({ ...f, hours: value }))} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Kunde</label>
@@ -322,8 +323,8 @@ export default function Zeiterfassung() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Stundensatz</label>
-                <input type="number" min="0" step="5" value={form.hourlyRate}
-                  onChange={e => setForm(f => ({ ...f, hourlyRate: parseFloat(e.target.value) || 0 }))} className={inputCls} />
+                <NumberInput min="0" step="5" value={form.hourlyRate}
+                  onValueChange={value => setForm(f => ({ ...f, hourlyRate: value }))} className={inputCls} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Währung</label>
