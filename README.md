@@ -170,7 +170,9 @@ Die Swiss-GAAP-FER-Seite bietet einen ungeprüften PDF-Arbeitsentwurf auf Basis 
 
 ### IMAP-Sicherheit
 
-Der optionale IMAP-Import benötigt einen separaten base64-kodierten 32-Byte-Schlüssel in `BOOKITTY_IMAP_KEY` oder `IMAP_ENCRYPTION_KEY` sowie eine explizite Serverfreigabe in `BOOKITTY_IMAP_ALLOWED_SERVERS` als kommagetrennte `host:port`-Liste oder im Array `IMAP_ALLOWED_SERVERS`. Ohne beide Einstellungen ist der Import gesperrt. Nur vertrauenswürdige Mailserver freigeben; die Verbindung benötigt TLS mit gültigem Zertifikat.
+Der optionale IMAP-Import benötigt einen separaten base64-kodierten 32-Byte-Schlüssel in `BOOKITTY_IMAP_KEY` oder `IMAP_ENCRYPTION_KEY` sowie die PHP-Erweiterung `imap`. `merkur.kreativmedia.ch:993` ist für TLS freigegeben; weitere Server können in `BOOKITTY_IMAP_ALLOWED_SERVERS` als kommagetrennte `host:port`-Liste oder im Array `IMAP_ALLOWED_SERVERS` ergänzt werden. Im Serverfeld den Hostnamen, nicht die E-Mail-Adresse, eintragen; der Benutzername ist die vollständige Postfachadresse. Der lokale Docker-Container enthält die optionale IMAP-Erweiterung nicht. Der produktive PHP-Host muss sie für den Mailabruf aktiviert haben. Die Verbindung prüft das TLS-Zertifikat.
+
+Die öffentlichen Support- und Feedbackformulare versenden an festgelegte Bookitty-Adressen. Ein sessiongebundenes Rechen-Captcha, Origin-Prüfung, Honeypot und ein Limit von fünf Nachrichten pro Quell-IP und Stunde begrenzen automatisierten Missbrauch. Das eigene Captcha ist kein Ersatz für einen externen CAPTCHA-Dienst bei gezielten oder verteilten Angriffen.
 
 Bestehende Klartextpasswörter werden beim nächsten Speichern oder Abrufen der jeweiligen IMAP-Konfiguration verschlüsselt übernommen. Bis dahin und in bestehenden Backups bleiben sie unverschlüsselt; diese Daten und Backups entsprechend schützen. Den IMAP-Schlüssel unabhängig vom 2FA-Schlüssel sicher aufbewahren und sichern.
 

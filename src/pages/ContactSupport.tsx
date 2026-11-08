@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -8,11 +8,35 @@ const ContactSupport = ({ mode }: { mode: 'contact' | 'support' }) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [website, setWebsite] = useState('');
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captchaQuestion, setCaptchaQuestion] = useState('');
+  const [captchaLoading, setCaptchaLoading] = useState(true);
+  const [captchaError, setCaptchaError] = useState(false);
+  const [captchaVersion, setCaptchaVersion] = useState(0);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const isSupport = kind === 'support';
   const recipient = isSupport ? 'support@bookitty.ch' : 'contact@bookitty.ch';
+
+  useEffect(() => {
+    let active = true;
+    setCaptchaLoading(true);
+    api.contact.challenge().then(({ question }) => {
+      if (active) {
+        setCaptchaQuestion(question);
+        setCaptchaError(false);
+      }
+    }).catch(() => {
+      if (active) {
+        setCaptchaQuestion('');
+        setCaptchaError(true);
+      }
+    }).finally(() => {
+      if (active) setCaptchaLoading(false);
+    });
+    return () => { active = false; };
+  }, [captchaVersion]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -20,11 +44,14 @@ const ContactSupport = ({ mode }: { mode: 'contact' | 'support' }) => {
     setSending(true);
     setError('');
     try {
-      await api.contact.submit({ kind, name, email, message, website });
+      await api.contact.submit({ kind, name, email, message, website, captchaAnswer });
       setSent(true);
       setMessage('');
+      setCaptchaAnswer('');
     } catch (submitError) {
       setError((submitError as Error).message || 'Nachricht konnte nicht gesendet werden.');
+      setCaptchaAnswer('');
+      setCaptchaVersion((version) => version + 1);
     } finally {
       setSending(false);
     }
@@ -89,6 +116,11 @@ const ContactSupport = ({ mode }: { mode: 'contact' | 'support' }) => {
                 <textarea required maxLength={1500} rows={6} value={message} onChange={(event) => setMessage(event.target.value)} className="mt-1 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" />
                 <span className="mt-1 block text-right text-xs font-normal text-slate-500">{message.length}/1500</span>
               </label>
+              <label className="block max-w-xs text-sm font-medium text-slate-700">
+                {captchaLoading ? 'Menschlichkeitsprüfung wird geladen…' : captchaQuestion || 'Menschlichkeitsprüfung nicht verfügbar'}
+                <input required inputMode="numeric" pattern="[0-9]*" maxLength={2} autoComplete="off" value={captchaAnswer} onChange={(event) => setCaptchaAnswer(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" />
+              </label>
+              {captchaError && <button type="button" onClick={() => setCaptchaVersion((version) => version + 1)} className="text-left text-sm font-medium text-emerald-800 underline underline-offset-2">Sicherheitsaufgabe erneut laden</button>}
               <label aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
                 Webseite
                 <input tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} />
@@ -97,7 +129,7 @@ const ContactSupport = ({ mode }: { mode: 'contact' | 'support' }) => {
                 Versand an <a href={`mailto:${recipient}`} className="font-medium text-emerald-800 underline underline-offset-2">{recipient}</a>. Bitte keine Passwörter, vollständigen Zahlungsdaten oder vertraulichen Belege mitsenden.
               </p>
               {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-              <button type="submit" disabled={sending} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-wait disabled:opacity-50">
+              <button type="submit" disabled={sending || captchaLoading || !captchaQuestion} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-wait disabled:opacity-50">
                 {sending ? 'Wird gesendet…' : 'Nachricht senden'}
               </button>
             </>

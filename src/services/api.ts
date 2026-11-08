@@ -286,7 +286,8 @@ export const api = {
   },
 
   contact: {
-    submit: (data: { kind: 'support' | 'idea'; name: string; email: string; message: string; website: string }) =>
+    challenge: () => apiFetch<{ question: string }>('/contact-challenge.php', { credentials: 'include' }),
+    submit: (data: { kind: 'support' | 'idea'; name: string; email: string; message: string; website: string; captchaAnswer: string }) =>
       apiFetch<{ ok: boolean; message: string }>('/contact.php', {
         method: 'POST',
         credentials: 'include',

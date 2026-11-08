@@ -576,8 +576,8 @@ const Einstellungen = () => {
           )}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Field label="IMAP-Server" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="mail.beispiel.ch" />
-              <p className="mt-1 text-xs text-slate-400">Server und Port müssen für Bookitty freigegeben sein. Die Verbindung verwendet TLS mit Zertifikatsprüfung.</p>
+              <Field label="IMAP-Server" value={imap.host} onChange={(v) => setImap((p) => ({ ...p, host: v }))} placeholder="merkur.kreativmedia.ch" />
+              <p className="mt-1 text-xs text-slate-400">Freigegebener Host: merkur.kreativmedia.ch · SSL-Port 993. Hier den Hostnamen eintragen, nicht die E-Mail-Adresse. Der Benutzername ist die vollständige Postfachadresse; TLS-Zertifikat wird geprüft.</p>
             </div>
             <Field label="Port" value={imap.port} onChange={(v) => setImap((p) => ({ ...p, port: v }))} placeholder="993" />
             <Field label="Benutzername / E-Mail" value={imap.username} onChange={(v) => setImap((p) => ({ ...p, username: v }))} placeholder="rechnung@firma.ch" />

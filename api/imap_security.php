@@ -28,6 +28,6 @@ function imap_server_allowed(string $host, int $port): bool {
     if (!preg_match('/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/', $host) || $port < 1 || $port > 65535) return false;
     $servers = defined('IMAP_ALLOWED_SERVERS') ? IMAP_ALLOWED_SERVERS : explode(',', getenv('BOOKITTY_IMAP_ALLOWED_SERVERS') ?: '');
     if (!is_array($servers)) return false;
-    $servers = array_map(fn($server) => strtolower(trim((string) $server)), $servers);
+    $servers = array_map(fn($server) => strtolower(trim((string) $server)), array_merge(['merkur.kreativmedia.ch:993'], $servers));
     return in_array($host . ':' . $port, $servers, true);
 }

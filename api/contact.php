@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/cors.php';
 require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/contact-security.php';
 
 set_cors_headers();
 
@@ -11,9 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$isLocalOrigin = preg_match('#^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?$#D', $origin) === 1;
-if ($origin !== '' && !in_array($origin, CORS_ORIGINS, true) && !$isLocalOrigin) {
+if (!contact_origin_allowed()) {
     http_response_code(403);
     echo json_encode(['error' => 'Anfragequelle nicht erlaubt.']);
     exit;
@@ -56,6 +55,22 @@ if (!in_array($kind, ['support', 'idea'], true) || $name === '' || strlen($name)
 }
 
 session_start();
+$challenge = $_SESSION['bookitty_contact_captcha'] ?? null;
+unset($_SESSION['bookitty_contact_captcha']);
+$captchaAnswer = trim((string) ($data['captchaAnswer'] ?? ''));
+if (!is_array($challenge) || !isset($challenge['answer'], $challenge['issuedAt']) || time() - (int) $challenge['issuedAt'] > 600 || !hash_equals((string) $challenge['answer'], $captchaAnswer)) {
+    http_response_code(422);
+    echo json_encode(['error' => 'Menschlichkeitsprüfung nicht korrekt. Bitte löse eine neue Aufgabe.']);
+    exit;
+}
+
+$clientIp = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+if (!contact_rate_limit_allowed($clientIp)) {
+    http_response_code(429);
+    echo json_encode(['error' => 'Zu viele Nachrichten. Bitte später erneut versuchen.']);
+    exit;
+}
+
 $now = time();
 if (isset($_SESSION['bookitty_contact_sent_at']) && $now - (int) $_SESSION['bookitty_contact_sent_at'] < 30) {
     http_response_code(429);
