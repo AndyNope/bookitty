@@ -9,6 +9,11 @@
     "test:fer": "node --import tsx --test tests/fer-preview.test.ts",
     "test:documents": "node --import tsx --test tests/document-learning.test.ts",
     "test:loading": "tsx --tsconfig tsconfig.app.json --test tests/loading-logo.test.tsx",
+    "benchmark:invoices": "tsx tests/invoice-benchmark.ts",
+    "test:invoice-parser": "tsx tests/invoice-benchmark.ts --check",
+    "test:forex": "node --import tsx --test tests/forex.test.ts tests/currencies.test.ts",
+    "test:reports": "node --import tsx --test tests/financial-report.test.ts",
+    "test:dashboard": "node --import tsx --test tests/dashboard-metrics.test.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },

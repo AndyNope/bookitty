@@ -2,6 +2,7 @@ import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { BookingDraft } from '../types';
 import { accounts, formatAccount, getCategoryLabel } from '../data/chAccounts';
+import { availableCurrencies } from './currencies';
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -22,6 +23,16 @@ const normalizeNumbers = (text: string): string =>
   text.replace(/(\d)[\u2019'](\d{3})/g, '$1$2');
 
 const findCurrency = (text: string) => {
+  const supported = new Set(availableCurrencies(true));
+  const codesNearAmounts = (value: string) => {
+    const matches = value.matchAll(/\b([A-Z]{3})\s*\d|\d(?:[\d.,'’]*\d)?\s*([A-Z]{3})\b/g);
+    return [...new Set(Array.from(matches, (match) => match[1] || match[2]).filter((code) => supported.has(code)))];
+  };
+  const totalLines = text.split(/\r?\n/).filter((line) => /total|gesamt|rechnungsbetrag|endbetrag|zahlbetrag|amount due|balance due/i.test(line)).join('\n');
+  const totalCodes = codesNearAmounts(totalLines);
+  if (totalCodes.length === 1) return totalCodes[0];
+  const codes = codesNearAmounts(text);
+  if (codes.length === 1) return codes[0];
   if (/[€]|\bEUR\b/i.test(text)) return 'EUR';
   if (/\bCHF\b|SFr|Fr\./i.test(text)) return 'CHF';
   if (/\bUSD\b|\$/.test(text)) return 'USD';
@@ -30,6 +41,9 @@ const findCurrency = (text: string) => {
 };
 
 const detectPaymentStatus = (text: string) => {
+  if (/\bunbezahlt\b|\b(?:noch\s+)?nicht\s+bezahlt\b|\bunpaid\b|\bnot\s+(?:yet\s+)?paid\b/i.test(text)) {
+    return 'Offen';
+  }
   if (/zahlung geleistet|zahlung erhalten|bezahlt|paid|payment received|quittung/i.test(text)) {
     return 'Bezahlt';
   }
@@ -107,6 +121,7 @@ const findAmount = (rawText: string) => {
   const lines = text.split(/\n|\r/).map((line) => line.trim());
 
   for (const line of lines) {
+    if (/^\s*Nettobetrag\b/i.test(line)) continue;
     const value = extractAmountFromLine(line);
     if (value !== undefined) return value;
   }
@@ -117,6 +132,13 @@ const findAmount = (rawText: string) => {
     if (/gesamtbetrag|gesamttotal|rechnungstotal|rechnungsbetrag|endbetrag|endsumme|total|zahlbetrag|f.lliger\s+betrag|zu\s+(bezahlender|zahlender)\s+betrag/i.test(lines[i])) {
       const nextAmount = lines[i + 1]?.match(/^\s*(?:[€$£]|CHF|EUR|USD|GBP)?\s*([0-9]+[.,][0-9]{2})\s*$/);
       if (nextAmount) return currencyToNumber(nextAmount[1]);
+    }
+  }
+
+  for (const line of lines) {
+    if (/^\s*Nettobetrag\b/i.test(line)) {
+      const value = extractAmountFromLine(line);
+      if (value !== undefined) return value;
     }
   }
 

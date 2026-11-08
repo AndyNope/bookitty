@@ -1,6 +1,7 @@
 import type { Booking, Contact, DocumentImport, Expense, Invoice, Offer, TeamMember, Invitation, UserRole } from '../types';
 import type { Account } from '../data/chAccounts';
 import type { CompanyPermission } from '../utils/companyPermissions';
+import type { ForexSnapshot } from '../utils/forex';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // In development (.env.development) this points to the remote server so you can
@@ -182,6 +183,11 @@ export const api = {
     remove: (code: string)   => apiFetch<{ ok: boolean }>('/custom_accounts.php', { method: 'DELETE', body: JSON.stringify({ code }) }),
   },
 
+  currencySettings: {
+    get: () => apiFetch<{ enabled: boolean }>('/currency-settings.php'),
+    save: (enabled: boolean) => apiFetch<{ ok: boolean }>('/currency-settings.php', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+  },
+
   contacts: {
     list:   ()               => apiFetch<Contact[]>('/contacts.php'),
     create: (c: Contact)     => apiFetch<{ ok: boolean; id: string }>('/contacts.php', { method: 'POST',   body: JSON.stringify(c) }),
@@ -246,7 +252,7 @@ export const api = {
   },
 
   forex: {
-    rates: () => apiFetch<{ base: string; date: string; rates: Record<string, number>; source: string }>('/forex.php'),
+    rates: (date?: string) => apiFetch<ForexSnapshot>(`/forex.php${date ? `?date=${encodeURIComponent(date)}` : ''}`),
   },
 
   portal: {

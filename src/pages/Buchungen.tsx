@@ -67,10 +67,9 @@ const Buchungen = () => {
   const overdueBookings = bookings.filter(
     (b) => b.paymentStatus === 'Offen' && b.dueDate && b.dueDate < today,
   );
-  const overdueSum = overdueBookings.reduce((s, b) => s + b.amount, 0);
-  const primaryCurrency = bookings[0]?.currency ?? 'CHF';
-  const fmt = (v: number) =>
-    new Intl.NumberFormat('de-CH', { style: 'currency', currency: primaryCurrency }).format(v);
+  const overdueCurrencies = [...new Set(overdueBookings.map((booking) => booking.currency.toUpperCase()))];
+  const overdueSum = overdueCurrencies.length === 1 ? overdueBookings.reduce((sum, booking) => sum + booking.amount, 0) : null;
+  const overdueLabel = overdueSum === null ? 'mehrere Währungen' : new Intl.NumberFormat('de-CH', { style: 'currency', currency: overdueCurrencies[0] }).format(overdueSum);
 
   // Kitty-Buchungsvorschlag via URL-Params öffnen
   useEffect(() => {
@@ -166,7 +165,7 @@ const Buchungen = () => {
           </svg>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-rose-800">
-              {overdueBookings.length} überfällige Zahlung{overdueBookings.length > 1 ? 'en' : ''} – {fmt(overdueSum)} ausstehend
+              {overdueBookings.length} überfällige Zahlung{overdueBookings.length > 1 ? 'en' : ''} – {overdueLabel} ausstehend
             </p>
             <ul className="mt-1 space-y-0.5">
               {overdueBookings.slice(0, 5).map((b) => {

@@ -16,6 +16,8 @@ import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import { useAccounts } from '../hooks/useAccounts';
 import { suggestForDraft, type KittySuggestion } from '../utils/kittySuggester';
 import { useForex, toCHF } from '../hooks/useForex';
+import { useCurrencySettings } from '../hooks/useCurrencySettings';
+import { availableCurrencies } from '../utils/currencies';
 
 const initialDraft: BookingDraft = {
   date: new Date().toISOString().split('T')[0],
@@ -57,7 +59,9 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
   const { accounts, loadError, loading: accountsLoading } = useAccounts();
   const [kittySuggestion, setKittySuggestion] = useState<KittySuggestion | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { rates } = useForex();
+  const { rates, rateDates } = useForex();
+  const currencySettings = useCurrencySettings();
+  const indicativeCHF = toCHF(draft.amount, draft.currency, rates);
   const favoriteFor = (value: string) => favorites.find((favorite) => accountKey(favorite) === accountKey(value));
 
   // Proactive Kitty feedback – debounced 700 ms after user stops typing
@@ -123,6 +127,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
       </div>
       <div className="flex-1 overflow-y-auto px-6 py-4">
       {accountsLoading && <div className="mb-4"><LoadingIndicator text="Konten werden geladen…" size="small" /></div>}
+      {currencySettings.error && <p role="alert" className="mb-4 text-sm text-rose-700">{currencySettings.error}</p>}
       {loadError && <p role="alert" className="mb-4 text-sm text-rose-700">{loadError}</p>}
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm text-slate-600">
@@ -292,7 +297,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
           />
           {draft.currency !== 'CHF' && draft.amount > 0 && (
             <span className="mt-1 block text-xs text-slate-400">
-              ≈ CHF {toCHF(draft.amount, draft.currency, rates).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {indicativeCHF === null ? 'Kein Referenzkurs verfügbar.' : `≈ CHF ${indicativeCHF.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Referenzkurs ${rateDates[draft.currency] ?? ''}`}
             </span>
           )}
         </label>
@@ -323,16 +328,10 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
             onChange={(event) => {
               const nextCurrency = event.target.value;
               updateField('currency', nextCurrency);
-              if (draft.vatRate === 0) {
-                updateField('vatRate', nextCurrency === 'CHF' ? 7.7 : nextCurrency === 'EUR' ? 19 : 0);
-              }
             }}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
           >
-            <option value="EUR">EUR</option>
-            <option value="CHF">CHF</option>
-            <option value="USD">USD</option>
-            <option value="GBP">GBP</option>
+            {availableCurrencies(currencySettings.enabled, draft.currency).map((currency) => <option key={currency} value={currency}>{currency}</option>)}
           </select>
         </label>
         <label className="text-sm text-slate-600">

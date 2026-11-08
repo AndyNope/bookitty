@@ -15,6 +15,7 @@ import {
 import { findTemplate, learnedFields } from './templateStore';
 import { getCompany } from './companyStore';
 import { documentFingerprint, encodeDocumentIdentity } from './documentIdentity';
+import { parseSwissQr } from './swissQr';
 
 const applyOwnInvoiceDetection = (draft: BookingDraft, text: string): void => {
   const company = getCompany();
@@ -33,33 +34,6 @@ const applyOwnInvoiceDetection = (draft: BookingDraft, text: string): void => {
 };
 
 const reader = new BrowserMultiFormatReader();
-
-const parseSwissQr = (qrText: string): Partial<BookingDraft> | null => {
-  const lines = qrText.split(/\r?\n/).map((line) => line.trim());
-  if (!lines[0]?.startsWith('SPC')) return null;
-
-  let amount: number | undefined = lines[18] ? Number(lines[18].replace(',', '.')) : undefined;
-  let currency: string | undefined = lines[19] || undefined;
-
-  // Fallback: scan for a currency-code line and treat the line before it as the amount
-  if (!Number.isFinite(amount) || !amount || !currency) {
-    for (let i = 1; i < lines.length; i++) {
-      if (/^(CHF|EUR|USD|GBP)$/.test(lines[i])) {
-        const candidate = Number(lines[i - 1]?.replace(',', '.'));
-        if (Number.isFinite(candidate) && candidate > 0) {
-          amount = candidate;
-          currency = lines[i];
-          break;
-        }
-      }
-    }
-  }
-
-  return {
-    amount: Number.isFinite(amount) && (amount ?? 0) > 0 ? amount : undefined,
-    currency: currency || undefined,
-  };
-};
 
 const decodeQrFromImage = async (imageUrl: string) => {
   try {

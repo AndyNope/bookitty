@@ -13,14 +13,14 @@ $makeToken = static function (int $user, ?int $company = null): string {
     if ($company !== null) $claims['company_id'] = $company;
     return jwt_encode($claims, 'isolated-test-jwt-secret');
 };
-$request = static function (string $endpoint, string $token = '', ?array $payload = null, ?string $signature = null) use ($base): array {
+$request = static function (string $endpoint, string $token = '', ?array $payload = null, ?string $signature = null, string $method = 'POST') use ($base): array {
     $curl = curl_init($base . '/' . $endpoint);
     $headers = ['Content-Type: application/json'];
     if ($token !== '') $headers[] = 'Authorization: Bearer ' . $token;
     if ($signature !== null) $headers[] = 'Stripe-Signature: ' . $signature;
     curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => 5]);
     if ($payload !== null) {
-        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload));
     }
     $body = curl_exec($curl);
@@ -56,9 +56,26 @@ $check($status === 200, 'Firmenmitglied konnte Vorlage nicht ergänzen');
 $check($status === 200 && ($rules[$pattern]['account'] ?? '') === '4400 Aufwand'
     && ($rules[$pattern]['contraAccount'] ?? '') === '1020 Bank' && !isset($rules[$pattern]['amount']), 'Vorlagenkorrekturen nicht zusammengeführt');
 $pdo->exec("INSERT INTO billing_accounts (company_id, plan_code, subscription_status) VALUES (2, 'solo', 'active')");
+[$status, $settings] = $request('currency-settings.php', $owner);
+$check($status === 200 && $settings['enabled'] === false, 'Währungen standardmässig nicht deaktiviert');
+[$status] = $request('currency-settings.php', $owner, ['enabled' => true], null, 'PUT');
+$check($status === 200, 'Währungseinstellung nicht gespeichert');
+[$status, $settings] = $request('currency-settings.php', $member);
+$check($status === 200 && $settings['enabled'] === true, 'Firmenmitglied sieht Währungseinstellung nicht');
+[$status, $settings] = $request('currency-settings.php', $makeToken(2));
+$check($status === 200 && $settings['enabled'] === false, 'Währungseinstellung nicht firmengetrennt');
+$pdo->exec("INSERT INTO company_roles (id, company_id, name, base_role, permissions_json) VALUES (1, 1, 'Belege', 'buchhalter', '[\"belege\"]')");
+$pdo->exec('UPDATE company_memberships SET custom_role_id=1 WHERE company_id=1 AND user_id=2');
+[$status] = $request('currency-settings.php', $member);
+$check($status === 200, 'Belegrolle kann Währungseinstellung nicht lesen');
+[$status] = $request('currency-settings.php', $member, ['enabled' => false], null, 'PUT');
+$check($status === 403, 'Belegrolle kann Währungseinstellung ändern');
+$pdo->exec('UPDATE company_memberships SET custom_role_id=NULL WHERE company_id=1 AND user_id=2');
 [$status, $otherRules] = $request('templates.php', $makeToken(2));
 $check($status === 200 && empty($otherRules), 'Vorlage einer anderen Firma sichtbar');
 $pdo->exec("UPDATE company_memberships SET role='readonly' WHERE company_id=1 AND user_id=2");
+[$status] = $request('currency-settings.php', $member, ['enabled' => false], null, 'PUT');
+$check($status === 403, 'Nur-Lesen-Mitglied kann Währungseinstellung ändern');
 [$status] = $request('templates.php', $member, ['pattern' => $pattern, 'template' => ['contraAccount' => '2000 Kreditoren']]);
 $check($status === 403, 'Nur-Lesen-Mitglied konnte Vorlage ändern');
 $pdo->exec("UPDATE company_memberships SET role='buchhalter' WHERE company_id=1 AND user_id=2");

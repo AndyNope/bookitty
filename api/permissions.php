@@ -6,6 +6,7 @@ function authorize_company_permissions(?array $permissions): void {
     $script = basename($_SERVER['SCRIPT_NAME'] ?? '');
     $always = ['me.php', 'companies.php', 'two-factor.php'];
     if (in_array($script, $always, true)) return;
+    if ($script === 'currency-settings.php' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') return;
     if ($script === 'confirm_document.php' && in_array('belege', $permissions, true) && in_array('buchhaltung', $permissions, true)) return;
     $groups = [
         'bookings.php' => 'buchhaltung', 'custom_accounts.php' => 'buchhaltung',
@@ -14,7 +15,7 @@ function authorize_company_permissions(?array $permissions): void {
         'documents.php' => 'belege', 'upload.php' => 'belege', 'file.php' => 'belege',
         'templates.php' => 'belege', 'imap.php' => 'belege', 'document-learning.php' => 'belege',
         'expenses.php' => 'personal', 'chat.php' => 'kitty',
-        'company.php' => 'einstellungen', 'billing.php' => 'einstellungen', 'team.php' => 'einstellungen', 'roles.php' => 'einstellungen', 'activity.php' => 'einstellungen',
+        'company.php' => 'einstellungen', 'currency-settings.php' => 'einstellungen', 'billing.php' => 'einstellungen', 'team.php' => 'einstellungen', 'roles.php' => 'einstellungen', 'activity.php' => 'einstellungen',
     ];
     $group = $groups[$script] ?? null;
     if ($script === 'company.php' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' &&

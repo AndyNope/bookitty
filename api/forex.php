@@ -1,56 +1,57 @@
 <?php
-/**
- * GET /api/forex.php
- * Returns CHF-based exchange rates for major currencies.
- * Fetches from open.er-api.com, caches in /tmp for 23 hours.
- */
+require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/cors.php';
+require_once __DIR__ . '/forex-lib.php';
 
 set_cors_headers();
 header('Content-Type: application/json; charset=utf-8');
 
-$cacheFile = sys_get_temp_dir() . '/bookitty_forex.json';
-$ttl       = 23 * 3600; // 23 hours
-
-// Return cached if fresh
-if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $ttl) {
-    $cached = file_get_contents($cacheFile);
-    if ($cached) { echo $cached; exit; }
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method Not Allowed']);
+    exit;
 }
 
-// Fallback rates in case the external API is unavailable
-$fallback = [
-    'base'        => 'CHF',
-    'date'        => date('Y-m-d'),
-    'rates'       => ['EUR' => 1.04, 'USD' => 1.12, 'GBP' => 0.88, 'JPY' => 170.0, 'CAD' => 1.52, 'AUD' => 1.71],
-    'source'      => 'fallback',
-];
+$date = $_GET['date'] ?? gmdate('Y-m-d');
+if (!is_string($date) || !valid_forex_date($date) || $date < '1999-01-04') {
+    http_response_code(400);
+    echo json_encode(['error' => 'Ungültiges Kursdatum.']);
+    exit;
+}
 
-// Try to fetch live data — CHF as base via open.er-api.com (free, no key)
-$url = 'https://open.er-api.com/v6/latest/CHF';
-$ctx = stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true]]);
-$raw = @file_get_contents($url, false, $ctx);
-
-if ($raw) {
-    $data = json_decode($raw, true);
-    if (!empty($data['rates']) && $data['result'] === 'success') {
-        $currencies = ['EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD'];
-        $rates = [];
-        foreach ($currencies as $c) {
-            if (isset($data['rates'][$c])) $rates[$c] = round($data['rates'][$c], 6);
-        }
-        $result = [
-            'base'   => 'CHF',
-            'date'   => $data['time_last_update_utc'] ?? date('Y-m-d'),
-            'rates'  => $rates,
-            'source' => 'live',
-        ];
-        $json = json_encode($result);
-        file_put_contents($cacheFile, $json);
-        echo $json;
+$cacheFile = sys_get_temp_dir() . '/bookitty_forex_ecb_' . hash('sha256', $date) . '.json';
+$ttl = $date === gmdate('Y-m-d') ? 3600 : 7 * 86400;
+if (is_file($cacheFile) && time() - filemtime($cacheFile) < $ttl) {
+    $cached = json_decode((string) file_get_contents($cacheFile), true);
+    if (is_array($cached) && ($cached['requestedDate'] ?? '') === $date && !empty($cached['rates'])) {
+        echo json_encode($cached);
         exit;
     }
 }
 
-// Serve fallback
-echo json_encode($fallback);
+$url = 'https://api.frankfurter.dev/v2/rates?' . http_build_query(['base' => 'CHF', 'providers' => 'ecb', 'date' => $date]);
+$curl = curl_init($url);
+curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10, CURLOPT_CONNECTTIMEOUT => 5]);
+$raw = curl_exec($curl);
+$status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+curl_close($curl);
+$rows = is_string($raw) ? json_decode($raw, true) : null;
+if ($status !== 200 || !is_array($rows) || !array_is_list($rows)) {
+    http_response_code(503);
+    echo json_encode(['error' => 'Referenzkurse sind derzeit nicht verfügbar.']);
+    exit;
+}
+$normalized = normalize_forex_rows($rows, $date);
+if (!$normalized['rates']) {
+    http_response_code(503);
+    echo json_encode(['error' => 'Für dieses Datum sind keine Referenzkurse verfügbar.']);
+    exit;
+}
+$result = [
+    'base' => 'CHF', 'date' => max($normalized['rateDates']), 'requestedDate' => $date,
+    'rates' => $normalized['rates'], 'rateDates' => $normalized['rateDates'],
+    'source' => 'ECB via Frankfurter', 'retrievedAt' => gmdate('c'),
+];
+$encoded = json_encode($result);
+@file_put_contents($cacheFile, $encoded, LOCK_EX);
+echo $encoded;

@@ -1,62 +1,45 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { validForexSnapshot, type ForexRates, type ForexSnapshot } from '../utils/forex';
 
-export type ForexRates = Record<string, number>; // e.g. { EUR: 1.04, USD: 1.12 }
+export { toCHF } from '../utils/forex';
+export type { ForexRates } from '../utils/forex';
 
-const CACHE_KEY = 'bookitty.forex';
-const CACHE_TTL = 23 * 60 * 60 * 1000; // 23 hours in ms
-
-const FALLBACK_RATES: ForexRates = {
-  EUR: 1.04, USD: 1.12, GBP: 0.88, JPY: 170.0, CAD: 1.52, AUD: 1.71,
-};
-
-/** Convert an amount in `currency` to CHF using the given rates (base = CHF).
- *  If currency === 'CHF', returns amount unchanged.
- *  Rates are "how many units of foreign currency per 1 CHF",
- *  so CHF amount = foreign amount / rate. */
-export const toCHF = (amount: number, currency: string, rates: ForexRates): number => {
-  if (currency === 'CHF') return amount;
-  const rate = rates[currency.toUpperCase()];
-  if (!rate) return amount;
-  return amount / rate;
-};
+const CACHE_KEY = 'bookitty.forex.ecb.';
+const CACHE_TTL = 60 * 60 * 1000;
 
 /** Format a number as currency string with locale de-CH. */
 export const formatCurrency = (amount: number, currency = 'CHF'): string =>
   new Intl.NumberFormat('de-CH', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount);
 
 /** Hook: loads CHF-based exchange rates, caches locally. */
-export function useForex() {
-  const [rates, setRates]     = useState<ForexRates>(FALLBACK_RATES);
-  const [loading, setLoading] = useState(false);
-  const [date, setDate]       = useState<string>('');
-
+export function useForex(requestedDate = new Date().toISOString().slice(0, 10), enabled = true) {
+  const [state, setState] = useState<{ requestedDate: string; snapshot: ForexSnapshot | null; error: string }>({ requestedDate: '', snapshot: null, error: '' });
   useEffect(() => {
-    // Try localStorage cache first
+    if (!enabled) return;
+    let active = true;
     try {
-      const cached = localStorage.getItem(CACHE_KEY);
+      const cached = localStorage.getItem(CACHE_KEY + requestedDate);
       if (cached) {
-        const parsed = JSON.parse(cached) as { rates: ForexRates; date: string; ts: number };
-        if (Date.now() - parsed.ts < CACHE_TTL) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setRates(parsed.rates);
-          setDate(parsed.date);
+        const parsed = JSON.parse(cached) as { snapshot: ForexSnapshot; ts: number };
+        if (Date.now() - parsed.ts < CACHE_TTL && validForexSnapshot(parsed.snapshot, requestedDate)) {
+          setState({ requestedDate, snapshot: parsed.snapshot, error: '' });
           return;
         }
       }
     } catch { /* ignore */ }
-
-    // Fetch live
-    setLoading(true);
-    api.forex.rates()
+    api.forex.rates(requestedDate)
       .then(data => {
-        setRates(data.rates);
-        setDate(data.date ?? '');
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ rates: data.rates, date: data.date, ts: Date.now() }));
+        if (!validForexSnapshot(data, requestedDate)) throw new Error('Ungültige Referenzkurse.');
+        if (!active) return;
+        setState({ requestedDate, snapshot: data, error: '' });
+        try { localStorage.setItem(CACHE_KEY + requestedDate, JSON.stringify({ snapshot: data, ts: Date.now() })); } catch { /* ignore */ }
       })
-      .catch(() => { /* keep fallback */ })
-      .finally(() => setLoading(false));
-  }, []);
+      .catch(() => { if (active) setState({ requestedDate, snapshot: null, error: 'Referenzkurse sind derzeit nicht verfügbar.' }); });
+    return () => { active = false; };
+  }, [requestedDate, enabled]);
 
-  return { rates, loading, date };
+  const current = state.requestedDate === requestedDate ? state.snapshot : null;
+  const rates: ForexRates = current?.rates ?? {};
+  return { rates, snapshot: current, loading: enabled && state.requestedDate !== requestedDate, date: current?.date ?? '', rateDates: current?.rateDates ?? {}, source: current?.source ?? '', retrievedAt: current?.retrievedAt ?? '', error: state.requestedDate === requestedDate ? state.error : '' };
 }

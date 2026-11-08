@@ -22,7 +22,7 @@ const currentYear = () => new Date().getFullYear();
 
 /** Convert bookings array to CSV string (de-CH compatible) */
 const toCSV = (bookings: Booking[]): string => {
-  const header = ['Datum', 'Beschreibung', 'Konto', 'Gegenkonto', 'Kategorie', 'Betrag CHF', 'MwSt %', 'MwSt CHF', 'Währung', 'Typ', 'Status'];
+  const header = ['Datum', 'Beschreibung', 'Konto', 'Gegenkonto', 'Kategorie', 'Betrag', 'MwSt %', 'MwSt Betrag', 'Währung', 'Typ', 'Status'];
   const rows = bookings.map((b) => [
     b.date,
     `"${b.description.replace(/"/g, '""')}"`,
@@ -48,7 +48,7 @@ export default function Archiv() {
   const year = currentYear();
   const totalBookings = bookings.length;
   const totalDocuments = documents.length;
-  const totalCHF = bookings.reduce((s, b) => s + (b.type === 'Einnahme' ? b.amount : -b.amount), 0);
+  const totalCHF = bookings.filter((booking) => booking.currency.toUpperCase() === 'CHF').reduce((sum, booking) => sum + (booking.type === 'Einnahme' ? booking.amount : -booking.amount), 0);
 
   /* ── JSON export ─────────────────────────────────────────────────── */
   const handleJsonExport = () => {
@@ -159,7 +159,7 @@ Konsultieren Sie Ihren Treuhänder für GeBüV-konforme Langzeitarchivierung.
         {[
           { label: 'Buchungen', value: totalBookings.toString(), color: 'text-slate-900' },
           { label: 'Belege / Dokumente', value: totalDocuments.toString(), color: 'text-slate-900' },
-          { label: 'Netto-Ergebnis', value: fmt(totalCHF), color: totalCHF >= 0 ? 'text-emerald-700' : 'text-rose-600' },
+          { label: 'Netto-Ergebnis (nur CHF)', value: fmt(totalCHF), color: totalCHF >= 0 ? 'text-emerald-700' : 'text-rose-600' },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{s.label}</p>

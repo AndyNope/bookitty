@@ -7,6 +7,7 @@ import { useAuth } from '../store/AuthContext';
 import { api, type BillingSummary, type CompanyRole } from '../services/api';
 import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
+import { useCurrencySettings } from '../hooks/useCurrencySettings';
 import NotificationModal from '../components/NotificationModal';
 import { LoadingIndicator, LoadingLogo } from '../components/LogoLoader';
 import TwoFactorSettings from '../components/TwoFactorSettings';
@@ -62,7 +63,7 @@ const Field = ({
 );
 
 const Einstellungen = () => {
-  const { user } = useAuth();
+  const { user, isReadonly } = useAuth();
   const location = useLocation();
   const isDemo = location.pathname.startsWith('/demo');
   const isAdmin = !isDemo && user?.role === 'admin' && (user.company_id ?? user.id) === user.id;
@@ -80,6 +81,8 @@ const Einstellungen = () => {
   const [acctForm, setAcctForm] = useState({ code: '', name: '', categoryCode: '3' });
   const [acctError, setAcctError] = useState('');
   const [acctSaving, setAcctSaving] = useState(false);
+  const currencySettings = useCurrencySettings();
+  const [currencySaving, setCurrencySaving] = useState(false);
 
   // Team management
   const [team,           setTeam]          = useState<TeamMember[]>([]);
@@ -403,6 +406,21 @@ const Einstellungen = () => {
       />
 
       {!isDemo && user && <TwoFactorSettings />}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-slate-900">Währungen</h3>
+        <label className="mt-3 flex items-start gap-3 text-sm text-slate-700">
+          <input type="checkbox" checked={currencySettings.enabled} disabled={currencySettings.loading || currencySaving || (!isDemo && isReadonly)} onChange={async (event) => {
+            setCurrencySaving(true);
+            try { await currencySettings.save(event.target.checked); }
+            catch (error) { showNotify('error', 'Währungseinstellung nicht gespeichert', (error as Error).message); }
+            finally { setCurrencySaving(false); }
+          }} className="mt-1" />
+          <span>Weitere Währungen für Buchungen und Belege aktivieren</span>
+        </label>
+        <p className="mt-2 text-xs text-slate-500">Nicht für jede Währung sind Referenzkurse verfügbar. Schweizer QR-Rechnungen unterstützen nur CHF und EUR.</p>
+        {currencySettings.error && <p role="alert" className="mt-2 text-xs text-rose-700">{currencySettings.error}</p>}
+      </section>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-base font-semibold text-slate-900">Unternehmensprofil</h3>

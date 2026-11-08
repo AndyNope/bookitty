@@ -16,6 +16,8 @@ import { api, isPrivateDocumentUrl, openPrivateDocument } from '../services/api'
 import { useAuth } from '../store/AuthContext';
 import NumberInput from '../components/NumberInput';
 import { useAccounts } from '../hooks/useAccounts';
+import { useCurrencySettings } from '../hooks/useCurrencySettings';
+import { availableCurrencies } from '../utils/currencies';
 import {
   accountCategories,
   formatAccount,
@@ -35,6 +37,7 @@ const Dokumente = () => {
   const { user, isReadonly } = useAuth();
   const readOnly = !window.location.pathname.startsWith('/demo') && isReadonly;
   const { accounts, loading: accountsLoading, loadError: accountsError } = useAccounts();
+  const currencySettings = useCurrencySettings();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(
     documents[0]?.id ?? null,
@@ -504,6 +507,7 @@ const Dokumente = () => {
               {accountsLoading && <LoadingIndicator text="Konten werden geladen…" size="small" />}
               {selectingId === selectedDocument.id && <LoadingIndicator text="Lernregeln werden geprüft…" size="small" />}
               {accountsError && <p role="alert" className="text-xs text-rose-700">{accountsError}</p>}
+              {currencySettings.error && <p role="alert" className="text-xs text-rose-700">{currencySettings.error}</p>}
               {duplicates.length > 0 && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
                 Gleicher Dateiinhalt bereits vorhanden: {duplicates.map((doc) => `${doc.fileName} (${doc.status})`).join(', ')}.
               </p>}
@@ -750,25 +754,13 @@ const Dokumente = () => {
                   <select
                     value={selectedDocument.draft.currency}
                     onChange={(event) =>
-                      updateDraft({
-                        currency: event.target.value,
-                        vatRate:
-                          selectedDocument.draft.vatRate === 0
-                            ? event.target.value === 'CHF'
-                              ? 7.7
-                              : event.target.value === 'EUR'
-                                ? 19
-                                : 0
-                            : selectedDocument.draft.vatRate,
-                      })
+                      updateDraft({ currency: event.target.value })
                     }
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
-                    <option value="EUR">EUR</option>
-                    <option value="CHF">CHF</option>
-                    <option value="USD">USD</option>
-                    <option value="GBP">GBP</option>
+                    {availableCurrencies(currencySettings.enabled, selectedDocument.draft.currency).map((currency) => <option key={currency} value={currency}>{currency}</option>)}
                   </select>
+                  <span className="mt-1 block text-xs text-slate-500">Währung, Betrag und Zahlenformat nach dem Scan prüfen.</span>
                 </label>
                 <label>
                   Zahlungsstatus

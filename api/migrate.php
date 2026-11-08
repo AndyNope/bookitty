@@ -16,7 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['error' => 'Method Not Allowed']);
     exit;
 }
-
 // Keep the migration secret out of URLs, browser history, and referrer headers.
 $secret = $_SERVER['HTTP_X_MIGRATE_KEY'] ?? '';
 if (!defined('MIGRATE_SECRET') || MIGRATE_SECRET === '' || !hash_equals(MIGRATE_SECRET, $secret)) {
@@ -36,6 +35,10 @@ try {
 $done  = [];
 $skipped = [];
 $errors = [];
+
+if (tableExists($pdo, 'company_profiles') && !columnExists($pdo, 'company_profiles', 'extra_currencies_enabled')) {
+    run($pdo, 'ALTER TABLE company_profiles ADD COLUMN extra_currencies_enabled TINYINT(1) NOT NULL DEFAULT 0', 'company_profiles.extra_currencies_enabled added', $done, $skipped);
+}
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 function columnExists(PDO $pdo, string $table, string $col): bool {

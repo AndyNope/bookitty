@@ -143,9 +143,9 @@ function exportEstvPdf(data: {
   // Header
   doc.setFillColor(245, 245, 245); doc.rect(0, 0, pW, 18, 'F');
   doc.setFontSize(16); doc.setTextColor(20);
-  doc.text('MwSt-Abrechnung ESTV', mX, 12);
+  doc.text('MWST-Auswertung · Arbeitsentwurf', mX, 12);
   doc.setFontSize(9); doc.setTextColor(120);
-  doc.text('Formular 533 – Effektive Methode', pW - mX - doc.getTextWidth('Formular 533 – Effektive Methode'), 12);
+  doc.text('Nicht amtliches Formular', pW - mX - doc.getTextWidth('Nicht amtliches Formular'), 12);
   y = 26;
 
   sub(`Unternehmen: ${data.companyName || '—'}`);
@@ -180,9 +180,9 @@ function exportEstvPdf(data: {
   y += 6;
 
   sub('Diese Berechnung basiert auf den in Bookitty erfassten Buchungen.', [150, 150, 150]);
-  sub('Bitte beim zuständigen MWST-Beauftragten / Treuhänder prüfen lassen.', [150, 150, 150]);
+  sub('Nicht direkt einreichen. Zahlen und ESTV-Zuordnung fachlich prüfen lassen.', [150, 80, 40]);
 
-  doc.save(`ESTV-MwSt-${data.periodLabel.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
+  doc.save(`MWST-Auswertung-Entwurf-${data.periodLabel.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -200,6 +200,7 @@ export default function Mwst() {
   const period  = periodType === 'year' ? yearPeriod : quarters[quarter - 1];
 
   const filtered = useMemo(() => filterPeriod(bookings, period.from, period.to), [bookings, period]);
+  const foreignCurrencies = [...new Set(filtered.filter((booking) => booking.currency !== 'CHF').map((booking) => booking.currency))];
 
   // ── Revenue groups ────────────────────────────────────────────────────────
   const revenueByRate = useMemo(() => groupByRate(filtered, 'Einnahme'), [filtered]);
@@ -223,10 +224,11 @@ export default function Mwst() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
       <SectionHeader
-        title="MwSt-Abrechnung"
-        subtitle="ESTV Formular 533 – Effektive Methode"
+        title="MwSt-Auswertung"
+        subtitle="Arbeitsentwurf auf Basis erfasster Buchungen · nicht direkt einreichbar"
         action={
           <button
+            disabled={foreignCurrencies.length > 0}
             onClick={() => exportEstvPdf({
               periodLabel: period.label,
               gesamtertrag,
@@ -239,15 +241,19 @@ export default function Mwst() {
               zahllast,
               companyName: companyName || 'Unbekannt',
             })}
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            PDF exportieren
+            PDF-Entwurf
           </button>
         }
       />
+
+      <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        Diese Auswertung ersetzt keine amtliche ESTV-Abrechnung. Vor der Übernahme ins ESTV-Portal müssen Ziffern, Steuersätze, Periodenabgrenzung und Vorsteuerabzug geprüft werden.
+      </p>
 
       {/* ── Controls ─────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
@@ -296,6 +302,11 @@ export default function Mwst() {
         </div>
       </div>
 
+      {foreignCurrencies.length > 0 ? (
+        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          In dieser Periode gibt es Fremdwährungsbuchungen ({foreignCurrencies.join(', ')}). Für eine MwSt-Abrechnung sind geprüfte CHF-Buchwerte und steuerlich geeignete Umrechnungskurse erforderlich. Die Berechnung und der Export sind deshalb gesperrt.
+        </p>
+      ) : <>
       {/* ── Anpassungen ──────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
         <h3 className="text-sm font-semibold text-slate-700">Korrekturen / Ergänzungen</h3>
@@ -424,6 +435,7 @@ export default function Mwst() {
         Die definitiven Zahlen sind mit einem Steuerberater oder MWST-Beauftragten zu überprüfen. Fristgerechte Einreichung via{' '}
         <a href="https://www.estv.admin.ch" target="_blank" rel="noreferrer" className="underline hover:text-slate-700">estv.admin.ch</a>.
       </div>
+      </>}
     </div>
   );
 }

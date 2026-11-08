@@ -745,7 +745,7 @@ export default function Rechnungen() {
   const isDemo   = location.pathname.startsWith('/demo');
   const { isReadonly, isAdmin, user } = useAuth();
   const invoiceTemplateScope = getInvoiceTemplateScope(user?.id, isDemo);
-  const { rates } = useForex();
+  const { rates, rateDates } = useForex();
   const { addBooking } = useBookkeeping();
 
   const [invoices,  setInvoices]  = useState<Invoice[]>([]);
@@ -762,6 +762,7 @@ export default function Rechnungen() {
   // Kursdifferenz dialog
   const [kursDiffFor, setKursDiffFor] = useState<Invoice | null>(null);
   const [kursActualCHF, setKursActualCHF] = useState('');
+  const [kursBookedCHF, setKursBookedCHF] = useState('');
   const [savingKurs, setSavingKurs] = useState(false);
   const [portalLink, setPortalLink] = useState<string | null>(null);
   // Bezahlt confirmation + admin unlock
@@ -954,9 +955,8 @@ export default function Rechnungen() {
           setNotification({ type: 'success', title: 'Status gespeichert', message: 'Für eine Kursdifferenzbuchung ist Buchhaltungszugriff erforderlich.' });
           return;
         }
-        const { total } = calcInvoiceTotals(inv.items, inv.vatIncluded);
-        const chfEquiv = toCHF(total, inv.currency, rates).toFixed(2);
-        setKursActualCHF(chfEquiv);
+        setKursActualCHF('');
+        setKursBookedCHF('');
         setKursDiffFor(inv);
       }
     }
@@ -964,10 +964,13 @@ export default function Rechnungen() {
 
   const handleKursDiff = async () => {
     if (!kursDiffFor || savingKurs) return;
-    const { total } = calcInvoiceTotals(kursDiffFor.items, kursDiffFor.vatIncluded);
-    const expectedCHF = toCHF(total, kursDiffFor.currency, rates);
-    const actualCHF   = parseFloat(kursActualCHF) || expectedCHF;
-    const diff        = actualCHF - expectedCHF;
+    const bookedCHF = Number(kursBookedCHF);
+    const actualCHF = Number(kursActualCHF);
+    if (!kursBookedCHF.trim() || !kursActualCHF.trim() || !Number.isFinite(bookedCHF) || !Number.isFinite(actualCHF) || bookedCHF <= 0 || actualCHF <= 0) {
+      setNotification({ type: 'error', title: 'Buchwert erforderlich', message: 'Bitte den ursprünglichen CHF-Buchwert und den tatsächlichen Zahlungseingang eingeben.' });
+      return;
+    }
+    const diff = actualCHF - bookedCHF;
     if (Math.abs(diff) > 0.01) {
       const isGain = diff > 0;
       setSavingKurs(true);
@@ -1320,8 +1323,10 @@ export default function Rechnungen() {
       {kursDiffFor && (() => {
         const { total } = calcInvoiceTotals(kursDiffFor.items, kursDiffFor.vatIncluded);
         const expectedCHF = toCHF(total, kursDiffFor.currency, rates);
-        const actualVal   = parseFloat(kursActualCHF) || expectedCHF;
-        const diff        = actualVal - expectedCHF;
+        const actualVal = Number(kursActualCHF);
+        const bookedVal = Number(kursBookedCHF);
+        const validAmounts = kursActualCHF.trim() !== '' && kursBookedCHF.trim() !== '' && Number.isFinite(actualVal) && Number.isFinite(bookedVal) && actualVal > 0 && bookedVal > 0;
+        const diff = validAmounts ? actualVal - bookedVal : 0;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
@@ -1341,9 +1346,16 @@ export default function Rechnungen() {
                     <span className="font-medium">{kursDiffFor.currency} {total.toLocaleString('de-CH', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between mt-1">
-                    <span className="text-slate-500">Kurs (heute)</span>
-                    <span className="font-medium">≈ CHF {expectedCHF.toLocaleString('de-CH', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-slate-500">Referenzkurs {rateDates[kursDiffFor.currency] ?? ''}</span>
+                    <span className="font-medium">{expectedCHF === null ? 'Nicht verfügbar' : `≈ CHF ${expectedCHF.toLocaleString('de-CH', { minimumFractionDigits: 2 })}`}</span>
                   </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Ursprünglicher Buchwert (CHF)</label>
+                  <input type="number" step="0.01" min="0" value={kursBookedCHF}
+                    onChange={e => setKursBookedCHF(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
+                  <p className="mt-1 text-xs text-slate-500">Den bei Rechnungsstellung gebuchten CHF-Wert aus der Buchhaltung übernehmen.</p>
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600">Tatsächlicher Eingang (CHF)</label>
@@ -1362,7 +1374,7 @@ export default function Rechnungen() {
                   className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
                   Überspringen
                 </button>
-                <button onClick={handleKursDiff} disabled={savingKurs}
+                <button onClick={handleKursDiff} disabled={savingKurs || !validAmounts}
                   className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">
                   Buchen
                 </button>

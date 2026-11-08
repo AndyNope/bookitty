@@ -309,6 +309,7 @@ CREATE TABLE IF NOT EXISTS company_profiles (
     email       VARCHAR(255)   NOT NULL DEFAULT '',
     phone       VARCHAR(100)   NOT NULL DEFAULT '',
     iban        VARCHAR(50)    NOT NULL DEFAULT '',
+    extra_currencies_enabled TINYINT(1) NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id),
     CONSTRAINT fk_company_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

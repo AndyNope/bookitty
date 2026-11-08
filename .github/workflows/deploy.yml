@@ -39,6 +39,18 @@ jobs:
       - name: Test document learning
         run: npm run test:documents
 
+      - name: Test invoice parser
+        run: npm run test:invoice-parser
+
+      - name: Test foreign currencies
+        run: npm run test:forex
+
+      - name: Test financial report periods
+        run: npm run test:reports
+
+      - name: Test dashboard metrics
+        run: npm run test:dashboard
+
       - name: Test loading indicators
         run: npm run test:loading
 

@@ -6,6 +6,9 @@ import { useBookkeeping } from '../store/BookkeepingContext';
 import { accountCategories, accountKey, findAccount, formatAccount, resolveAccount, type Account } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
 import { LoadingIndicator } from '../components/LogoLoader';
+import { useForex } from '../hooks/useForex';
+import { provisionalBookings } from '../utils/forex';
+import { financialReportPeriod, splitFinancialBookings } from '../utils/financialReport';
 
 const fmt = (value: number, cur: string) =>
   new Intl.NumberFormat('de-CH', { style: 'currency', currency: cur }).format(value);
@@ -168,12 +171,68 @@ const SubtotalRow = ({ label, value, cur, highlight = false }: {
   </div>
 );
 
+const ReportPeriodControl = ({ year, years, onChange, period }: {
+  year: number;
+  years: number[];
+  onChange: (year: number) => void;
+  period: ReturnType<typeof financialReportPeriod>;
+}) => (
+  <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <label htmlFor="report-year" className="flex items-center gap-3 text-sm font-medium text-slate-700">
+      Geschäftsjahr
+      <select id="report-year" value={year} onChange={(event) => onChange(Number(event.target.value))} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+        {years.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </label>
+    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+      <span>Erfolgsrechnung: {period.start} bis {period.end}</span>
+      <span>Bilanz: per {period.balanceAsOf}</span>
+    </div>
+  </div>
+);
+
 // ── Main component ─────────────────────────────────────────────────────────
 const Bilanz = () => {
-  const { bookings } = useBookkeeping();
+  const { bookings: originalBookings } = useBookkeeping();
   const { accounts: configuredAccounts, loadError, loading: accountsLoading } = useAccounts();
+  const location = useLocation();
+  const base = location.pathname.startsWith('/demo') ? '/demo' : '/app';
+  const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'steuern'>('erfolg');
+  const [canton, setCanton] = useState('ZH');
+  const [reportYear, setReportYear] = useState(new Date().getFullYear());
+  const [previewEnabled, setPreviewEnabled] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const [valuationDate, setValuationDate] = useState(today);
+  const reportPeriod = financialReportPeriod(reportYear, today);
+  const changeReportYear = (year: number) => {
+    setReportYear(year);
+    setValuationDate(financialReportPeriod(year, today).end);
+  };
+  const reportYears = [...new Set([reportYear, ...originalBookings.map((booking) => Number(booking.date.slice(0, 4))).filter((year) => Number.isInteger(year) && year >= 1999 && year <= Number(today.slice(0, 4)))])].sort((a, b) => b - a);
+  const unconvertedBookings = splitFinancialBookings(originalBookings, reportPeriod);
+  const foreignCurrencies = [...new Set(unconvertedBookings.balanceSheet.map((booking) => booking.currency.toUpperCase()).filter((currency) => currency !== 'CHF'))].sort();
+  const hasForeign = foreignCurrencies.length > 0;
+  const forex = useForex(valuationDate, hasForeign && previewEnabled && /^\d{4}-\d{2}-\d{2}$/.test(valuationDate));
+  const converted = forex.snapshot ? provisionalBookings(unconvertedBookings.balanceSheet, forex.snapshot) : null;
+  const previewReady = hasForeign && previewEnabled && converted !== null && converted.missing.length === 0;
+  const reportBookings = previewReady ? splitFinancialBookings(converted.bookings, reportPeriod) : unconvertedBookings;
+  const bookings = reportBookings.incomeStatement;
+  const balanceBookings = reportBookings.balanceSheet;
+  const currencyControls = hasForeign && (
+    <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <label className="flex items-start gap-2 font-semibold">
+        <input type="checkbox" checked={previewEnabled} onChange={(event) => { setPreviewEnabled(event.target.checked); setTab('erfolg'); }} className="mt-1" />
+        Provisorische CHF-Vorschau mit Referenzkursen
+      </label>
+      <p className="text-xs">Alle Fremdwährungen werden zum gewählten Stichtag umgerechnet. Originalbuchungen bleiben unverändert. Kein verbindlicher Abschluss und keine Steuer- oder MwSt.-Abrechnung.</p>
+      {previewEnabled && <label className="flex flex-wrap items-center gap-2 text-xs">Stichtag
+        <input type="date" min="1999-01-04" max={today} value={valuationDate} onChange={(event) => setValuationDate(event.target.value)} className="rounded border border-amber-300 bg-white px-2 py-1 text-slate-900" />
+      </label>}
+      {previewReady && <p className="text-xs">Quelle: {forex.source}. Angefragter Stichtag: {valuationDate}. {foreignCurrencies.map((currency) => `${currency}: ${forex.rateDates[currency]}`).join(' · ')}. Abgerufen: {forex.retrievedAt}.</p>}
+    </div>
+  );
   const accounts = [...configuredAccounts];
-  for (const booking of bookings) {
+  for (const booking of balanceBookings) {
     for (const value of [booking.account, booking.contraAccount]) {
       const code = accountKey(value);
       if (/^\d+$/.test(code) && accountCategories.some((category) => category.code === code[0]) && !accounts.some((account) => account.code === code)) {
@@ -181,11 +240,20 @@ const Bilanz = () => {
       }
     }
   }
-  const location = useLocation();
-  const base = location.pathname.startsWith('/demo') ? '/demo' : '/app';
-  const [tab, setTab] = useState<'erfolg' | 'bilanz' | 'steuern'>('erfolg');
-  const [canton, setCanton] = useState('ZH');
-  const cur = bookings[0]?.currency ?? 'CHF';
+  const cur = 'CHF';
+
+  if (hasForeign && !previewReady) {
+    return (
+      <div className="space-y-6">
+        <SectionHeader title="Finanzberichte" subtitle={`Erfolgsrechnung ${reportPeriod.start} bis ${reportPeriod.end} · Bilanz per ${reportPeriod.balanceAsOf}`} />
+        <ReportPeriodControl year={reportYear} years={reportYears} onChange={changeReportYear} period={reportPeriod} />
+        {currencyControls}
+        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {!previewEnabled ? 'Fremdwährungsbuchungen werden nicht ohne Wechselkurs zusammengerechnet.' : forex.loading ? 'Referenzkurse werden geladen…' : forex.error || (converted?.missing.length ? `Keine geeigneten Kurse für: ${converted.missing.join(', ')}.` : 'Bitte ein gültiges Kursdatum wählen.')}
+        </p>
+      </div>
+    );
+  }
 
   // Soll (Debit) → Aktiven (1xxx) and Aufwand (4–8 Aufwand accounts)
   const byDebit = bookings.reduce<Record<string, number>>((acc, b) => {
@@ -200,6 +268,18 @@ const Bilanz = () => {
     acc[key] = (acc[key] ?? 0) + b.amount;
     return acc;
   }, {});
+  const balanceAssets: Record<string, number> = {};
+  const balanceLiabilities: Record<string, number> = {};
+  for (const booking of balanceBookings) {
+    const debit = accountKey(booking.account);
+    const credit = accountKey(booking.contraAccount);
+    if (debit.startsWith('1')) balanceAssets[debit] = (balanceAssets[debit] ?? 0) + booking.amount;
+    if (credit.startsWith('1')) balanceAssets[credit] = (balanceAssets[credit] ?? 0) - booking.amount;
+    if (credit.startsWith('2')) balanceLiabilities[credit] = (balanceLiabilities[credit] ?? 0) + booking.amount;
+    if (debit.startsWith('2')) balanceLiabilities[debit] = (balanceLiabilities[debit] ?? 0) - booking.amount;
+  }
+  Object.assign(byDebit, balanceAssets);
+  Object.assign(byCredit, balanceLiabilities);
   const unassigned = [...new Set([...Object.keys(byDebit), ...Object.keys(byCredit)])]
     .filter((key) => !accounts.some((account) => account.code === key));
 
@@ -257,10 +337,12 @@ const Bilanz = () => {
 
   const totalErtrag  = totalBetriebsertrag + ertrag7 + ertrag8;
   const totalAufwand = materialaufwand + personalaufwand + uebrBetriebsaufwand + aufwand7 + aufwand8 + steuern;
+  const performanceScale = Math.max(totalErtrag, totalAufwand, 1);
 
   // Bilanz totals
   const totalAktiv  = AKTIV_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
   const totalPassiv = PASSIV_CATS.reduce((s, c) => s + (byCat[c] ?? 0), 0);
+  const balanceDifference = totalAktiv - totalPassiv;
 
   // Sub-group helpers
   const accountsInGroup = (min: number, max: number) =>
@@ -299,9 +381,17 @@ const Bilanz = () => {
     const pH = doc.internal.pageSize.getHeight();
     let y = 20;
     doc.setFontSize(18);
-    doc.text('Bookitty – Jahresbericht', mX, y); y += 10;
+    doc.text('Bookitty – Finanzbericht', mX, y); y += 10;
     doc.setFontSize(10); doc.setTextColor(100);
-    doc.text(`Jahr: ${new Date().getFullYear()} · Währung: ${cur}`, mX, y); y += 10;
+    doc.text(`Geschäftsjahr ${reportYear}: Erfolgsrechnung bis ${reportPeriod.end} · Bilanz per ${reportPeriod.balanceAsOf} · ${cur}`, mX, y); y += 10;
+    if (previewReady) {
+      const notice = doc.splitTextToSize(`PROVISORISCHE CHF-VORSCHAU. Stichtag: ${valuationDate}. Quelle: ${forex.source}. Abgerufen: ${forex.retrievedAt}. Keine verbindliche Steuer- oder MwSt.-Abrechnung.`, pW - 2 * mX) as string[];
+      doc.text(notice, mX, y); y += notice.length * 5 + 2;
+      foreignCurrencies.forEach((currency) => {
+        doc.text(`1 CHF = ${forex.rates[currency]} ${currency} (${forex.rateDates[currency]})`, mX, y); y += 5;
+      });
+      y += 3;
+    }
     doc.setTextColor(0);
 
     const section = (title: string) => {
@@ -377,6 +467,12 @@ const Bilanz = () => {
       grpAccts.forEach((a) => row(formatAccount(a), byCredit[a.code]));
     });
     subtotal('Total Passiven', totalPassiv);
+    row('Bilanzdifferenz (Aktiven − Passiven)', balanceDifference);
+    if (Math.abs(balanceDifference) > 0.01) {
+      doc.setFontSize(8); doc.setTextColor(160, 70, 30);
+      doc.text('Bilanz nicht ausgeglichen – vor Abschluss oder Steuerverwendung abstimmen.', mX, y);
+      doc.setTextColor(0); y += 6;
+    }
 
     if (unassigned.length > 0) {
       section('Nicht zugeordnete Konten');
@@ -387,65 +483,67 @@ const Bilanz = () => {
     }
 
     doc.setFontSize(8); doc.setTextColor(150);
-    doc.text('Bookitty · Finanzbuchhaltung', mX, pH - 10);
+    doc.text('Interner Finanzbericht · keine Steuer- oder MwSt.-Abrechnung', mX, pH - 10);
 
-    // MwSt-Abrechnung
-    y += 4;
-    section('MwSt-Abrechnung (ESTV)');
-    row('Steuerbarer Umsatz', totalBetriebsertrag);
-    row('Geschuldete MwSt (Ertrag)', geschuldeteMwst);
-    row('Vorsteuer (Aufwand)', vorsteuer);
-    subtotal(mwstSaldo >= 0 ? 'Zahllast' : 'Guthaben', Math.abs(mwstSaldo));
-
-    // Direkte Steuern (provisorisch)
-    if (taxBase > 0) {
-      y += 4;
-      section(`Direkte Steuern – ${selectedCanton.code} (provisorisch)`);
-      row('Steuerbarer Gewinn', taxBase);
-      row(`Direkte Bundessteuer (~${FEDERAL_RATE}%)`, federalTax);
-      row(`Kantons- und Gemeindesteuer (~${cantonRate.toFixed(1)}%)`, cantonTax);
-      subtotal(`Geschätzte Gesamtsteuer (${selectedCanton.rate}%)`, totalTax);
-      if (y > pH - 20) { doc.addPage(); y = 20; }
-      doc.setFontSize(7); doc.setTextColor(150);
-      doc.text('* Provisorische Schätzung – nicht verbindlich. Bitte Steuerfachperson konsultieren.', mX, y); y += 5;
-      doc.setTextColor(0);
-    }
-
-    doc.save('bookitty-jahresbericht.pdf');
+    doc.save(`bookitty-finanzbericht-${reportYear}.pdf`);
   };
 
   return (
     <div className="space-y-6">
       <SectionHeader
-        title="Auswertungen"
-        subtitle="Erfolgsrechnung und Bilanz auf Basis aller Buchungen."
+        title="Finanzberichte"
+        subtitle={`Erfolgsrechnung ${reportPeriod.start} bis ${reportPeriod.end} · Bilanz per ${reportPeriod.balanceAsOf}`}
         action={
           <button type="button" onClick={exportPdf} disabled={accountsLoading}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40">
-            PDF herunterladen
+            Bericht als PDF
           </button>
         }
       />
 
+      {currencyControls}
+      <ReportPeriodControl year={reportYear} years={reportYears} onChange={changeReportYear} period={reportPeriod} />
+
       {/* KPI cards */}
       <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[
-          { label: 'Betriebsertrag',  value: totalErtrag,     color: 'text-emerald-600' },
-          { label: 'Betriebsaufwand', value: totalAufwand,    color: 'text-rose-600' },
-          { label: 'Jahresergebnis',  value: jahresergebnis,  color: jahresergebnis >= 0 ? 'text-emerald-600' : 'text-rose-600' },
-          { label: 'Aktiven / Passiven', value: totalAktiv,   color: 'text-slate-700', sub: fmt(totalPassiv, cur) },
+          { label: 'Ertrag im Geschäftsjahr',  value: totalErtrag,     color: 'text-emerald-700', sub: `${reportYear}` },
+          { label: 'Aufwand im Geschäftsjahr', value: totalAufwand,    color: 'text-rose-700', sub: `${reportYear}` },
+          { label: 'Jahresergebnis',  value: jahresergebnis,  color: jahresergebnis >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: `bis ${reportPeriod.end}` },
+          { label: 'Bilanzsumme', value: totalAktiv,   color: 'text-slate-800', sub: `Passiven ${fmt(totalPassiv, cur)}` },
         ].map((card) => (
-          <div key={card.label} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-            <p className="break-words text-xs text-slate-500">{card.label}</p>
-            <p className={`mt-2 break-words text-base font-bold leading-tight tabular-nums sm:text-xl ${card.color}`}>{fmt(card.value, cur)}</p>
-            {card.sub && <p className="mt-0.5 text-xs text-slate-400">{card.sub}</p>}
+          <div key={card.label} className="min-w-0 rounded-lg border border-slate-200 border-t-2 border-t-slate-300 bg-white p-3 sm:p-4">
+            <p className="break-words text-xs font-medium text-slate-500">{card.label}</p>
+            <p className={`mt-2 break-words text-lg font-semibold leading-tight tabular-nums sm:text-xl ${card.color}`}>{fmt(card.value, cur)}</p>
+            {card.sub && <p className="mt-1 break-words text-xs text-slate-500">{card.sub}</p>}
           </div>
         ))}
       </div>
 
+      <section aria-label="Vergleich von Ertrag und Aufwand" className="rounded-lg border border-slate-200 bg-white px-4 py-4 sm:px-5">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-800">Ertrag und Aufwand</h2>
+          <span className="text-xs text-slate-500">Geschäftsjahr {reportYear} · {cur}</span>
+        </div>
+        <div className="space-y-3">
+          {[
+            { label: 'Ertrag', amount: totalErtrag, color: 'bg-emerald-600' },
+            { label: 'Aufwand', amount: totalAufwand, color: 'bg-rose-600' },
+          ].map((row) => (
+            <div key={row.label} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 text-xs">
+              <span className="font-medium text-slate-600">{row.label}</span>
+              <div className="h-2 overflow-hidden rounded-sm bg-slate-100" role="img" aria-label={`${row.label}: ${fmt(row.amount, cur)}`}>
+                <div className={`h-full rounded-sm ${row.color}`} style={{ width: `${Math.min(100, Math.max(0, row.amount / performanceScale * 100))}%` }} />
+              </div>
+              <span className="tabular-nums font-semibold text-slate-800">{fmt(row.amount, cur)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Tabs */}
       <div className="flex min-w-0 flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-          {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['steuern', 'Steuern']] as const).map(([key, label]) => (
+          {([['erfolg', 'Erfolgsrechnung'], ['bilanz', 'Bilanz'], ['steuern', 'Steuer-Schätzung']] as const).filter(([key]) => !previewReady || key !== 'steuern').map(([key, label]) => (
             <button key={key} type="button" onClick={() => setTab(key)}
               className={`rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold whitespace-nowrap transition ${
                 tab === key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
@@ -458,7 +556,7 @@ const Bilanz = () => {
             to={`${base}/mwst`}
             className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold whitespace-nowrap text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition"
           >
-            MwSt-Abrechnung
+            MwSt-Auswertung
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
             </svg>
@@ -692,12 +790,17 @@ const Bilanz = () => {
             <span className="min-w-0 flex-1">Total Passiven</span>
             <span className="tabular-nums shrink-0">{fmt(totalPassiv, cur)}</span>
           </div>
+          <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border px-4 py-3 text-sm ${Math.abs(balanceDifference) <= 0.01 ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-300 bg-amber-50 text-amber-950'}`}>
+            <span>{Math.abs(balanceDifference) <= 0.01 ? 'Bilanzdifferenz: ausgeglichen' : 'Bilanzdifferenz (Aktiven − Passiven)'}</span>
+            <span className="font-semibold tabular-nums">{fmt(balanceDifference, cur)}</span>
+          </div>
+          {Math.abs(balanceDifference) > 0.01 && <p role="alert" className="px-4 text-xs text-amber-800">Die Bilanz ist nicht ausgeglichen. Fehlende Eröffnungs-, Abschluss- oder Eigenkapitalbuchungen prüfen; dieser Bericht ist nicht abgabefertig.</p>}
         </div>
       )}
 
       {/* ── MwSt-Übersicht ── */}
       {/* ── Steuern (Provisorisch) ── */}
-      {tab === 'steuern' && (
+      {tab === 'steuern' && !previewReady && (
         <div className="space-y-5">
 
           {/* Disclaimer */}

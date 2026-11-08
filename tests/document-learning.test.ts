@@ -4,6 +4,7 @@ import { File } from 'node:buffer';
 import test from 'node:test';
 import { documentFingerprint, documentIdentityKeys, encodeDocumentIdentity, parseDocumentIdentity } from '../src/utils/documentIdentity';
 import { findTemplate, getTemplates, learnedFields, mergeServerTemplates, upsertTemplate } from '../src/utils/templateStore';
+import { parseSwissQr } from '../src/utils/swissQr';
 
 const values = new Map<string, string>();
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
@@ -39,4 +40,17 @@ test('individual invoice data is not learned and server rules replace stale cach
   upsertTemplate('vendor:alte regel', { account: '4000 Aufwand' });
   mergeServerTemplates({ 'vendor:neue regel': { account: '4400 Aufwand' } });
   assert.deepEqual(getTemplates().map((rule) => rule.pattern), ['vendor:neue regel']);
+});
+
+test('Swiss QR fields preserve an empty amount and reject malformed payloads', () => {
+  const lines = Array.from({ length: 31 }, () => '');
+  lines[0] = 'SPC'; lines[1] = '0200'; lines[2] = '1'; lines[19] = 'CHF'; lines[30] = 'EPD';
+  assert.deepEqual(parseSwissQr(lines.join('\n')), { amount: 0, currency: 'CHF' });
+  lines[18] = '111.00';
+  assert.deepEqual(parseSwissQr(lines.join('\r\n')), { amount: 111, currency: 'CHF' });
+  lines[18] = '123,45';
+  assert.equal(parseSwissQr(lines.join('\n')), null);
+  lines[18] = '111.00'; lines[30] = '';
+  assert.equal(parseSwissQr(lines.join('\n')), null);
+  assert.equal(parseSwissQr('SPC\n0200\n1'), null);
 });

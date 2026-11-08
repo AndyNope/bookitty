@@ -126,9 +126,23 @@ Für die angemeldete Nutzung einer Firma ist ein Solo-, Team- oder Business-Abo 
 
 Vor der Bereitstellung sicherstellen, dass `billing_accounts` und `stripe_events` migriert sind und Stripe Checkout, alle Preis-IDs und signierte Webhooks für `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated` und `customer.subscription.deleted` funktionieren. Bestehende Firmen ohne aktives Abo werden sofort gesperrt; ihre Abozustände vorab prüfen und betroffene Kunden informieren. Das Stripe-Kundenportal muss Tarifwechsel zwischen Solo, Team und Business sowie Zahlungsverwaltung erlauben. Die Behandlung von Preisunterschieden und Kündigungen wird im Stripe-Portal konfiguriert. Tarifänderungen werden über den konfigurierten Preis aus `customer.subscription.updated` übernommen.
 
+### Fremdwährungen und provisorische Umrechnung
+
+Weitere ISO-4217-Währungen können in den Einstellungen optional für Buchungen und Belege aktiviert werden. Die Auswahl ist firmenbezogen; bestehende Fremdwährungsbuchungen bleiben auch bei ausgeschalteter Option erhalten. Der Belegscan erkennt zusätzlich eindeutige Währungscodes bei Beträgen. Erkannte Währung, Betrag und Zahlenformat sind vor der Erfassung zu prüfen.
+
+Die Auswertungen addieren Fremdwährungen nicht ohne Umrechnung. Optional kann eine separate CHF-Vorschau mit einem Stichtag abgerufen werden. Referenzkurse stammen aus den ECB-Daten via Frankfurter API, umfassen nicht alle Währungen und können an Wochenenden oder Feiertagen auf einen früheren Kursstand zurückfallen. Verfügbarkeit und tatsächliches Kursdatum werden angezeigt; fehlende oder mehr als sieben Tage alte Kurse sperren die Vorschau. Originalbuchungen werden nicht verändert. Diese Vorschau ist keine Buchung zum Transaktionsdatum, keine Steuer- oder MwSt.-Berechnung und ersetzt keine geprüfte Umrechnung für Jahresabschluss, MWST oder Steuererklärung. Swiss QR-Rechnungen unterstützen weiterhin nur CHF und EUR.
+
+Die Währungseinstellung benötigt die Migration `api/migrate.php`; das Datenbankfeld wird standardmässig deaktiviert angelegt. Vor dem Produktivbetrieb sind Datenbankbackup, Migrationsergebnis und Berechtigungen zu prüfen. Die automatische Deployment-Pipeline führt Migrationen nicht aus.
+
 ### Bankdateien
 
 CAMT-Auszüge werden lokal im Browser eingelesen. Beim Abgleich müssen Betrag, Währung und Buchungsrichtung übereinstimmen. Fremdwährungstransaktionen können bestehenden Buchungen derselben Währung zugeordnet werden, aber nicht als neue Buchung aus dem Bankabgleich angelegt werden; die Umrechnung für Auswertungen ist noch nicht abgesichert. CSV-Importe mit Revolut-typischen Spalten übernehmen nur abgeschlossene Transaktionen; Dateien mit separat ausgewiesenen Gebühren werden vorsichtshalber abgelehnt. Die Unterstützung einzelner Bankexporte muss mit anonymisierten Originaldateien geprüft werden. Eine direkte Bankverbindung besteht derzeit nicht.
+
+### Finanz- und Steuerberichte
+
+Die Finanzberichte lassen ein Geschäftsjahr wählen. Die Erfolgsrechnung umfasst Buchungen vom Jahresanfang bis heute (laufendes Jahr) oder bis zum Jahresende (abgeschlossenes Jahr); die Bilanz berücksichtigt Buchungen bis zum angezeigten Stichtag. Eine Bilanzdifferenz wird ausgewiesen und blockiert die Verwendung nicht automatisch. Der PDF-Bericht ist ein interner Arbeitsbericht, keine Abschluss- oder Steuererklärung. Ein Vorjahresvergleich und ein vollständiger Kontenblatt-Export fehlen noch.
+
+Die separate MwSt-Auswertung ist ein Arbeitsentwurf. Sie bildet die Abrechnungslogik, Korrekturen und Ziffern des amtlichen ESTV-Verfahrens nicht vollständig ab und darf nicht direkt eingereicht werden. Werte und Zuordnung müssen mit der Buchhaltung und den aktuellen ESTV-Vorgaben geprüft werden. Für eine belastbare Steuerabgabe sind abgestimmte Eröffnungs-/Abschlussbuchungen, vollständige Konten, geprüftes Eigenkapital und steuerlich korrekte MWST-Zuordnungen erforderlich.
 
 ### Belegscan und Lernregeln
 
@@ -137,6 +151,18 @@ Mehrere PDF- und Bilddateien können zusammen hochgeladen oder aus einem lokalen
 Kontierungsänderungen werden als Vorschläge automatisch gelernt, nicht automatisch gebucht. Ein SHA-256-Fingerabdruck erkennt dieselben Dateibytes unabhängig vom Dateinamen; eine Lieferantenregel wird nur bei eindeutig erkanntem Firmennamen angelegt. Bereits importierte Belege erhalten beim Öffnen neu gelernte Vorschläge nur für unberührte Felder. Beträge, Datum, Währung und Zahlungsstatus bleiben belegbezogen. Regeln können in Belege Scan einzeln gelöscht werden. Duplikatwarnungen beziehen sich auf identische Dateibytes und sind keine umfassende Dublettenprüfung oder serverseitige Duplikatsperre.
 
 Angemeldete Lernregeln liegen firmengetrennt in der Datenbanktabelle `templates` und werden zusätzlich im jeweiligen Browser zwischengespeichert; im Demo-Modus bleiben sie lokal. Dateifingerabdrücke, Lieferantennamen und Kontierungswerte sind derzeit nicht durch die Anwendung verschlüsselt. HTTPS, Zugriffskontrollen sowie verschlüsselte Datenbank- und Backup-Speicher sind erforderlich; ein Dateihash ist keine Anonymisierung. Automatische direkte Cloud-Verbindungen sind nicht implementiert.
+
+#### Scan-Benchmark
+
+`npm run benchmark:invoices` vergleicht den Textparser mit künstlichen Rechnungsbeispielen und gibt Treffer pro Feld sowie pro vollständig korrektem Beispiel aus. Dieser Test umfasst weder PDF-Verarbeitung, QR-Code noch OCR und seine synthetischen Ergebnisse sind keine Erfolgsquote für echte Rechnungen. `npm run test:invoice-parser` prüft zusätzlich die Zahlungsstatus-Regressionen.
+
+Eigene, freigegebene und sorgfältig anonymisierte Textbeispiele mit manuell geprüften Sollwerten können lokal als JSON-Liste unter `tests/private-invoices/` abgelegt und mit `npm run benchmark:invoices -- --data tests/private-invoices/beispiele.json` ausgewertet werden. Der Ordner ist von Git ausgeschlossen. Beispiel für das Datenformat:
+
+```json
+[{"id":"fall-001","text":"Unbezahlt\nTotal CHF 99.00","expected":{"amount":99,"currency":"CHF","paymentStatus":"Offen"}}]
+```
+
+Mögliche Sollfelder sind `date` (YYYY-MM-DD), `amount`, `currency`, `vatRate`, `vatAmount` und `paymentStatus`. Das Skript verarbeitet die Datei lokal und gibt nur Fallnummern und fehlerhafte Felder aus. Keine Originalbelege, Namen, Adressen, IBANs oder andere vertrauliche Angaben ins Repository übernehmen. Anonymisierung und Nutzungsrechte sind vor der Verwendung zu prüfen. Für eine belastbare Messung zusätzlich unberührte, repräsentative Belege und einen separaten PDF-/OCR-End-to-End-Test verwenden.
 
 ### FER-Arbeitsentwurf
 
