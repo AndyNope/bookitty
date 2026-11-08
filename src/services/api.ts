@@ -284,4 +284,13 @@ export const api = {
         body: JSON.stringify({ email, marketing_opt_in: marketingOptIn }),
       }),
   },
+
+  contact: {
+    submit: (data: { kind: 'support' | 'idea'; name: string; email: string; message: string; website: string }) =>
+      apiFetch<{ ok: boolean; message: string }>('/contact.php', {
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }),
+  },
 };

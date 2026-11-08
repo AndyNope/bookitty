@@ -60,6 +60,24 @@ function send_confirmation_email(string $toEmail, string $toName, string $token)
     return mail($toEmail, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, $headers);
   }
 
+  function send_contact_form_email(string $kind, string $senderName, string $senderEmail, string $message): bool {
+    $isSupport = $kind === 'support';
+    $recipient = $isSupport ? 'support@bookitty.ch' : 'contact@bookitty.ch';
+    $subject = APP_NAME . ' – ' . ($isSupport ? 'Supportanfrage' : 'Idee oder Verbesserung');
+    $body = "Neue Nachricht über das Bookitty-Formular\n\n"
+      . 'Typ: ' . ($isSupport ? 'Support' : 'Idee / Verbesserung') . "\n"
+      . "Name: $senderName\n"
+      . "E-Mail: $senderEmail\n\n"
+      . "Nachricht:\n$message\n";
+
+    $headers  = 'MIME-Version: 1.0' . "\r\n";
+    $headers .= 'Content-Type: text/plain; charset=UTF-8' . "\r\n";
+    $headers .= 'From: ' . MAIL_FROM_NAME . ' <' . MAIL_FROM . '>' . "\r\n";
+    $headers .= 'Reply-To: ' . $senderEmail . "\r\n";
+
+    return mail($recipient, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
+  }
+
 /**
  * Sends an invoice summary e-mail to the customer.
  *
