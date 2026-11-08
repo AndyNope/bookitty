@@ -8,21 +8,22 @@ import {
   parseBlocksToDraft,
   parseTextToDraft,
   findVendorName,
+  groupLines,
   suggestAccount,
   suggestContraAccount,
 } from './documentParser';
-import { findTemplate } from './templateStore';
+import { findTemplate, learnedFields } from './templateStore';
 import { getCompany } from './companyStore';
+import { documentFingerprint, encodeDocumentIdentity } from './documentIdentity';
 
-/**
- * If the saved company name appears anywhere in the document text, this is
- * the user's own outgoing invoice → mark as Einnahme with correct accounts.
- * Applied AFTER template so it always wins over a stale cached template.
- */
 const applyOwnInvoiceDetection = (draft: BookingDraft, text: string): void => {
   const company = getCompany();
-  if (!company.name) return;
-  if (!text.toLowerCase().includes(company.name.toLowerCase())) return;
+  const normalize = (value: string) => value.toLowerCase().replace(/\s+/g, ' ').trim();
+  const name = normalize(company.name);
+  if (!name) return;
+  const lines = text.split(/\r?\n/).map(normalize).filter(Boolean);
+  const explicitSender = lines.some((line) => /^(absender|rechnungsaussteller|issuer|from|von)\s*:/i.test(line) && normalize(line.replace(/^[^:]+:/, '')) === name);
+  if (lines[0] !== name && !explicitSender) return;
   const status = draft.paymentStatus ?? 'Offen';
   draft.type = 'Einnahme';
   draft.account = suggestAccount('Einnahme', status) ?? draft.account;
@@ -132,9 +133,41 @@ const preprocessImage = async (file: File) => {
 
 const runOcr = async (file: File, preprocessed?: string) => {
   const worker = await createWorker('deu+eng');
-  const { data } = await worker.recognize(preprocessed ?? file);
-  await worker.terminate();
-  return data.text ?? '';
+  try {
+    const { data } = await worker.recognize(preprocessed ?? file);
+    return data.text ?? '';
+  } finally {
+    await worker.terminate();
+  }
+};
+
+const runPdfOcr = async (file: File): Promise<{ text: string; scanned: number; total: number }> => {
+  const pdf = await getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  let worker: Awaited<ReturnType<typeof createWorker>> | undefined;
+  try {
+    worker = await createWorker('deu+eng');
+    const scanned = Math.min(pdf.numPages, 10);
+    const pages: string[] = [];
+    for (let pageNumber = 1; pageNumber <= scanned; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const original = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(2, 3000 / Math.max(original.width, original.height)) });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('PDF-Seite konnte nicht gerendert werden.');
+      await page.render({ canvasContext: context, viewport, canvas }).promise;
+      pages.push((await worker.recognize(canvas)).data.text ?? '');
+      canvas.width = 0;
+      canvas.height = 0;
+      page.cleanup();
+    }
+    return { text: pages.join('\n'), scanned, total: pdf.numPages };
+  } finally {
+    if (worker) await worker.terminate();
+    await pdf.destroy();
+  }
 };
 
 export const extractTextFromFile = async (file: File): Promise<{ text: string; detection: string }> => {
@@ -164,6 +197,7 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
   let text = '';
   let qrText: string | undefined;
   let templateApplied = false;
+  const fingerprint = await documentFingerprint(file);
 
   if (file.type === 'application/pdf') {
     detection = 'PDF';
@@ -182,7 +216,6 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
         if (draft.amount === 0) {
           try {
             const plainText = await extractPdfText(file);
-            console.log('[Bookitty] block amount=0, plain text fallback, first 300 chars:', plainText.slice(0, 300));
             const { parseTextToDraft: _p } = await import('./documentParser');
             const plainDraft = _p(plainText, baseName);
             if (plainDraft.amount > 0) {
@@ -191,7 +224,7 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
             }
           } catch { /* ignore */ }
         }
-        text = blocks.map((item) => item.str).join(' ');
+        text = groupLines(blocks).join('\n');
         qrText = await decodeQrFromPdf(file);
         if (qrText) {
           const qrDraft = parseSwissQr(qrText);
@@ -201,16 +234,15 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
         } else {
           detection = 'PDF+Layout';
         }
-        const template = findTemplate(file.name, text);
+        applyOwnInvoiceDetection(draft, text);
+        const identity = { fingerprint, vendor: findVendorName(text, getCompany().name) };
+        const template = findTemplate(file.name, text, identity);
         if (template) {
-          // Never let a cached template override the invoice-specific amount
-          const { amount: _a, vatAmount: _va, date: _d, description: _desc, ...stableFields } = template.draft;
-          Object.assign(draft, stableFields);
+          Object.assign(draft, learnedFields(template.draft));
           detection = `${detection}+Template`;
           templateApplied = true;
         }
-        const vendorPattern = findVendorName(text);
-        applyOwnInvoiceDetection(draft, text);
+        const vendorPattern = encodeDocumentIdentity(identity);
         return { draft, detection, templateApplied, vendorPattern };
       } catch {
         /* fall through to plain text extraction */
@@ -220,6 +252,12 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
       text = await extractPdfText(file);
     } catch {
       text = blocks.map((item) => item.str).join(' ');
+    }
+    if (!text.trim()) {
+      const ocr = await runPdfOcr(file);
+      text = ocr.text;
+      if (!text.trim()) throw new Error('Im PDF konnte kein Text erkannt werden.');
+      detection = ocr.scanned < ocr.total ? `PDF+OCR (${ocr.scanned}/${ocr.total} Seiten)` : 'PDF+OCR';
     }
     qrText = await decodeQrFromPdf(file);
   } else {
@@ -270,20 +308,19 @@ export const processDocument = async (file: File): Promise<ProcessedDocument> =>
     const qrDraft = parseSwissQr(qrText);
     if (qrDraft?.amount !== undefined) draft.amount = qrDraft.amount;
     if (qrDraft?.currency) draft.currency = qrDraft.currency;
-    detection = detection === 'PDF' ? 'PDF+QR' : 'OCR+QR';
+    detection = `${detection}+QR`;
   }
 
-  const vendorPattern = findVendorName(text);
+  const identity = { fingerprint, vendor: findVendorName(text, getCompany().name) };
+  const vendorPattern = encodeDocumentIdentity(identity);
 
-  const template = findTemplate(file.name, text);
+  applyOwnInvoiceDetection(draft, text);
+  const template = findTemplate(file.name, text, identity);
   if (template) {
-    Object.assign(draft, template.draft);
+    Object.assign(draft, learnedFields(template.draft));
     detection = `${detection}+Template`;
     templateApplied = true;
   }
-
-  // Apply own-invoice detection last so it always wins over any cached template.
-  applyOwnInvoiceDetection(draft, text);
 
   return { draft, detection, templateApplied, vendorPattern };
 };

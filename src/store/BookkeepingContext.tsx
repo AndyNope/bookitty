@@ -9,7 +9,10 @@ import {
 } from 'react';
 import type { Booking, BookingDraft, DocumentImport } from '../types';
 import { initialBookings, initialDocuments } from '../data/mock';
-import { upsertTemplate } from '../utils/templateStore';
+import { learnedFields, mergeServerTemplates, upsertTemplate } from '../utils/templateStore';
+import { documentIdentityKeys, parseDocumentIdentity } from '../utils/documentIdentity';
+import { getCompany, saveCompany } from '../utils/companyStore';
+import LogoLoader from '../components/LogoLoader';
 import { useAuth } from './AuthContext';
 import { api } from '../services/api';
 import { completeOnboardingTask, getOnboardingScope } from '../utils/onboardingProgress';
@@ -84,9 +87,10 @@ type BookkeepingContextValue = {
     templateApplied?: boolean,
     vendorPattern?: string,
     isDirectUpload?: boolean,
-  ) => Promise<void>;
-  updateDocumentDraft: (id: string, draft: BookingDraft) => Promise<void>;
-  confirmDocument: (id: string) => Promise<void>;
+  ) => Promise<string>;
+  updateDocumentDraft: (id: string, draft: BookingDraft, userChanges?: Partial<BookingDraft>) => Promise<void>;
+  confirmDocument: (id: string) => Promise<{ learningSaved: boolean }>;
+  prepareDocumentLearning: () => Promise<void>;
   removeDocument: (id: string) => Promise<void>;
   removeBooking: (id: string) => Promise<void>;
   updateBooking: (id: string, draft: BookingDraft) => Promise<void>;
@@ -105,15 +109,47 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
   const [documents, setDocuments] = useState<DocumentImport[]>(() =>
     isDemo ? loadDocuments() : []
   );
+  const [initialLoading, setInitialLoading] = useState(!isDemo);
   const draftWrites = useRef(new Map<string, Promise<void>>());
+  const templateWrites = useRef<Promise<void>>(Promise.resolve());
+  const learningFailures = useRef(new Set<string>());
+
+  const prepareDocumentLearning = async () => {
+    await Promise.all([...draftWrites.current.values()]);
+    if (isDemo) return;
+    await templateWrites.current.catch(() => {});
+    const [templates, company] = await Promise.all([
+      api.templates.list(),
+      api.company.get().catch(() => null),
+    ]);
+    mergeServerTemplates(templates);
+    if (company && typeof company.name === 'string') saveCompany({ ...getCompany(), ...company });
+  };
+
+  const learnDocument = (doc: DocumentImport, fields: Partial<BookingDraft>): Promise<boolean> => {
+    const keys = documentIdentityKeys(parseDocumentIdentity(doc.vendorPattern));
+    const learned = learnedFields(fields);
+    if (!keys.length || !Object.keys(learned).length) return Promise.resolve(false);
+    const pending = templateWrites.current.catch(() => {}).then(async () => {
+      for (const key of keys) {
+        if (!isDemo) await api.templates.upsert(key, learned);
+        upsertTemplate(key, learned);
+      }
+    });
+    templateWrites.current = pending;
+    return pending.then(() => true);
+  };
 
   // ── Sync data from API when logged in ────────────────────────────────────
   useEffect(() => {
     if (isDemo) return; // demo uses localStorage state
     if (authLoading) return;
     if (user) {
-      api.bookings.list().then(setBookings).catch(console.error);
-      api.documents.list().then(setDocuments).catch(console.error);
+      let active = true;
+      const bookingsRequest = api.bookings.list().then((items) => { if (active) setBookings(items); }).catch(console.error);
+      const documentsRequest = api.documents.list().then((items) => { if (active) setDocuments(items); }).catch(console.error);
+      void Promise.all([bookingsRequest, documentsRequest]).finally(() => { if (active) setInitialLoading(false); });
+      return () => { active = false; };
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDemo, user?.id, authLoading]);
@@ -193,15 +229,33 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     }
     setDocuments((prev) => [docData, ...prev]);
     if (isDirectUpload && onboardingScope) completeOnboardingTask('document', onboardingScope);
+    return tempId;
   };
 
-  const updateDocumentDraft = (id: string, draft: BookingDraft): Promise<void> => {
+  const updateDocumentDraft = (id: string, draft: BookingDraft, userChanges: Partial<BookingDraft> = {}): Promise<void> => {
+    const doc = documents.find((item) => item.id === id);
+    const changed: Partial<BookingDraft> = {};
+    if (doc && doc.status !== 'Gebucht') {
+      for (const key of ['account', 'contraAccount', 'category', 'type', 'vatRate'] as const) {
+        if (Object.hasOwn(userChanges, key) && draft[key] !== doc.draft[key]) Object.assign(changed, { [key]: draft[key] });
+      }
+    }
     setDocuments((prev) =>
       prev.map((doc) => (doc.id === id ? { ...doc, draft } : doc)),
     );
-    if (isDemo) return Promise.resolve();
     const previous = draftWrites.current.get(id) ?? Promise.resolve();
-    const pending = previous.catch(() => {}).then(async () => { await api.documents.update(id, { draft }); });
+    const pending = previous.catch(() => {}).then(async () => {
+      if (!isDemo) await api.documents.update(id, { draft });
+      if (doc && Object.keys(changed).length) {
+        try {
+          if (!await learnDocument(doc, changed)) throw new Error('Keine eindeutige Belegidentität');
+          learningFailures.current.delete(id);
+        } catch {
+          learningFailures.current.add(id);
+          throw new Error('Der Entwurf wurde gespeichert, aber die Lernregel konnte nicht gespeichert werden.');
+        }
+      }
+    });
     draftWrites.current.set(id, pending);
     void pending.then(
       () => { if (draftWrites.current.get(id) === pending) draftWrites.current.delete(id); },
@@ -223,38 +277,13 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
     const onboardingScope = getOnboardingScope(user?.id, isDemo);
     if (onboardingScope) completeOnboardingTask('booking', onboardingScope);
 
-    const pattern =
-      doc.vendorPattern ??
-      doc.fileName.replace(/\.[^/.]+$/, '').slice(0, 30).toLowerCase();
-
-    try {
-      upsertTemplate(pattern, {
-        account:       doc.draft.account,
-        contraAccount: doc.draft.contraAccount,
-        category:      doc.draft.category,
-        vatRate:       doc.draft.vatRate,
-        currency:      doc.draft.currency,
-        type:          doc.draft.type,
-        paymentStatus: doc.draft.paymentStatus,
-      });
-    } catch (error) {
-      console.error('Belegvorlage konnte nicht lokal gespeichert werden:', error);
-    }
-
     setDocuments((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, status: 'Gebucht' } : item,
       ),
     );
 
-    if (!isDemo) {
-      api.templates.upsert(pattern, {
-        account: doc.draft.account, contraAccount: doc.draft.contraAccount,
-        category: doc.draft.category,
-        vatRate: doc.draft.vatRate, currency: doc.draft.currency,
-        type: doc.draft.type, paymentStatus: doc.draft.paymentStatus,
-      }).catch(console.error);
-    }
+    return { learningSaved: !learningFailures.current.has(id) };
   };
 
   const removeDocument = async (id: string) => {
@@ -283,6 +312,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
       addDocument,
       updateDocumentDraft,
       confirmDocument,
+      prepareDocumentLearning,
       removeDocument,
       removeBooking,
       updateBooking,
@@ -294,6 +324,7 @@ export const BookkeepingProvider = ({ children, isDemo = false }: { children: Re
   return (
     <BookkeepingContext.Provider value={value}>
       {children}
+      {initialLoading && <LogoLoader text="Firmendaten werden geladen…" />}
     </BookkeepingContext.Provider>
   );
 };

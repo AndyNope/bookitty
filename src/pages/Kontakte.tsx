@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import LogoLoader from '../components/LogoLoader';
 import { useLocation } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import NotificationModal from '../components/NotificationModal';
@@ -188,6 +189,7 @@ export default function Kontakte() {
   const isDemo    = location.pathname.startsWith('/demo');
 
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [initialLoading, setInitialLoading] = useState(!isDemo);
   const [search,   setSearch]   = useState('');
   const [filterType, setFilterType] = useState<ContactType | 'Alle'>('Alle');
   const [modal,    setModal]    = useState<'add' | 'edit' | null>(null);
@@ -203,7 +205,7 @@ export default function Kontakte() {
     } else {
       api.contacts.list().then(setContacts).catch(() =>
         setNotification({ type: 'error', title: 'Fehler', message: 'Kontakte konnten nicht geladen werden.' })
-      );
+      ).finally(() => setInitialLoading(false));
     }
   }, [isDemo]);
 
@@ -284,6 +286,7 @@ export default function Kontakte() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+      {initialLoading && <LogoLoader text="Kontakte werden geladen…" />}
       <SectionHeader
         title="Kontakte"
         subtitle={`${stats.total} Einträge · ${stats.kunden} Kunden · ${stats.lieferanten} Lieferanten`}

@@ -1,23 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { BookingDraft } from '../types';
-import LogoLoader from '../components/LogoLoader';
+import LogoLoader, { LoadingIndicator } from '../components/LogoLoader';
 import NotificationModal from '../components/NotificationModal';
 import { processDocument } from '../utils/documentProcessing';
 import { parseEml } from '../utils/emlParser';
-import { addTemplate } from '../utils/templateStore';
+import { parseDocumentIdentity } from '../utils/documentIdentity';
+import { documentFingerprint, encodeDocumentIdentity } from '../utils/documentIdentity';
+import { findTemplate, getTemplates, learnedFields, removeTemplate } from '../utils/templateStore';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
 import { api, isPrivateDocumentUrl, openPrivateDocument } from '../services/api';
 import { useAuth } from '../store/AuthContext';
 import NumberInput from '../components/NumberInput';
+import { useAccounts } from '../hooks/useAccounts';
 import {
-  accounts,
   accountCategories,
   formatAccount,
   getCategoryLabel,
+  resolveAccount,
 } from '../data/chAccounts';
 
 const Dokumente = () => {
@@ -26,9 +29,12 @@ const Dokumente = () => {
     addDocument,
     updateDocumentDraft,
     confirmDocument,
+    prepareDocumentLearning,
     removeDocument,
   } = useBookkeeping();
   const { user, isReadonly } = useAuth();
+  const readOnly = !window.location.pathname.startsWith('/demo') && isReadonly;
+  const { accounts, loading: accountsLoading, loadError: accountsError } = useAccounts();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(
     documents[0]?.id ?? null,
@@ -36,6 +42,9 @@ const Dokumente = () => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deletingDocument, setDeletingDocument] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('Beleg wird verarbeitet…');
+  const [batchActive, setBatchActive] = useState(false);
+  const cancelBatch = useRef(false);
   const [imapStatus, setImapStatus] = useState<string | null>(null);
   const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'success', title: '', message: '',
@@ -45,11 +54,49 @@ const Dokumente = () => {
 
   const [mobileView, setMobileView] = useState<'list' | 'form'>('list');
   const [favorites, setFavorites] = useState<string[]>(getFavorites);
+  const [templates, setTemplates] = useState(getTemplates);
+  const [deletingRule, setDeletingRule] = useState('');
+  const [selectingId, setSelectingId] = useState<string | null>(null);
+  const selectionVersion = useRef(0);
+
+  useEffect(() => {
+    const refresh = () => setTemplates(getTemplates());
+    window.addEventListener('bookitty:templates-changed', refresh);
+    return () => window.removeEventListener('bookitty:templates-changed', refresh);
+  }, []);
 
   const selectedDocument = documents.find((doc) => doc.id === selectedId);
+  const selectedFingerprint = parseDocumentIdentity(selectedDocument?.vendorPattern).fingerprint;
+  const duplicates = selectedFingerprint ? documents.filter((doc) => doc.id !== selectedId && parseDocumentIdentity(doc.vendorPattern).fingerprint === selectedFingerprint) : [];
   const pendingDeleteDocument = documents.find(
     (doc) => doc.id === pendingDeleteId,
   );
+
+  const selectDocument = async (doc: typeof documents[number]) => {
+    const version = ++selectionVersion.current;
+    setSelectedId(doc.id);
+    setMobileView('form');
+    if (doc.status === 'Gebucht' || !doc.originalDraft) { setSelectingId(null); return; }
+    setSelectingId(doc.id);
+    try {
+      await prepareDocumentLearning();
+      if (version !== selectionVersion.current) return;
+      const rule = findTemplate('', '', parseDocumentIdentity(doc.vendorPattern));
+      if (!rule) return;
+      const fields = learnedFields(rule.draft);
+      const changes: Partial<BookingDraft> = {};
+      for (const key of ['account', 'contraAccount', 'category', 'type', 'vatRate'] as const) {
+        if (fields[key] !== undefined && doc.draft[key] === doc.originalDraft[key] && doc.draft[key] !== fields[key]) {
+          Object.assign(changes, { [key]: fields[key] });
+        }
+      }
+      if (Object.keys(changes).length) await updateDocumentDraft(doc.id, { ...doc.draft, ...changes });
+    } catch (error) {
+      if (version === selectionVersion.current) showNotify('error', 'Vorschläge nicht aktualisiert', (error as Error).message);
+    } finally {
+      if (version === selectionVersion.current) setSelectingId(null);
+    }
+  };
 
   const handleRemoveDocument = async (doc: typeof documents[number]) => {
     if (deletingDocument) return;
@@ -67,23 +114,59 @@ const Dokumente = () => {
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+    const selected = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (!selected.length) return;
+    const files = selected.filter((file) => file.type === 'application/pdf' || file.type.startsWith('image/') || /\.(pdf|jpe?g|png|gif|webp|tiff?)$/i.test(file.name));
+    const ignored = selected.length - files.length;
+    if (!files.length) { showNotify('error', 'Keine Belege', 'Im ausgewählten Stapel wurden keine PDF- oder Bilddateien gefunden.'); return; }
+    let saved = 0;
+    let unrecognized = 0;
+    let processed = 0;
+    const failed: string[] = [];
+    let firstId: string | undefined;
     try {
       setIsProcessing(true);
-      let result: Awaited<ReturnType<typeof processDocument>> | undefined;
-      try { result = await processDocument(file); } catch { result = undefined; }
-      await addDocument(file, result?.draft, result?.detection, result?.templateApplied, result?.vendorPattern, true);
-      if (result) showNotify('success', 'Beleg erkannt', `„${file.name}“ wurde erfolgreich verarbeitet und ist bereit zur Buchung.`);
-      else showNotify('error', 'Erkennung fehlgeschlagen', 'Beleg wurde gespeichert, konnte aber nicht automatisch erkannt werden.');
+      setBatchActive(true);
+      cancelBatch.current = false;
+      setProcessingStatus('Lernregeln werden geladen…');
+      await prepareDocumentLearning();
+      for (const [index, original] of files.entries()) {
+        if (cancelBatch.current) break;
+        setProcessingStatus(`Beleg ${index + 1} von ${files.length} wird verarbeitet…`);
+        const file = !original.type && /\.pdf$/i.test(original.name)
+          ? new File([original], original.name, { type: 'application/pdf', lastModified: original.lastModified })
+          : original;
+        try {
+          if (file.size > 20 * 1024 * 1024) throw new Error('maximal 20 MB');
+          let result: Awaited<ReturnType<typeof processDocument>> | undefined;
+          try { result = await processDocument(file); } catch { result = undefined; }
+          const identity = result?.vendorPattern ?? encodeDocumentIdentity({ fingerprint: await documentFingerprint(file) });
+          const id = await addDocument(file, result?.draft, result?.detection, result?.templateApplied, identity, true);
+          firstId ??= id;
+          saved++;
+          if (!result) unrecognized++;
+        } catch (error) {
+          failed.push(`${original.name}: ${error instanceof Error ? error.message : 'Fehler'}`);
+        }
+        processed++;
+      }
+      if (firstId) setSelectedId(firstId);
+      const details = [
+        `${saved} von ${files.length} Belegen gespeichert.`,
+        processed < files.length ? `Stapel gestoppt; ${files.length - processed} Belege nicht verarbeitet.` : '',
+        unrecognized ? `${unrecognized} ohne automatische Erkennung; bitte manuell prüfen.` : '',
+        ignored ? `${ignored} andere Dateien übersprungen.` : '',
+        failed.length ? `Nicht gespeichert: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` und ${failed.length - 5} weitere` : ''}.` : '',
+      ].filter(Boolean).join(' ');
+      showNotify(failed.length || unrecognized ? 'error' : 'success', 'Stapelimport abgeschlossen', details);
     } catch (error) {
-      showNotify('error', 'Beleg nicht gespeichert', (error as Error).message || 'Der Upload ist fehlgeschlagen.');
+      showNotify('error', 'Import nicht gestartet', `Lernregeln konnten nicht geladen werden: ${(error as Error).message}`);
     } finally {
       setIsProcessing(false);
+      setBatchActive(false);
+      setProcessingStatus('Beleg wird verarbeitet…');
     }
-
-    event.target.value = '';
   };
 
   const handleEmlChange = async (
@@ -94,6 +177,7 @@ const Dokumente = () => {
     let savedCount = 0;
     try {
       setIsProcessing(true);
+      await prepareDocumentLearning();
       const rawText = await file.text();
       const email = parseEml(rawText);
 
@@ -135,6 +219,7 @@ const Dokumente = () => {
     let count = 0;
     try {
       setIsProcessing(true);
+      await prepareDocumentLearning();
       setImapStatus('E-Mails werden abgerufen…');
       const { emails } = await api.imap.fetch();
       if (emails.length === 0) {
@@ -174,7 +259,7 @@ const Dokumente = () => {
     void updateDocumentDraft(selectedDocument.id, {
       ...selectedDocument.draft,
       ...patch,
-    }).catch((error: Error) => showNotify('error', 'Entwurf nicht gespeichert', `${error.message}. Bitte die Änderung erneut vornehmen oder den Beleg bestätigen.`));
+    }, patch).catch((error: Error) => showNotify('error', 'Speicherung unvollständig', error.message));
   };
 
   const updateDraftWithContra = (patch: Partial<BookingDraft>) => {
@@ -185,12 +270,12 @@ const Dokumente = () => {
       ...next,
       account: suggestedAcct ?? next.account,
       contraAccount: suggestContraAccount(next.type, next.paymentStatus),
-    }).catch((error: Error) => showNotify('error', 'Entwurf nicht gespeichert', `${error.message}. Bitte die Änderung erneut vornehmen oder den Beleg bestätigen.`));
+    }, patch).catch((error: Error) => showNotify('error', 'Speicherung unvollständig', error.message));
   };
 
   return (
     <div className="space-y-6">
-      {isProcessing && <LogoLoader text="Beleg wird verarbeitet…" />}
+      {isProcessing && <LogoLoader text={processingStatus} onCancel={batchActive ? () => { cancelBatch.current = true; setProcessingStatus('Stopp vorgemerkt. Der aktuelle Beleg wird noch abgeschlossen…'); } : undefined} />}
       <NotificationModal
         open={notify.open}
         type={notify.type}
@@ -205,18 +290,24 @@ const Dokumente = () => {
         }`}
         action={
           <div className="flex flex-col items-end gap-2">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <label className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white ${
                 isProcessing ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'
               }`}>
-                {isProcessing ? 'Erkennung…' : 'Beleg hochladen'}
+                {isProcessing ? 'Erkennung…' : 'Belege hochladen'}
                 <input
                   type="file"
                   className="hidden"
                   accept="application/pdf,image/*"
+                  multiple
                   onChange={handleFileChange}
-                  disabled={isProcessing}
+                  disabled={isProcessing || readOnly}
                 />
+              </label>
+              <label title="Lokale Ordner, auch synchronisierte Cloud-Ordner" className={`cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 ${isProcessing ? 'opacity-40' : 'hover:bg-slate-50'}`}>
+                Ordner auswählen
+                <input type="file" className="hidden" multiple disabled={isProcessing || readOnly} onChange={handleFileChange}
+                  ref={(input) => { if (input) input.setAttribute('webkitdirectory', ''); }} />
               </label>
               <label className={`cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 ${
                 isProcessing ? 'opacity-40' : 'hover:bg-slate-50'
@@ -232,14 +323,14 @@ const Dokumente = () => {
                   className="hidden"
                   accept=".eml,message/rfc822"
                   onChange={handleEmlChange}
-                  disabled={isProcessing}
+                  disabled={isProcessing || readOnly}
                 />
               </label>
               {user && (
                 <button
                   type="button"
                   onClick={handleImapFetch}
-                  disabled={isProcessing}
+                  disabled={isProcessing || readOnly}
                   className={`flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition ${
                     isProcessing ? 'opacity-40' : 'hover:bg-sky-100'
                   }`}
@@ -265,6 +356,31 @@ const Dokumente = () => {
             <h3 className="break-words text-base font-semibold text-slate-900 sm:text-lg">Eingangsrechnungen</h3>
             <p className="mt-0.5 text-xs text-slate-400">Hochgeladene Belege werden automatisch erkannt und als Buchungsvorschlag vorbereitet.</p>
           </div>
+          <details className="mt-4 border-t border-slate-100 pt-3">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-700" onClick={() => {
+              void prepareDocumentLearning().catch((error: Error) => showNotify('error', 'Lernregeln nicht geladen', error.message));
+            }}>Lernregeln ({templates.length})</summary>
+            {templates.length === 0 ? <p className="mt-2 text-xs text-slate-500">Noch keine Regeln gespeichert.</p> : (
+              <ul className="mt-2 divide-y divide-slate-100">
+                {templates.map((rule) => {
+                  const fingerprint = rule.pattern.startsWith('sha256:') ? rule.pattern.slice(7) : '';
+                  const related = fingerprint ? documents.find((doc) => parseDocumentIdentity(doc.vendorPattern).fingerprint === fingerprint) : undefined;
+                  const label = fingerprint ? `Datei: ${related?.fileName ?? 'Unbekannter Beleg'}` : rule.pattern.replace(/^vendor:/, '');
+                  return <li key={rule.id} className="flex items-center justify-between gap-2 py-2 text-xs text-slate-600">
+                    <span className="min-w-0 break-all">{label}</span>
+                    <button type="button" disabled={readOnly || Boolean(deletingRule)} onClick={async () => {
+                      setDeletingRule(rule.pattern);
+                      try {
+                        if (user && !window.location.pathname.startsWith('/demo')) await api.templates.remove(rule.pattern);
+                        removeTemplate(rule.pattern);
+                      } catch (error) { showNotify('error', 'Lernregel nicht entfernt', (error as Error).message); }
+                      finally { setDeletingRule(''); }
+                    }} className="shrink-0 font-semibold text-rose-600 disabled:opacity-40">Entfernen</button>
+                  </li>;
+                })}
+              </ul>
+            )}
+          </details>
           <ul className="mt-4 min-w-0 space-y-3 text-sm text-slate-600">
             {documents.map((doc) => (
               <li
@@ -274,10 +390,7 @@ const Dokumente = () => {
                     ? 'border-slate-900 bg-slate-50'
                     : 'border-slate-100 hover:bg-slate-50'
                 }`}
-                onClick={() => {
-                  setSelectedId(doc.id);
-                  setMobileView('form');
-                }}
+                onClick={() => void selectDocument(doc)}
               >
                 <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
@@ -327,14 +440,14 @@ const Dokumente = () => {
                           <span>Vorlage</span>
                         </span>
                       )}
-                      {doc.vendorPattern && (
+                      {parseDocumentIdentity(doc.vendorPattern).vendor && (
                         <span className="inline-flex items-center gap-0.5">
                           <span>·</span>
                           <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L8.4 3.659A2.25 2.25 0 0 0 6.81 3H5.25" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
                           </svg>
-                          <span>{doc.vendorPattern}</span>
+                          <span>{parseDocumentIdentity(doc.vendorPattern).vendor}</span>
                         </span>
                       )}
                     </p>
@@ -351,7 +464,7 @@ const Dokumente = () => {
                     </span>
                     <button
                       type="button"
-                      disabled={deletingDocument || isReadonly}
+                      disabled={deletingDocument || readOnly}
                       onClick={(event) => {
                         event.stopPropagation();
                         if (doc.status === 'Gebucht') {
@@ -388,6 +501,15 @@ const Dokumente = () => {
           </h3>
           {selectedDocument ? (
             <div className="mt-4 space-y-4 text-sm text-slate-600">
+              {accountsLoading && <LoadingIndicator text="Konten werden geladen…" size="small" />}
+              {selectingId === selectedDocument.id && <LoadingIndicator text="Lernregeln werden geprüft…" size="small" />}
+              {accountsError && <p role="alert" className="text-xs text-rose-700">{accountsError}</p>}
+              {duplicates.length > 0 && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                Gleicher Dateiinhalt bereits vorhanden: {duplicates.map((doc) => `${doc.fileName} (${doc.status})`).join(', ')}.
+              </p>}
+              {parseDocumentIdentity(selectedDocument.vendorPattern).fingerprint && !parseDocumentIdentity(selectedDocument.vendorPattern).vendor && (
+                <p className="text-xs text-slate-500">Kein eindeutiger Lieferant erkannt. Korrekturen gelten nur für diese identische Datei.</p>
+              )}
               {/* Already-booked banner */}
               {selectedDocument.status === 'Gebucht' && (
                 <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
@@ -407,7 +529,7 @@ const Dokumente = () => {
                   </button>
                 </div>
               )}
-              <div className={`grid gap-4 md:grid-cols-2 ${selectedDocument.status === 'Gebucht' ? 'pointer-events-none opacity-50' : ''}`}>
+              <fieldset disabled={accountsLoading || selectingId === selectedDocument.id || readOnly || selectedDocument.status === 'Gebucht'} className={`grid gap-4 md:grid-cols-2 ${accountsLoading || selectingId === selectedDocument.id || readOnly || selectedDocument.status === 'Gebucht' ? 'opacity-50' : ''}`}>
                 <label>
                   Datum
                   <input
@@ -455,8 +577,7 @@ const Dokumente = () => {
                           title={fav}
                           onClick={() => {
                             const sel = accounts.find((a) => formatAccount(a) === fav);
-                            updateDraft({ account: fav });
-                            if (sel) updateDraft({ category: getCategoryLabel(sel.categoryCode) });
+                            updateDraft({ account: fav, ...(sel ? { category: getCategoryLabel(sel.categoryCode) } : {}) });
                           }}
                           className={`rounded-full border px-2 py-0.5 text-xs transition ${
                             selectedDocument.draft.account === fav
@@ -470,20 +591,16 @@ const Dokumente = () => {
                     </div>
                   )}
                   <select
-                    value={selectedDocument.draft.account}
+                    value={resolveAccount(selectedDocument.draft.account, accounts)}
                     onChange={(event) => {
                       const selected = accounts.find(
                         (account) => formatAccount(account) === event.target.value,
                       );
-                      updateDraft({ account: event.target.value });
-                      if (selected) {
-                        updateDraft({
-                          category: getCategoryLabel(selected.categoryCode),
-                        });
-                      }
+                      updateDraft({ account: event.target.value, ...(selected ? { category: getCategoryLabel(selected.categoryCode) } : {}) });
                     }}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
+                    {!accounts.some((account) => formatAccount(account) === resolveAccount(selectedDocument.draft.account, accounts)) && <option value={selectedDocument.draft.account}>{selectedDocument.draft.account}</option>}
                     {accounts.map((account) => (
                       <option key={account.code} value={formatAccount(account)}>
                         {formatAccount(account)}
@@ -527,10 +644,11 @@ const Dokumente = () => {
                     </div>
                   )}
                   <select
-                    value={selectedDocument.draft.contraAccount ?? ''}
+                    value={resolveAccount(selectedDocument.draft.contraAccount ?? '', accounts)}
                     onChange={(event) => updateDraft({ contraAccount: event.target.value })}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
+                    {!accounts.some((account) => formatAccount(account) === resolveAccount(selectedDocument.draft.contraAccount ?? '', accounts)) && <option value={selectedDocument.draft.contraAccount ?? ''}>{selectedDocument.draft.contraAccount}</option>}
                     {accounts.map((account) => (
                       <option key={account.code} value={formatAccount(account)}>
                         {formatAccount(account)}
@@ -667,7 +785,7 @@ const Dokumente = () => {
                     <option value="Bezahlt">Bezahlt</option>
                   </select>
                 </label>
-              </div>
+              </fieldset>
               <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                 <div>
                   <p className="text-xs text-slate-500">Belegvorschau</p>
@@ -693,20 +811,6 @@ const Dokumente = () => {
                 ) : null}
               </div>
               <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const pattern = selectedDocument.fileName
-                      .replace(/\.[^/.]+$/, '')
-                      .slice(0, 24)
-                      .toLowerCase();
-                    addTemplate(pattern, selectedDocument.draft);
-                    showNotify('success', 'Vorlage gespeichert', `„${selectedDocument.fileName.slice(0, 30)}“ wurde als Buchungsvorlage gespeichert.`);
-                  }}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Als Vorlage speichern
-                </button>
                 {selectedDocument.status === 'Gebucht' ? (
                   <button
                     type="button"
@@ -721,12 +825,13 @@ const Dokumente = () => {
                 ) : (
                   <button
                     type="button"
-                    disabled={isProcessing || isReadonly || (!!user?.permissions && !user.permissions.includes('buchhaltung'))}
+                    disabled={isProcessing || accountsLoading || selectingId === selectedDocument.id || readOnly || (!!user?.permissions && !user.permissions.includes('buchhaltung'))}
                     onClick={async () => {
+                      if (duplicates.some((doc) => doc.status === 'Gebucht') && !window.confirm('Dieser Dateiinhalt wurde bereits gebucht. Trotzdem nochmals buchen?')) return;
                       setIsProcessing(true);
                       try {
-                        await confirmDocument(selectedDocument.id);
-                        showNotify('success', 'Buchung bestätigt!', `„${selectedDocument.draft.description}“ wurde erfolgreich als Buchung erfasst.`);
+                        const result = await confirmDocument(selectedDocument.id);
+                        showNotify('success', 'Buchung bestätigt!', `„${selectedDocument.draft.description}“ wurde erfolgreich als Buchung erfasst.${result.learningSaved ? '' : ' Eine Lernregel konnte für diesen Beleg nicht gespeichert werden.'}`);
                       } catch (error) {
                         showNotify('error', 'Buchung fehlgeschlagen', (error as Error).message);
                       } finally { setIsProcessing(false); }

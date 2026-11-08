@@ -5,6 +5,7 @@ import SectionHeader from '../components/SectionHeader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import { accountCategories, accountKey, findAccount, formatAccount, resolveAccount, type Account } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
+import { LoadingIndicator } from '../components/LogoLoader';
 
 const fmt = (value: number, cur: string) =>
   new Intl.NumberFormat('de-CH', { style: 'currency', currency: cur }).format(value);
@@ -464,7 +465,7 @@ const Bilanz = () => {
           </Link>
       </div>
 
-      {accountsLoading && <p role="status" className="text-sm text-slate-500">Konten werden geladen…</p>}
+      {accountsLoading && <LoadingIndicator text="Konten werden geladen…" size="small" />}
       {loadError && <p role="alert" className="text-sm text-rose-700">{loadError}</p>}
       {unassigned.length > 0 && (
         <details className="overflow-hidden rounded-xl border border-amber-200">

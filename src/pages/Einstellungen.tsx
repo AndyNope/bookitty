@@ -8,6 +8,7 @@ import { api, type BillingSummary, type CompanyRole } from '../services/api';
 import { accounts as STD_ACCOUNTS, accountCategories, formatAccount } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
 import NotificationModal from '../components/NotificationModal';
+import { LoadingIndicator, LoadingLogo } from '../components/LogoLoader';
 import TwoFactorSettings from '../components/TwoFactorSettings';
 import CompanyRoles from '../components/CompanyRoles';
 import CompanyActivity from '../components/CompanyActivity';
@@ -444,8 +445,9 @@ const Einstellungen = () => {
                     type="button"
                     disabled={checkoutBusy !== ''}
                     onClick={() => startCheckout('portal', '')}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                   >
+                    {checkoutBusy === 'portal:' && <LoadingLogo />}
                     {checkoutBusy === 'portal:' ? 'Weiter …' : 'Abo verwalten'}
                   </button>
                 )}
@@ -453,7 +455,7 @@ const Einstellungen = () => {
             )}
           </div>
 
-          {billingLoading && <p className="mt-4 text-sm text-slate-500">Guthaben wird geladen …</p>}
+          {billingLoading && <div className="mt-4"><LoadingIndicator text="Guthaben wird geladen…" /></div>}
           {billingError && <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{billingError}</p>}
 
           {billing && (
@@ -486,8 +488,9 @@ const Einstellungen = () => {
                         type="button"
                         disabled={!billing.billingEnabled || checkoutBusy !== '' || (billing.hasSubscription && (!billing.portalEnabled || billing.plan === code))}
                         onClick={() => startCheckout(billing.hasSubscription ? 'portal' : 'subscription', billing.hasSubscription ? '' : code)}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
+                        {checkoutBusy === `subscription:${code}` && <LoadingLogo />}
                         {checkoutBusy === `subscription:${code}` ? 'Weiter …' : billing.hasSubscription && billing.plan === code ? 'Aktueller Tarif' : !billing.billingEnabled ? 'Derzeit nicht verfügbar' : billing.hasSubscription ? 'Im Aboportal ändern' : 'Zur Kasse'}
                       </button>
                     </div>
@@ -507,8 +510,9 @@ const Einstellungen = () => {
                         type="button"
                         disabled={!billing.tokenPurchasesEnabled || checkoutBusy !== ''}
                         onClick={() => startCheckout('tokens', code)}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
+                        {checkoutBusy === `tokens:${code}` && <LoadingLogo />}
                         {checkoutBusy === `tokens:${code}` ? 'Weiter …' : billing.tokenPurchasesEnabled ? 'Kaufen' : 'Derzeit nicht verfügbar'}
                       </button>
                     </div>
@@ -573,6 +577,7 @@ const Einstellungen = () => {
           in allen Buchungsformularen und Auswertungen verwendet.
         </p>
         {acctLoadError && <p role="alert" className="mt-3 text-xs text-rose-700">{acctLoadError}</p>}
+        {(acctLoading || acctSaving) && <div className="mt-3"><LoadingIndicator text="Konten werden aktualisiert…" size="small" /></div>}
 
         {/* Existing custom accounts */}
         {customAccounts.length > 0 ? (
@@ -749,7 +754,7 @@ const Einstellungen = () => {
               <button onClick={handleInvite} disabled={teamLoading}
                 className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40">
                 {teamLoading
-                  ? <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  ? <LoadingLogo />
                   : <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                 }
                 Einladen
@@ -824,7 +829,7 @@ const Einstellungen = () => {
               <button onClick={handleTreuInvite} disabled={treuLoading}
                 className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-40">
                 {treuLoading
-                  ? <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  ? <LoadingLogo />
                   : <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                 }
                 Zugang gewähren

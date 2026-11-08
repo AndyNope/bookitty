@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import LogoLoader from '../components/LogoLoader';
 
 const Confirm = () => {
   const [params] = useSearchParams();
@@ -38,11 +39,7 @@ const Confirm = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <p className="text-sm text-slate-400">E-Mail wird bestätigt …</p>
-    </div>
-  );
+  return <LogoLoader text="E-Mail wird bestätigt…" />;
 };
 
 export default Confirm;

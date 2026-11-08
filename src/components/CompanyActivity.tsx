@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type CompanyActivity as Activity } from '../services/api';
+import { LoadingIndicator } from './LogoLoader';
 
 const labels: Record<string, string> = {
   invitation_created: 'Einladung erstellt',
@@ -27,17 +28,19 @@ const labels: Record<string, string> = {
 export default function CompanyActivity() {
   const [events, setEvents] = useState<Activity[]>([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    const refresh = () => api.activity.list().then(setEvents).catch((err: Error) => setError(err.message));
+    const refresh = () => api.activity.list().then((items) => { setEvents(items); setError(''); }).catch((err: Error) => setError(err.message)).finally(() => setLoading(false));
+    const onRefresh = () => { setLoading(true); void refresh(); };
     void refresh();
-    window.addEventListener('bookitty:company-activity', refresh);
-    return () => window.removeEventListener('bookitty:company-activity', refresh);
+    window.addEventListener('bookitty:company-activity', onRefresh);
+    return () => window.removeEventListener('bookitty:company-activity', onRefresh);
   }, []);
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="text-base font-semibold text-slate-900">Zugriffsprotokoll</h3>
       <p className="mt-1 text-xs text-slate-500">Zugänge, Rollen, Firmenwechsel sowie Buchungen und Kundenrechnungen.</p>
-      {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : events.length === 0 ?
+      {loading ? <div className="mt-3"><LoadingIndicator text="Protokoll wird geladen…" size="small" /></div> : error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : events.length === 0 ?
         <p className="mt-3 text-sm text-slate-500">Noch keine Einträge.</p> :
         <ul className="mt-3 divide-y divide-slate-100">{events.map((event) => <li key={event.id} className="flex flex-wrap justify-between gap-1 py-2 text-sm">
           <span className="break-words text-slate-800">{labels[event.action] ?? event.action} · {event.actorName}{event.targetId && <span className="ml-2 font-mono text-xs text-slate-400">#{event.targetId}</span>}</span>

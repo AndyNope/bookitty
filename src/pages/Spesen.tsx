@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import SectionHeader from '../components/SectionHeader';
 import type { Expense, ExpenseCategory, ExpenseStatus } from '../types';
 import NumberInput from '../components/NumberInput';
+import { LoadingIndicator } from '../components/LogoLoader';
 
 /* ── local mock helper ─────────────────────────────────────────────── */
 const STORAGE_KEY = 'bookitty.expenses';
@@ -221,11 +222,7 @@ export default function Spesen() {
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
-            <svg className="h-5 w-5 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-            Lade...
+            <LoadingIndicator text="Spesen werden geladen…" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">

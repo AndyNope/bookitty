@@ -47,6 +47,23 @@ $check($status === 200, 'Solo-Zugang gesperrt');
 $check($status === 200, 'Firmenmitglied ohne Zugang zum Firmenabo');
 [$status] = $request('bookings.php', $makeToken(2));
 $check($status === 402, 'Persönliche Firma ohne Abo nicht gesperrt');
+$pattern = 'sha256:' . str_repeat('a', 64);
+[$status] = $request('templates.php', $owner, ['pattern' => $pattern, 'template' => ['account' => '4400 Aufwand', 'amount' => 999]]);
+$check($status === 200, 'Vorlage konnte nicht gespeichert werden');
+[$status] = $request('templates.php', $member, ['pattern' => $pattern, 'template' => ['contraAccount' => '1020 Bank']]);
+$check($status === 200, 'Firmenmitglied konnte Vorlage nicht ergänzen');
+[$status, $rules] = $request('templates.php', $owner);
+$check($status === 200 && ($rules[$pattern]['account'] ?? '') === '4400 Aufwand'
+    && ($rules[$pattern]['contraAccount'] ?? '') === '1020 Bank' && !isset($rules[$pattern]['amount']), 'Vorlagenkorrekturen nicht zusammengeführt');
+$pdo->exec("INSERT INTO billing_accounts (company_id, plan_code, subscription_status) VALUES (2, 'solo', 'active')");
+[$status, $otherRules] = $request('templates.php', $makeToken(2));
+$check($status === 200 && empty($otherRules), 'Vorlage einer anderen Firma sichtbar');
+$pdo->exec("UPDATE company_memberships SET role='readonly' WHERE company_id=1 AND user_id=2");
+[$status] = $request('templates.php', $member, ['pattern' => $pattern, 'template' => ['contraAccount' => '2000 Kreditoren']]);
+$check($status === 403, 'Nur-Lesen-Mitglied konnte Vorlage ändern');
+$pdo->exec("UPDATE company_memberships SET role='buchhalter' WHERE company_id=1 AND user_id=2");
+[$status] = $request('templates.php', $owner, ['pattern' => $pattern, 'template' => ['vatRate' => 999]]);
+$check($status === 400, 'Ungültiger Steuersatz akzeptiert');
 $webhook = static function (string $eventId, string $price) use ($request): int {
     $event = ['id' => $eventId, 'type' => 'customer.subscription.updated', 'data' => ['object' => [
         'id' => 'sub_test', 'status' => 'active', 'current_period_end' => time() + 3600,
@@ -65,4 +82,4 @@ $check($webhook('evt_unknown', 'price_unknown') === 500, 'Unbekannter Preis nich
 $pdo->exec("UPDATE billing_accounts SET subscription_status='past_due' WHERE company_id=1");
 [$status] = $request('bookings.php', $member);
 $check($status === 402, 'Zahlungsausfall nicht gesperrt');
-echo "Abo-Zugriff, Firmenzuordnung und Tarifwechsel erfolgreich geprüft.\n";
+echo "Abo-Zugriff, Firmenzuordnung, Vorlagen und Tarifwechsel erfolgreich geprüft.\n";

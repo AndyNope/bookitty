@@ -33,14 +33,11 @@ import Portal from './pages/Portal';
 import StartupNight from './pages/StartupNight';
 import ContactSupport from './pages/ContactSupport';
 import SubscriptionGate from './components/SubscriptionGate';
+import LogoLoader from './components/LogoLoader';
 
 const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, isLoading } = useAuth();
-  if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-slate-400 text-sm">Lädt …</div>
-    </div>
-  );
+  if (isLoading) return <LogoLoader text="Anmeldung wird geprüft…" />;
   if (!user) return <Navigate to="/login" replace />;
   if (!user.subscriptionActive) return <SubscriptionGate />;
   return <>{children}</>;

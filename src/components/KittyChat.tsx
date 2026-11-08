@@ -6,6 +6,7 @@ import type { KittyAction } from '../utils/kittySearch';
 import type { BookingSuggestion } from '../data/kittyKnowledge';
 import { useAuth } from '../store/AuthContext';
 import { completeOnboardingTask, getOnboardingScope } from '../utils/onboardingProgress';
+import { LoadingIndicator } from './LogoLoader';
 
 type Message = {
   role: 'user' | 'model';
@@ -368,10 +369,8 @@ const KittyChat = () => {
             )}
             {loading && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-slate-100 px-4 py-3">
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
+                <div className="rounded-2xl rounded-bl-sm bg-slate-100 px-4 py-3">
+                  <LoadingIndicator text="Kitty antwortet…" size="small" />
                 </div>
               </div>
             )}

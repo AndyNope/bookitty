@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, type BillingSummary } from '../services/api';
 import { useAuth } from '../store/AuthContext';
 import CompanySwitcher from './CompanySwitcher';
+import { LoadingIndicator, LoadingLogo } from './LogoLoader';
 
 export default function SubscriptionGate() {
   const { user, logout } = useAuth();
@@ -37,7 +38,7 @@ export default function SubscriptionGate() {
           <p className="mt-2 text-sm text-slate-600">Für diese Firma wird ein aktives Solo-, Team- oder Business-Abo benötigt.</p>
           <div className="mt-5"><CompanySwitcher /></div>
           {!isOwner && <p className="mt-4 text-sm text-slate-600">Bitte wende dich an die Firmeninhaberin oder den Firmeninhaber.</p>}
-          {isOwner && !billing && !error && <p className="mt-4 text-sm text-slate-500">Abos werden geladen …</p>}
+          {isOwner && !billing && !error && <div className="mt-4"><LoadingIndicator text="Abos werden geladen…" /></div>}
           {billing && (
             <div className="mt-5 divide-y divide-slate-200 border-y border-slate-200">
               {Object.entries(billing.plans).filter(([code]) => code !== 'starter').map(([code, plan]) => (
@@ -48,7 +49,8 @@ export default function SubscriptionGate() {
                   </div>
                   <button type="button" disabled={!billing.billingEnabled || Boolean(busy) || billing.hasSubscription}
                     onClick={() => void start('subscription', code)}
-                    className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                    className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                    {busy === code && <LoadingLogo />}
                     {busy === code ? 'Weiter …' : 'Abo wählen'}
                   </button>
                 </div>
@@ -56,7 +58,7 @@ export default function SubscriptionGate() {
             </div>
           )}
           {billing?.portalEnabled && <button type="button" disabled={Boolean(busy)} onClick={() => void start('portal')}
-            className="mt-4 rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">Abo verwalten</button>}
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">{busy === 'portal' && <LoadingLogo />}Abo verwalten</button>}
           {billing && !billing.billingEnabled && <p className="mt-4 text-sm text-amber-700">Die Online-Zahlung ist derzeit nicht verfügbar. Bitte kontaktiere den Support.</p>}
           {error && <p role="alert" className="mt-4 text-sm text-rose-700">{error}</p>}
           <div className="mt-8 flex gap-5 text-sm">

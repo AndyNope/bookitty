@@ -1,5 +1,6 @@
 import type { BookingDraft } from '../types';
 import { companyStorageKey } from './companyStorage';
+import { documentIdentityKeys, type DocumentIdentity } from './documentIdentity';
 
 export type TemplateRule = {
   id: string;
@@ -30,9 +31,30 @@ const readTemplates = (): TemplateRule[] => {
 
 const writeTemplates = (templates: TemplateRule[]) => {
   localStorage.setItem(companyStorageKey(STORAGE_KEY), JSON.stringify(templates));
+  window.dispatchEvent(new Event('bookitty:templates-changed'));
 };
 
 export const getTemplates = () => readTemplates();
+export const removeTemplate = (pattern: string) => writeTemplates(readTemplates().filter((rule) => rule.pattern !== pattern));
+
+export const mergeServerTemplates = (server: Record<string, object>) => {
+  const local = readTemplates();
+  const serverRules = Object.entries(server).map(([pattern, draft]) => ({
+    id: pattern, pattern, draft: draft as Partial<BookingDraft>, hitCount: 0, updatedAt: '',
+  }));
+  const keys = new Set(serverRules.map((rule) => rule.pattern.toLowerCase()));
+  writeTemplates([...serverRules, ...local.filter((rule) => !keys.has(rule.pattern.toLowerCase()) && !/^(sha256|vendor):/i.test(rule.pattern))]);
+};
+
+export const learnedFields = (draft: Partial<BookingDraft>): Partial<BookingDraft> => {
+  const result: Partial<BookingDraft> = {};
+  if (typeof draft.account === 'string') result.account = draft.account;
+  if (typeof draft.contraAccount === 'string') result.contraAccount = draft.contraAccount;
+  if (typeof draft.category === 'string') result.category = draft.category;
+  if (typeof draft.type === 'string') result.type = draft.type;
+  if (typeof draft.vatRate === 'number' && Number.isFinite(draft.vatRate)) result.vatRate = draft.vatRate;
+  return result;
+};
 
 /**
  * Upsert a template by pattern (case-insensitive).
@@ -60,7 +82,7 @@ export const upsertTemplate = (
       updatedAt: today,
     });
   }
-  writeTemplates(templates.slice(0, 100));
+  writeTemplates(templates);
 };
 
 /** Legacy alias used by the manual "Als Vorlage speichern" button */
@@ -70,17 +92,12 @@ export const addTemplate = upsertTemplate;
  * Find a template whose pattern appears in the given document text or file name.
  * Prefers templates with higher hitCount (more confirmations = more reliable).
  */
-export const findTemplate = (fileName: string, documentText?: string) => {
+export const findTemplate = (_fileName: string, _documentText?: string, identity: DocumentIdentity = {}) => {
   const templates = readTemplates();
-  const haystack = [
-    fileName.toLowerCase(),
-    (documentText ?? '').toLowerCase(),
-  ].join(' ');
-
-  const matches = templates.filter((rule) =>
-    haystack.includes(rule.pattern.toLowerCase()),
-  );
-  if (!matches.length) return undefined;
-  // Return the most-confirmed match
-  return matches.sort((a, b) => b.hitCount - a.hitCount)[0];
+  for (const key of documentIdentityKeys(identity)) {
+    const exact = templates.find((rule) => rule.pattern.toLowerCase() === key.toLowerCase());
+    if (exact) return exact;
+  }
+  if (!identity.vendor) return undefined;
+  return templates.find((rule) => rule.pattern.toLowerCase() === identity.vendor?.toLowerCase());
 };

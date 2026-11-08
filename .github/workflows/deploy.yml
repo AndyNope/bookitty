@@ -36,6 +36,12 @@ jobs:
       - name: Test FER preview
         run: npm run test:fer
 
+      - name: Test document learning
+        run: npm run test:documents
+
+      - name: Test loading indicators
+        run: npm run test:loading
+
       - name: Build
         run: npm run build
 

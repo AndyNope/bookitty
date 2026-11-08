@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { calcInvoiceTotals } from '../utils/invoicePdf';
 import type { InvoiceLineItem } from '../types';
+import LogoLoader from '../components/LogoLoader';
 
 /* ── Types ────────────────────────────────────────────────────────── */
 interface PortalInvoice {
@@ -70,11 +71,7 @@ export default function Portal() {
   }, [token]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <p className="text-slate-400 text-sm">Rechnung wird geladen …</p>
-      </div>
-    );
+    return <LogoLoader text="Rechnung wird geladen…" />;
   }
 
   if (error || !invoice) {

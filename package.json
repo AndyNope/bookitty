@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test:fer": "node --import tsx --test tests/fer-preview.test.ts",
+    "test:documents": "node --import tsx --test tests/document-learning.test.ts",
+    "test:loading": "tsx --tsconfig tsconfig.app.json --test tests/loading-logo.test.tsx",
     "lint": "eslint .",
     "preview": "vite preview"
   },

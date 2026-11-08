@@ -205,20 +205,17 @@ const findDescription = (text: string) => {
  * Looks for legal-form suffixes (GmbH, AG, SA, KG, Inc, Ltd, …) and returns
  * a normalised lowercase slug suitable as a template pattern key.
  */
-export const findVendorName = (text: string): string | undefined => {
-  // Match lines that contain a legal-form indicator
-  const match = text.match(
-    /^(.{2,60}?\b(?:GmbH|AG|SA|Sàrl|KG|OHG|GbR|Inc\.?|Ltd\.?|Corp\.?|S\.A\.|S\.r\.l\.))\b/im,
-  );
-  if (!match?.[1]) return undefined;
-  // Normalise: lowercase, keep alphanumeric + space, trim
-  return match[1]
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9äöüéàè ]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 40);
+export const findVendorName = (text: string, ownCompany = ''): string | undefined => {
+  const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9äöüéàè ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const own = normalize(ownCompany);
+  const names = new Set<string>();
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.trim().match(/^([\p{L}\p{N}&'., -]{2,60}?\b(?:GmbH|AG|SA|Sàrl|KG|OHG|GbR|Inc|Ltd|Corp))\b/iu);
+    if (!match) continue;
+    const name = normalize(match[1]);
+    if (name.length >= 5 && name !== own && !(own && name.includes(own))) names.add(name.slice(0, 80));
+  }
+  return names.size === 1 ? [...names][0] : undefined;
 };
 
 /**
@@ -350,7 +347,7 @@ export const extractPdfTextBlocks = async (file: File) => {
   return blocks;
 };
 
-const groupLines = (blocks: TextBlock[]) => {
+export const groupLines = (blocks: TextBlock[]) => {
   const buckets = new Map<number, TextBlock[]>();
   blocks.forEach((block) => {
     const key = Math.round(block.y / 4) * 4;
@@ -423,13 +420,6 @@ export const parseBlocksToDraft = (
   const parsed = parseTextToDraft(text, fallbackName);
   // Prefer the gross/total amount for bookkeeping; use net only as last resort
   const amount = grossAmount ?? netAmount ?? parsed.amount ?? 0;
-  console.log('[Bookitty] parseBlocksToDraft:', {
-    lines: lines.slice(0, 5),
-    grossAmount,
-    netAmount,
-    parsedAmount: parsed.amount,
-    finalAmount: amount,
-  });
   const rate = vatRate ?? parsed.vatRate;
   const hasNetto = netAmount !== undefined || /netto/i.test(text);
   const inferredVatAmount =

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, type CompanyRole } from '../services/api';
 import { COMPANY_FUNCTIONS, type CompanyPermission } from '../utils/companyPermissions';
+import { LoadingIndicator } from './LogoLoader';
 
 export default function CompanyRoles({ roles, onChange }: { roles: CompanyRole[]; onChange: (roles: CompanyRole[]) => void }) {
   const [id, setId] = useState<number | undefined>();
@@ -58,6 +59,7 @@ export default function CompanyRoles({ roles, onChange }: { roles: CompanyRole[]
       </fieldset>
       <p className="mt-2 text-xs text-slate-500">Lohn, Lager, Anlagen und Zeiterfassung sind derzeit nur für den Firmeninhaber verfügbar.</p>
       {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+      {busy && <div className="mt-3"><LoadingIndicator text="Rollen werden aktualisiert…" size="small" /></div>}
       <div className="mt-4 flex flex-wrap gap-2">
         <button type="button" disabled={busy || !name.trim()} onClick={() => void save()} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">{id ? 'Rolle speichern' : 'Rolle erstellen'}</button>
         {id && <button type="button" onClick={reset} className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-700">Abbrechen</button>}

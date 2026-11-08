@@ -9,6 +9,50 @@ body {
   color: #0f172a;
 }
 
+.loading-logo {
+  display: inline-block;
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: #dce3e1;
+  -webkit-mask: url('/logo.svg') center / contain no-repeat;
+  mask: url('/logo.svg') center / contain no-repeat;
+}
+
+.loading-logo--small { width: 1rem; }
+.loading-logo--medium { width: 2rem; }
+.loading-logo--large { width: 6rem; }
+.loading-logo--medium, .loading-logo--large { color: #101413; }
+
+.loading-logo__ink {
+  position: absolute;
+  inset: 0 0 -12%;
+  animation: loading-ink-rise 4s cubic-bezier(.36, 0, .25, 1) infinite;
+}
+
+.loading-logo__surface {
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  animation: loading-ink-wave 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes loading-ink-rise {
+  0% { transform: translateY(100%); opacity: 1; }
+  72%, 84% { transform: translateY(-8%); opacity: 1; }
+  100% { transform: translateY(-8%); opacity: 0; }
+}
+
+@keyframes loading-ink-wave {
+  0% { clip-path: polygon(0 4%, 16% 2%, 32% 4%, 50% 7%, 68% 5%, 84% 2%, 100% 4%, 100% 100%, 0 100%); }
+  100% { clip-path: polygon(0 6%, 16% 7%, 32% 4%, 50% 2%, 68% 4%, 84% 7%, 100% 6%, 100% 100%, 0 100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-logo__ink, .loading-logo__surface { animation: none; }
+}
+
 @keyframes partner-marquee-scroll {
   to {
     transform: translateX(-50%);

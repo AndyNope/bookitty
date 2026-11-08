@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import NotificationModal from '../components/NotificationModal';
+import { LoadingIndicator, LoadingLogo } from '../components/LogoLoader';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { Booking } from '../types';
 import {
@@ -267,7 +268,8 @@ export default function Bankabgleich() {
                 Neue Datei
               </button>
               <button onClick={handleApply} disabled={!canApply || applying}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40">
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40">
+                {applying && <LoadingLogo />}
                 Abgleich übernehmen
               </button>
             </div>
@@ -280,11 +282,7 @@ export default function Bankabgleich() {
         <div>
           {loading ? (
             <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 py-16 text-center">
-              <svg className="h-8 w-8 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              <p className="text-sm text-slate-500">Datei wird analysiert…</p>
+              <LoadingIndicator text="Datei wird analysiert…" />
             </div>
           ) : (
             <UploadZone onFile={handleFile} />
@@ -593,10 +591,7 @@ export default function Bankabgleich() {
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
                 {obSyncing ? (
                   <>
-                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
+                    <LoadingLogo />
                     Verbinde…
                   </>
                 ) : (

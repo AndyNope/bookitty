@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
+import { LoadingLogo } from './LogoLoader';
 
 const GAME_DURATION = 30;
 const TARGET_SCORE = 50;
@@ -339,7 +340,7 @@ const StartupNightGame = ({ unlocked }: { unlocked: boolean }) => {
                   <span>Ja, Bookitty darf meine E-Mail-Adresse für Angebote und Newsletter speichern und verwenden. Diese Einwilligung ist freiwillig und jederzeit widerrufbar.</span>
                 </label>
                 <p className="text-[10px] leading-relaxed text-slate-500">Ohne Häkchen verwenden wir die Adresse nur zum einmaligen Versand des Gewinncodes und speichern sie nicht für Marketing.</p>
-                <button type="submit" disabled={rewardStatus === 'sending'} className="rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{rewardStatus === 'sending' ? 'Wird gesendet…' : 'Code per E-Mail senden'}</button>
+                <button type="submit" disabled={rewardStatus === 'sending'} className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{rewardStatus === 'sending' && <LoadingLogo />}{rewardStatus === 'sending' ? 'Wird gesendet…' : 'Code per E-Mail senden'}</button>
                 {rewardError && <p role="alert" className="text-xs text-rose-700">{rewardError}</p>}
               </form>
             </>

@@ -4,6 +4,7 @@ import { useAuth } from '../store/AuthContext';
 import SectionHeader from '../components/SectionHeader';
 import NotificationModal from '../components/NotificationModal';
 import NumberInput from '../components/NumberInput';
+import LogoLoader, { LoadingLogo } from '../components/LogoLoader';
 import { api } from '../services/api';
 import type { Contact, Offer, OfferStatus, Invoice, InvoiceLineItem } from '../types';
 import { calcInvoiceTotals } from '../utils/invoicePdf';
@@ -419,6 +420,7 @@ export default function Offerten() {
 
   const [offers,       setOffers]       = useState<Offer[]>([]);
   const [contacts,     setContacts]     = useState<Contact[]>([]);
+  const [initialLoading, setInitialLoading] = useState(!isDemo);
   const [modal,        setModal]        = useState<'add' | 'edit' | null>(null);
   const [editing,      setEditing]      = useState<Offer | null>(null);
   const [deleting,     setDeleting]     = useState<Offer | null>(null);
@@ -433,8 +435,11 @@ export default function Offerten() {
       setOffers(loadOffers());
       try { const r = localStorage.getItem('bookitty.contacts'); if (r) setContacts(JSON.parse(r)); } catch {/**/}
     } else {
-      api.offers.list().then(setOffers).catch(console.error);
-      api.contacts.list().then(setContacts).catch(console.error);
+      let active = true;
+      const offersRequest = api.offers.list().then((items) => { if (active) setOffers(items); }).catch(console.error);
+      const contactsRequest = api.contacts.list().then((items) => { if (active) setContacts(items); }).catch(console.error);
+      void Promise.all([offersRequest, contactsRequest]).finally(() => { if (active) setInitialLoading(false); });
+      return () => { active = false; };
     }
   }, [isDemo]);
 
@@ -547,6 +552,7 @@ export default function Offerten() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+      {initialLoading && <LogoLoader text="Offerten werden geladen…" />}
       <SectionHeader
         title="Angebote"
         subtitle={`${stats.total} total · ${stats.offen} offen · ${stats.angenommen} angenommen`}
@@ -680,10 +686,7 @@ export default function Offerten() {
                           disabled={exporting === offer.id}
                           className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40">
                           {exporting === offer.id ? (
-                            <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                            </svg>
+                            <LoadingLogo />
                           ) : (
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

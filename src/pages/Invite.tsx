@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api, tokenStore } from '../services/api';
 import type { Invitation } from '../types';
+import LogoLoader, { LoadingLogo } from '../components/LogoLoader';
 
 export default function Invite() {
   const [params]   = useSearchParams();
@@ -49,11 +50,7 @@ export default function Invite() {
 
   const inputCls = 'w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100';
 
-  if (loading) return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <div className="text-slate-400 text-sm">Einladung wird geprüft …</div>
-    </div>
-  );
+  if (loading) return <LogoLoader text="Einladung wird geprüft…" />;
 
   if (error) return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
@@ -138,7 +135,7 @@ export default function Invite() {
 
             <button type="submit" disabled={sending}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40">
-              {sending && <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>}
+              {sending && <LoadingLogo />}
               Einladung annehmen
             </button>
           </form>

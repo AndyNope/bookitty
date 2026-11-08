@@ -9,6 +9,7 @@ import {
   type Account,
 } from '../data/chAccounts';
 import AccountCombobox from './AccountCombobox';
+import { LoadingIndicator, LoadingLogo } from './LogoLoader';
 import NumberInput from './NumberInput';
 import { suggestContraAccount, suggestAccount } from '../utils/documentParser';
 import { getFavorites, toggleFavorite } from '../utils/favoriteStore';
@@ -121,7 +122,7 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
         </h3>
       </div>
       <div className="flex-1 overflow-y-auto px-6 py-4">
-      {accountsLoading && <p role="status" className="mb-4 text-sm text-slate-500">Konten werden geladen…</p>}
+      {accountsLoading && <div className="mb-4"><LoadingIndicator text="Konten werden geladen…" size="small" /></div>}
       {loadError && <p role="alert" className="mb-4 text-sm text-rose-700">{loadError}</p>}
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm text-slate-600">
@@ -470,8 +471,9 @@ const BookingForm = ({ onSubmit, onCancel, initialValues, editMode, isSaving = f
         <button
           type="submit"
           disabled={isSaving || accountsLoading}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40"
         >
+          {isSaving && <LoadingLogo />}
           {editMode ? 'Änderungen speichern' : 'Buchung speichern'}
         </button>
       </div>

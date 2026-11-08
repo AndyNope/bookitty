@@ -11,6 +11,7 @@ import { useKittyHighlight } from '../hooks/useKittyHighlight';
 import { autoCategorizeDraft } from '../utils/kittySuggester';
 import { resolveAccount } from '../data/chAccounts';
 import { useAccounts } from '../hooks/useAccounts';
+import { LoadingLogo } from '../components/LogoLoader';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -213,7 +214,8 @@ const Buchungen = () => {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={applyAllSuggestions} disabled={savingBooking}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">
+              {savingBooking && <LoadingLogo />}
               Alle übernehmen
             </button>
             <button onClick={() => setAutoDismissed(true)} className="text-indigo-400 hover:text-indigo-600">
@@ -268,8 +270,9 @@ const Buchungen = () => {
                     setNotify({ open: true, type: 'error', title: 'Löschen fehlgeschlagen', message: (error as Error).message });
                   } finally { setSavingBooking(false); }
                 }}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+                className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
               >
+                {savingBooking && <LoadingLogo />}
                 Löschen bestätigen
               </button>
             </div>

@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 import { useBookkeeping } from '../store/BookkeepingContext';
 import type { Booking } from '../types';
 import { fetchDocument } from '../services/api';
+import { LoadingLogo } from '../components/LogoLoader';
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 const fmt = (n: number) =>
@@ -235,7 +236,8 @@ Konsultieren Sie Ihren Treuhänder für GeBüV-konforme Langzeitarchivierung.
             </div>
             <p className="text-xs text-slate-500">Komplettarchiv: JSON + CSV + alle Belege in einem ZIP. Empfohlen für die gesetzliche 10-Jahres-Archivierung.</p>
             <button onClick={handleZipExport} disabled={zipping}
-              className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
+              {zipping && <LoadingLogo />}
               {zipping ? (progress || 'Erstelle ZIP …') : 'ZIP herunterladen'}
             </button>
           </div>

@@ -1,14 +1,23 @@
-const LogoLoader = ({ text = 'Laden…' }: { text?: string }) => (
-  <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-5 bg-white/85 backdrop-blur-sm">
-    <div className="relative flex items-center justify-center">
-      <span className="absolute inline-flex h-24 w-24 rounded-full bg-slate-200 opacity-30 animate-ping" />
-      <img
-        src="/logo.svg"
-        alt="Bookitty"
-        className="w-20 h-20 animate-spin-slow drop-shadow-md"
-      />
+export const LoadingLogo = ({ size = 'small' }: { size?: 'small' | 'medium' | 'large' }) => (
+  <span aria-hidden="true" className={`loading-logo loading-logo--${size}`}>
+    <span className="loading-logo__ink"><span className="loading-logo__surface" /></span>
+  </span>
+);
+
+export const LoadingIndicator = ({ text = 'Laden…', size = 'medium' }: { text?: string; size?: 'small' | 'medium' }) => (
+  <span role="status" aria-live="polite" className="inline-flex items-center gap-3 text-sm text-slate-500">
+    <LoadingLogo size={size} />
+    <span>{text}</span>
+  </span>
+);
+
+const LogoLoader = ({ text = 'Laden…', onCancel }: { text?: string; onCancel?: () => void }) => (
+  <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-5 bg-white/90 px-6 text-center backdrop-blur-sm">
+    <div role="status" aria-live="polite" aria-atomic="true" className="flex flex-col items-center gap-5">
+      <LoadingLogo size="large" />
+      <p className="text-sm font-semibold text-slate-600">{text}</p>
     </div>
-    <p className="text-sm font-semibold text-slate-600 tracking-wide">{text}</p>
+    {onCancel && <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Stapel stoppen</button>}
   </div>
 );
 

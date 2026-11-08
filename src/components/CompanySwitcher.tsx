@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, tokenStore, type CompanyMembership } from '../services/api';
 import { useAuth } from '../store/AuthContext';
+import { LoadingIndicator } from './LogoLoader';
 
 export default function CompanySwitcher() {
   const { user } = useAuth();
@@ -37,6 +38,7 @@ export default function CompanySwitcher() {
         </select>
       </label>}
       {error && <p role="alert" className="mt-1 text-xs text-red-700">{error}</p>}
+      {busy && <div className="mt-2"><LoadingIndicator text="Firma wird gewechselt…" size="small" /></div>}
     </div>
   );
 }
