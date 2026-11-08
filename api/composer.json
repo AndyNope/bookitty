@@ -8,6 +8,6 @@
         "sort-packages": true
     },
     "scripts": {
-        "test": ["php ../tests/two-factor.php", "php ../tests/invoice-math.php"]
+        "test": ["php ../tests/two-factor.php", "php ../tests/invoice-math.php", "php ../tests/forex-api.php"]
     }
 }

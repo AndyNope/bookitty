@@ -4,6 +4,14 @@ function valid_forex_date(string $value): bool {
     return $date !== false && $date->format('Y-m-d') === $value && $value <= gmdate('Y-m-d');
 }
 
+function forex_is_list(array $values): bool {
+    $expected = 0;
+    foreach (array_keys($values) as $key) {
+        if ($key !== $expected++) return false;
+    }
+    return true;
+}
+
 function normalize_forex_rows(array $rows, string $requestedDate): array {
     $rates = [];
     $dates = [];
