@@ -11,7 +11,8 @@ set_exception_handler(function (Throwable $e) {
     if (!headers_sent()) http_response_code(500);
     echo json_encode(['error' => 'IMAP-Serverfehler']);
 });
-set_error_handler(function (int $errno, string $errstr) {
+set_error_handler(function (int $errno, string $errstr, string $errfile = '', int $errline = 0) {
+    if (!(error_reporting() & $errno)) return false;
     throw new ErrorException($errstr, $errno);
 });
 
