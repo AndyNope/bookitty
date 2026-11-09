@@ -51,6 +51,9 @@ jobs:
       - name: Test dashboard metrics
         run: npm run test:dashboard
 
+      - name: Test Kitty chat history
+        run: npm run test:kitty-history
+
       - name: Test loading indicators
         run: npm run test:loading
 

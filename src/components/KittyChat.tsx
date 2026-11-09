@@ -6,6 +6,8 @@ import type { KittyAction } from '../utils/kittySearch';
 import type { BookingSuggestion } from '../data/kittyKnowledge';
 import { useAuth } from '../store/AuthContext';
 import { completeOnboardingTask, getOnboardingScope } from '../utils/onboardingProgress';
+import { companyStorageKey } from '../utils/companyStorage';
+import { createChatConversation, MAX_CHAT_CONVERSATIONS, readChatHistory, updateChatMessages, type ChatConversation } from '../utils/kittyChatHistory';
 import { LoadingIndicator } from './LogoLoader';
 
 type Message = {
@@ -15,6 +17,15 @@ type Message = {
   isLocal?: boolean;
   action?: KittyAction;
 };
+
+const EMPTY_MESSAGES: Message[] = [];
+
+type ChatState = { activeId: string; conversations: ChatConversation<Message>[] };
+
+const createChatId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 const SUGGESTIONS = [
   'Wie erfasse ich eine Einnahme?',
@@ -105,15 +116,65 @@ const KittyChat = () => {
   const base = isDemo ? '/demo' : '/app';
   const { user } = useAuth();
   const onboardingScope = getOnboardingScope(user?.id, isDemo);
+  const chatStorageKey = companyStorageKey('bookitty.kitty.chats');
 
   const [open, setOpen]       = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatState, setChatState] = useState<ChatState>(() => {
+    let conversations: ChatConversation<Message>[] = [];
+    try { conversations = readChatHistory<Message>(localStorage.getItem(chatStorageKey)); } catch { /* storage unavailable */ }
+    if (!conversations.length) conversations = [createChatConversation<Message>(createChatId(), new Date().toISOString())];
+    return { activeId: conversations[0].id, conversations };
+  });
+  const activeChatId = chatState.activeId;
+  const conversations = chatState.conversations;
+  const messages = conversations.find((conversation) => conversation.id === activeChatId)?.messages ?? EMPTY_MESSAGES;
   const [input, setInput]     = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
   const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
   const bottomRef             = useRef<HTMLDivElement>(null);
   const inputRef              = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem(chatStorageKey, JSON.stringify(conversations)); } catch { /* storage unavailable */ }
+  }, [chatStorageKey, conversations]);
+
+  const updateConversationMessages = (chatId: string, update: (current: Message[]) => Message[]) => {
+    setChatState((current) => {
+      const conversation = current.conversations.find((item) => item.id === chatId);
+      if (!conversation) return current;
+      return {
+        ...current,
+        conversations: updateChatMessages(current.conversations, chatId, update(conversation.messages), new Date().toISOString()),
+      };
+    });
+  };
+
+  const createNewChat = () => {
+    const conversation = createChatConversation<Message>(createChatId(), new Date().toISOString());
+    setChatState((current) => ({
+      activeId: conversation.id,
+      conversations: [conversation, ...current.conversations].slice(0, MAX_CHAT_CONVERSATIONS),
+    }));
+    setError('');
+  };
+
+  const deleteActiveChat = () => {
+    if (!window.confirm('Diesen gespeicherten Chat wirklich löschen?')) return;
+    setChatState((current) => {
+      const remaining = current.conversations.filter((conversation) => conversation.id !== current.activeId);
+      const next = remaining[0] ?? createChatConversation<Message>(createChatId(), new Date().toISOString());
+      return { activeId: next.id, conversations: remaining.length ? remaining : [next] };
+    });
+    setError('');
+  };
+
+  const selectChat = (id: string) => {
+    setChatState((current) => current.conversations.some((conversation) => conversation.id === id)
+      ? { ...current, activeId: id }
+      : current);
+    setError('');
+  };
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('kitty:visibility', { detail: open }));
@@ -136,7 +197,7 @@ const KittyChat = () => {
       if (!b) return;
       const fmtAmt = new Intl.NumberFormat('de-CH', { style: 'currency', currency: b.currency ?? 'CHF' }).format(b.amount ?? 0);
       const ctx = `Buchung vom **${b.date}**: ${b.description} — ${fmtAmt} | Soll: ${b.account} | Haben: ${b.contraAccount}`;
-      setMessages((prev) => [
+      updateConversationMessages(activeChatId, (prev) => [
         ...prev,
         { role: 'user', text: ctx },
         { role: 'model', text: `Ich sehe die Buchung **${b.description}** (${fmtAmt}, ${b.date}).\n\nWas möchtest du wissen? Zum Beispiel: Ist die Kontierung korrekt? Welcher MwSt-Satz gilt? Oder soll ich dir eine Änderung vorschlagen?`, isLocal: true },
@@ -145,7 +206,7 @@ const KittyChat = () => {
     };
     window.addEventListener('kitty:context', handler);
     return () => window.removeEventListener('kitty:context', handler);
-  }, []);
+  }, [activeChatId]);
 
   useEffect(() => {
     const openHandler = () => setOpen(true);
@@ -166,9 +227,10 @@ const KittyChat = () => {
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
     setError('');
+    const chatId = activeChatId;
     const userMsg: Message = { role: 'user', text: text.trim() };
     const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
+    updateConversationMessages(chatId, () => nextMessages);
     setInput('');
     setLoading(true);
 
@@ -184,7 +246,7 @@ const KittyChat = () => {
         }));
       }
 
-      setMessages(prev => [...prev, {
+      updateConversationMessages(chatId, (prev) => [...prev, {
         role: 'model',
         text: pickAnswer(localMatch),
         followUp: localMatch.followUp,
@@ -217,7 +279,7 @@ const KittyChat = () => {
       if (!res.ok || data.error) {
         setError(data.error ?? 'Fehler beim Laden der Antwort.');
       } else {
-        setMessages((prev) => [...prev, { role: 'model', text: data.text }]);
+        updateConversationMessages(chatId, (prev) => [...prev, { role: 'model', text: data.text }]);
         if (data.text?.trim() && onboardingScope) completeOnboardingTask('kitty', onboardingScope);
         if (data.usage) setRemainingTokens(data.usage.monthlyTokens + data.usage.purchasedTokens);
       }
@@ -300,6 +362,19 @@ const KittyChat = () => {
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+            <label htmlFor="kitty-conversation" className="sr-only">Gespeicherte Chats</label>
+            <select id="kitty-conversation" value={activeChatId} onChange={(event) => selectChat(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700">
+              {conversations.map((conversation) => <option key={conversation.id} value={conversation.id}>{conversation.title}</option>)}
+            </select>
+            <button type="button" onClick={createNewChat} aria-label="Neuer Chat" title="Neuer Chat" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" /></svg>
+            </button>
+            <button type="button" onClick={deleteActiveChat} aria-label="Chat löschen" title="Chat löschen" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3" /></svg>
             </button>
           </div>
 

@@ -92,10 +92,11 @@ const Login = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={needsTwoFactor}
                 placeholder="deine@email.ch"
                 required
                 autoComplete="email"
-                className="mt-0.5 rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-slate-400 focus:outline-none"
+                className="mt-0.5 rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-slate-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               />
             </label>
 
@@ -105,10 +106,11 @@ const Login = () => {
                 type="password"
                 value={pass}
                 onChange={(e) => setPass(e.target.value)}
+                disabled={needsTwoFactor}
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
-                className="mt-0.5 rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-slate-400 focus:outline-none"
+                className="mt-0.5 rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-slate-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               />
             </label>
 
@@ -122,6 +124,14 @@ const Login = () => {
 
             {error && (
               <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+            )}
+
+            {needsTwoFactor && (
+              <button
+                type="button"
+                onClick={() => { setNeedsTwoFactor(false); setCode(''); setError(''); }}
+                className="text-sm font-medium text-slate-600 underline underline-offset-2 hover:text-slate-900"
+              >Andere Anmeldedaten verwenden</button>
             )}
 
             <button

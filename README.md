@@ -18,6 +18,7 @@ Moderne Finanzbuchhaltungs-WebApp für Schweizer KMU — mit KI-Chatbot, automat
   - **Nav-Highlight** – blinkt das relevante Menü-Element grün auf
   - **Buchungsvorschläge** – zeigt vorausgefüllte Buchungskarte mit Soll/Haben/MwSt
   - **Direkt erfassen** – ein Klick öffnet das Buchungsformular mit allen Werten vorausgefüllt
+- **Gespeicherte Chats** – mehrere Unterhaltungen im Browser anlegen, wechseln und fortsetzen. Im angemeldeten Bereich werden Verläufe lokal je Firma getrennt gespeichert; sie werden nicht zwischen Geräten synchronisiert.
 - **OpenRouter-Fallback** – 9-Modell-Kette (kostenlose Modelle) für Fragen ausserhalb der Knowledge Base
 
 ### Authentifizierung

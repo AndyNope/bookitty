@@ -14,6 +14,7 @@
     "test:forex": "node --import tsx --test tests/forex.test.ts tests/currencies.test.ts",
     "test:reports": "node --import tsx --test tests/financial-report.test.ts",
     "test:dashboard": "node --import tsx --test tests/dashboard-metrics.test.ts",
+    "test:kitty-history": "node --import tsx --test tests/kitty-chat-history.test.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
