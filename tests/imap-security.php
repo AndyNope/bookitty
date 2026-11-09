@@ -14,4 +14,8 @@ $check(str_contains(imap_connection_error_message(['Authentication failed']), 'A
 $check(str_contains(imap_connection_error_message(['certificate verify failed']), 'TLS-Zertifikat'), 'TLS-Fehler ist nicht getrennt erklärt');
 $check(str_contains(imap_connection_error_message(['Mailbox does not exist']), 'Ordner'), 'Mailboxfehler ist nicht getrennt erklärt');
 $check(str_contains(imap_connection_error_message(['Connection timed out']), 'nicht erreichbar'), 'Netzwerkfehler ist nicht getrennt erklärt');
+$firstPage = imap_uid_page(range(1, 2005), null, 50);
+$check(count($firstPage['uids']) === 50 && $firstPage['uids'][0] === 2005 && $firstPage['uids'][49] === 1956, 'Erste IMAP-Seite enthält nicht die neuesten 50 UIDs');
+$secondPage = imap_uid_page(range(1, 2005), $firstPage['nextCursor'], 50);
+$check($secondPage['uids'][0] === 1955 && $secondPage['remaining'] === 1905, 'IMAP-Cursor setzt ältere Seiten nicht korrekt fort');
 echo "IMAP-Hostfreigabe und Portbegrenzung erfolgreich.\n";

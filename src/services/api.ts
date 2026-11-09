@@ -173,7 +173,7 @@ export const api = {
   imap: {
     get:   ()             => apiFetch<{ host?: string; port?: number; username?: string; ssl?: boolean; folder?: string }>('/imap.php'),
     save:  (data: object) => apiFetch<{ ok: boolean }>('/imap.php', { method: 'PUT', body: JSON.stringify(data) }),
-    fetch: ()             => apiFetch<{ ok: boolean; emails: Array<{ subject: string; from: string; date: string; messageId: string; filename: string; data: string }> }>('/imap.php', { method: 'POST' }),
+    fetch: (before?: number) => apiFetch<{ ok: boolean; emails: Array<{ subject: string; from: string; date: string; messageId: string; filename: string; data: string }>; scanned: number; skipped: number; remaining: number; nextCursor: number | null }>('/imap.php', { method: 'POST', body: JSON.stringify({ action: 'fetch', ...(before !== undefined ? { before } : {}) }) }),
     acknowledge: (messageId: string) => apiFetch<{ ok: boolean }>('/imap.php', { method: 'POST', body: JSON.stringify({ action: 'ack', messageId }) }),
   },
 

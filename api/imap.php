@@ -129,6 +129,10 @@ if ($method === 'POST') {
     if ($action !== 'fetch') {
         http_response_code(400); echo json_encode(['error' => 'Ungültige Aktion.']); exit;
     }
+    $before = $body['before'] ?? null;
+    if ($before !== null && (!is_int($before) || $before < 1)) {
+        http_response_code(400); echo json_encode(['error' => 'Ungültiger IMAP-Fortschritt.']); exit;
+    }
     if (!function_exists('imap_open')) {
         http_response_code(501);
         echo json_encode(['error' => 'IMAP extension (php-imap) nicht aktiviert auf diesem Server.']);
@@ -184,44 +188,47 @@ if ($method === 'POST') {
         exit;
     }
 
-    // Fetch last 50 messages, newest first
-    $count = imap_num_msg($conn);
-    if ($count === 0) {
+    // Search all UIDs, then process a bounded page so large inboxes do not time out.
+    $allUids = imap_search($conn, 'ALL', SE_UID);
+    if (!is_array($allUids) || !$allUids) {
         imap_close($conn);
-        echo json_encode(['ok' => true, 'emails' => []]);
+        echo json_encode(['ok' => true, 'emails' => [], 'scanned' => 0, 'remaining' => 0, 'nextCursor' => null]);
         exit;
     }
-    $start = max(1, $count - 49);
-    $uids  = imap_fetch_overview($conn, "$start:$count", 0);
-    if ($uids === false) {
-        imap_close($conn);
-        http_response_code(502); echo json_encode(['error' => 'E-Mails konnten nicht abgerufen werden.']); exit;
-    }
+    $page = imap_uid_page($allUids, $before, 50);
 
     $results = [];
+    $skipped = 0;
 
-    foreach (array_reverse($uids) as $msg) {
-        $messageId = trim($msg->message_id ?? ('uid-' . $msg->uid));
+    foreach ($page['uids'] as $uid) {
+        $sequence = imap_msgno($conn, (int) $uid);
+        if ($sequence < 1) continue;
+        $overview = imap_fetch_overview($conn, (string) $sequence, 0);
+        $msg = is_array($overview) ? ($overview[0] ?? null) : null;
+        if (!$msg) continue;
+        $messageId = trim($msg->message_id ?? '');
+        if ($messageId === '' || mb_strlen($messageId) > 500) $messageId = 'uid-' . $uid;
 
         // Deduplicate
         $check = $pdo->prepare('SELECT id FROM email_imports WHERE user_id = ? AND message_id = ?');
         $check->execute([$userId, $messageId]);
         if ($check->fetch()) continue; // already imported
 
-        $raw = imap_fetchbody($conn, $msg->msgno, '');
-        if (!$raw) continue;
-
-        // Decode the full RFC 822 message
         $subject = imap_utf8($msg->subject ?? '');
         $from    = $msg->from ?? '';
         $date    = $msg->date ?? '';
 
         // Look for PDF attachments
-        $structure = imap_fetchstructure($conn, $msg->msgno);
+        $structure = imap_fetchstructure($conn, $sequence);
+        if (!$structure) continue;
         $attachments = [];
-        _extract_pdf_parts($conn, $msg->msgno, $structure, $attachments);
+        _extract_pdf_parts($conn, $sequence, $structure, $attachments);
 
-        if (empty($attachments)) continue; // no PDF → skip
+        if (empty($attachments)) {
+            $pdo->prepare('INSERT IGNORE INTO email_imports (user_id, message_id) VALUES (?, ?)')->execute([$userId, $messageId]);
+            $skipped++;
+            continue;
+        }
 
         foreach ($attachments as $att) {
             $results[] = [
@@ -236,7 +243,14 @@ if ($method === 'POST') {
     }
 
     imap_close($conn);
-    echo json_encode(['ok' => true, 'emails' => $results]);
+    echo json_encode([
+        'ok' => true,
+        'emails' => $results,
+        'scanned' => count($page['uids']),
+        'skipped' => $skipped,
+        'remaining' => $page['remaining'],
+        'nextCursor' => $page['nextCursor'],
+    ]);
     exit;
 }
 

@@ -48,6 +48,8 @@ const Dokumente = () => {
   const [processingStatus, setProcessingStatus] = useState('Beleg wird verarbeitet…');
   const [batchActive, setBatchActive] = useState(false);
   const cancelBatch = useRef(false);
+  const [imapBatchActive, setImapBatchActive] = useState(false);
+  const cancelImap = useRef(false);
   const [imapStatus, setImapStatus] = useState<string | null>(null);
   const [notify, setNotify] = useState<{ open: boolean; type: 'success' | 'error'; title: string; message: string }>({
     open: false, type: 'success', title: '', message: '',
@@ -220,33 +222,42 @@ const Dokumente = () => {
 
   const handleImapFetch = async () => {
     let count = 0;
+    let scanned = 0;
+    let before: number | undefined;
+    let hasMore = true;
     try {
       setIsProcessing(true);
+      setImapBatchActive(true);
+      cancelImap.current = false;
       await prepareDocumentLearning();
-      setImapStatus('E-Mails werden abgerufen…');
-      const { emails } = await api.imap.fetch();
-      if (emails.length === 0) {
-        setImapStatus('Keine neuen Rechnungs-E-Mails gefunden.');
-        setTimeout(() => setImapStatus(null), 4000);
-        return;
-      }
-      const messages = new Map<string, typeof emails>();
-      for (const email of emails) messages.set(email.messageId, [...(messages.get(email.messageId) ?? []), email]);
-      for (const [messageId, attachments] of messages) {
-        for (const email of attachments) {
-          const bytes = Uint8Array.from(atob(email.data), (c) => c.charCodeAt(0));
-          const pdfFile = new File([bytes.buffer as ArrayBuffer], email.filename, { type: 'application/pdf' });
-          let result: Awaited<ReturnType<typeof processDocument>> | undefined;
-          try { result = await processDocument(pdfFile); } catch { result = undefined; }
-          if (result && email.subject && !result.draft.description.startsWith('Rechnung')) result.draft.description = email.subject;
-          await addDocument(pdfFile, result?.draft, result ? `IMAP+${result.detection}` : 'IMAP', result?.templateApplied, result?.vendorPattern);
-          count++;
+      while (hasMore && !cancelImap.current) {
+        setProcessingStatus(`E-Mails geprüft: ${scanned} · ${count} Belege vorbereitet…`);
+        const batch = await api.imap.fetch(before);
+        scanned += batch.scanned;
+        const messages = new Map<string, typeof batch.emails>();
+        for (const email of batch.emails) messages.set(email.messageId, [...(messages.get(email.messageId) ?? []), email]);
+        for (const [messageId, attachments] of messages) {
+          for (const email of attachments) {
+            const bytes = Uint8Array.from(atob(email.data), (c) => c.charCodeAt(0));
+            const pdfFile = new File([bytes.buffer as ArrayBuffer], email.filename, { type: 'application/pdf' });
+            let result: Awaited<ReturnType<typeof processDocument>> | undefined;
+            try { result = await processDocument(pdfFile); } catch { result = undefined; }
+            if (result && email.subject && !result.draft.description.startsWith('Rechnung')) result.draft.description = email.subject;
+            await addDocument(pdfFile, result?.draft, result ? `IMAP+${result.detection}` : 'IMAP', result?.templateApplied, result?.vendorPattern);
+            count++;
+          }
+          await api.imap.acknowledge(messageId);
         }
-        await api.imap.acknowledge(messageId);
+        before = batch.nextCursor ?? undefined;
+        hasMore = batch.nextCursor !== null;
+        setImapStatus(`${scanned} E-Mails geprüft · ${count} Belege vorbereitet${batch.remaining ? ` · ${batch.remaining} ältere E-Mails` : ''}`);
       }
-      setImapStatus(`${count} neue${count === 1 ? '' : ' '} Belege importiert.`);
+      const stopped = cancelImap.current && hasMore;
+      setImapStatus(stopped
+        ? `Abruf angehalten · ${scanned} E-Mails geprüft · ${count} Belege importiert.`
+        : count ? `${count} Belege aus ${scanned} E-Mails importiert.` : `${scanned} E-Mails geprüft · keine neuen PDF-Belege gefunden.`);
       setTimeout(() => setImapStatus(null), 5000);
-      showNotify('success', 'E-Mails abgerufen', `${count} neue${count === 1 ? 'r' : ''} Beleg${count === 1 ? '' : 'e'} wurden importiert.`);
+      showNotify('success', stopped ? 'Abruf angehalten' : 'E-Mails geprüft', `${scanned} E-Mails geprüft, ${count} neue PDF-Belege importiert.${stopped ? ' Du kannst später erneut abrufen.' : ''}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unbekannter Fehler';
       setImapStatus(`Fehler: ${msg}`);
@@ -254,6 +265,7 @@ const Dokumente = () => {
       showNotify('error', 'IMAP-Abruf fehlgeschlagen', `${msg}. Bereits gespeichert: ${count}. Vor erneutem Abruf bitte auf doppelte Belege prüfen.`);
     } finally {
       setIsProcessing(false);
+      setImapBatchActive(false);
     }
   };
 
@@ -278,7 +290,7 @@ const Dokumente = () => {
 
   return (
     <div className="space-y-6">
-      {isProcessing && <LogoLoader text={processingStatus} onCancel={batchActive ? () => { cancelBatch.current = true; setProcessingStatus('Stopp vorgemerkt. Der aktuelle Beleg wird noch abgeschlossen…'); } : undefined} />}
+      {isProcessing && <LogoLoader text={processingStatus} onCancel={batchActive ? () => { cancelBatch.current = true; setProcessingStatus('Stopp vorgemerkt. Der aktuelle Beleg wird noch abgeschlossen…'); } : imapBatchActive ? () => { cancelImap.current = true; setProcessingStatus('Stopp vorgemerkt. Der aktuelle E-Mail-Stapel wird noch abgeschlossen…'); } : undefined} />}
       <NotificationModal
         open={notify.open}
         type={notify.type}

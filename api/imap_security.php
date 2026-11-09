@@ -48,3 +48,16 @@ function imap_connection_error_message(array|false $errors): string {
     }
     return 'IMAP-Anmeldung oder Mailbox konnte nicht geöffnet werden. Zugangsdaten, IMAP-Freigabe und Ordner prüfen.';
 }
+
+function imap_uid_page(array $uids, ?int $before, int $limit = 50): array {
+    $uids = array_values(array_unique(array_filter($uids, static fn($uid) =>
+        is_numeric($uid) && (int) $uid > 0 && ($before === null || (int) $uid < $before),
+    )));
+    rsort($uids, SORT_NUMERIC);
+    $page = array_slice($uids, 0, max(1, min($limit, 100)));
+    return [
+        'uids' => $page,
+        'nextCursor' => count($uids) > count($page) ? (int) end($page) : null,
+        'remaining' => max(0, count($uids) - count($page)),
+    ];
+}
