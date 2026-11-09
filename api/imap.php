@@ -178,8 +178,9 @@ if ($method === 'POST') {
 
     $conn = @imap_open($mbox, $cfg['username'], $password, 0, 1);
     if (!$conn) {
+        $imapErrors = function_exists('imap_errors') ? imap_errors() : false;
         http_response_code(502);
-        echo json_encode(['error' => 'IMAP-Verbindung fehlgeschlagen. Bitte Server, Zugangsdaten und Zertifikat prüfen.']);
+        echo json_encode(['error' => imap_connection_error_message($imapErrors)]);
         exit;
     }
 

@@ -31,3 +31,20 @@ function imap_server_allowed(string $host, int $port): bool {
     $servers = array_map(fn($server) => strtolower(trim((string) $server)), array_merge(['merkur.kreativmedia.ch:993'], $servers));
     return in_array($host . ':' . $port, $servers, true);
 }
+
+function imap_connection_error_message(array|false $errors): string {
+    $details = strtolower(implode(' ', is_array($errors) ? $errors : []));
+    if (preg_match('/auth(?:entication)? failed|login failed|invalid credentials|username.*password|password.*(?:invalid|failed)/', $details)) {
+        return 'Der Mailserver hat die Anmeldung abgelehnt. Benutzername und Passwort bzw. ein nötiges App-Passwort sowie die IMAP-Freigabe im Postfach prüfen.';
+    }
+    if (preg_match('/certificate|cert verify|ssl|tls|handshake|peer/', $details)) {
+        return 'Das TLS-Zertifikat konnte nicht geprüft werden. Servername und SSL-Port 993 prüfen.';
+    }
+    if (preg_match('/mailbox|folder|no such|does not exist|select.*(?:fail|error)/', $details)) {
+        return 'Der IMAP-Ordner wurde nicht gefunden. Ordnername prüfen; üblich ist INBOX.';
+    }
+    if (preg_match('/connect|connection|timed? out|refused|network|unreachable|resolve/', $details)) {
+        return 'Der IMAP-Server ist nicht erreichbar. Hostname, Port 993 und serverseitige Netzwerkfreigabe prüfen.';
+    }
+    return 'IMAP-Anmeldung oder Mailbox konnte nicht geöffnet werden. Zugangsdaten, IMAP-Freigabe und Ordner prüfen.';
+}
